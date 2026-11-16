@@ -6496,7 +6496,12 @@
       target.globalAlpha = alpha;
       target.globalCompositeOperation = blend;
       if (!turning) {
-        if (rect && Number.isInteger(x) && Number.isInteger(y)) {
+        // Its part in the rectangle alone, when the layer is laid as it is: faded or blended, a
+        // part of a picture doesn't round as the whole picture does, and the page would differ
+        // by a level from the same page drawn whole. Except during a stroke, whose every frame
+        // would send a whole canvas being painted to the graphics card: the end of the stroke
+        // draws where it passed again.
+        if (rect && (doc.liveStroke || (alpha === 1 && blend === "source-over")) && Number.isInteger(x) && Number.isInteger(y)) {
           const left = Math.max(x, rect.left);
           const top = Math.max(y, rect.top);
           const width = Math.min(x + visual.canvas.width, rect.right) - left;
@@ -6548,6 +6553,10 @@
       });
     };
     paintingScreen = Boolean(options.screen);
+    if (options.screen) {
+      if (looseOn(doc)) doc.looseShown = true;
+      else if (!rect) doc.looseShown = false;
+    }
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, options.x || 0, options.y || 0);
     if (rect) {
@@ -8784,6 +8793,47 @@
     if (doc) emit("selection", doc.state.selection);
   };
 
+  // What the screen may show that the state doesn't say: a layer being turned, something tried
+  // out, a mask shown in red. paintDoc notes on the document that the screen showed it
+  // (`looseShown`), until the whole page is drawn again without it. A layer being dragged or
+  // painted isn't of them: each step of it says the part of the page it changes, its end too.
+  const looseOn = (doc) => Boolean(doc.liveTransform || doc.preview || doc.extra || doc.orderPreview || doc.blendPreview || doc.levels || doc.maskView || (doc.stylePreview && doc.stylePreview.state === doc.state));
+  const NO_RECT = { left: 0, top: 0, right: 0, bottom: 0 };
+  // The part of the page two states differ in, when the layers alone tell: the same layers in
+  // the same order, and those that changed plain ones (no folder, no adjustment, none in a
+  // styled folder, which is drawn as one picture) that kept their folder and their place in a
+  // clipping mask. Each changes the page where it showed and where it shows, its stroke, shadow
+  // and glow included; what is clipped to it shows only there too. Undefined when more can have
+  // changed: the whole page then. So on a page of fifty million pixels an arrow key, an undo or
+  // a new font redraws a bubble, not the page.
+  const changedRect = (doc, before, after) => {
+    if (doc.looseShown || looseOn(doc) || doc.live || doc.liveStroke || before.quickMask || after.quickMask) return undefined;
+    const was = before.layers;
+    const now = after.layers;
+    if (was === now) return NO_RECT;
+    if (was.length !== now.length) return undefined;
+    let box = null;
+    let byId = null;
+    for (let i = 0; i < now.length; i++) {
+      const a = was[i];
+      const b = now[i];
+      if (a === b) continue;
+      if (a.id !== b.id || a.kind !== b.kind || a.kind === "group" || a.adjustment || b.adjustment || Boolean(a.clipping) !== Boolean(b.clipping) || (a.group || null) !== (b.group || null)) return undefined;
+      if (b.group) {
+        byId = byId || new Map(now.map((layer) => [layer.id, layer]));
+        if (nearestStyledOf(b, byId, now)) return undefined;
+        // In a hidden folder, nothing of it shows
+        if (!chainOf(Object.assign({}, b, { visible: true }), byId).visible) continue;
+      }
+      for (const layer of [a, b]) {
+        if (layer.visible === false) continue;
+        const visual = pageVisualOf(layer, doc);
+        if (visual && visual.canvas && visual.canvas.width) box = unionOf(box, visualRect(visual));
+      }
+    }
+    return box ? pageRect(doc, box.left, box.top, box.right, box.bottom) : NO_RECT;
+  };
+
   // Gestures that repeat (arrow keys, a slider) make one step of history
   // `rect`, if given, says the part of the page the step changed, once the state is in place;
   // false, that nothing on screen did (a page that isn't in front)
@@ -8804,7 +8854,8 @@
       last.time = Date.now();
     } else pushHistory(doc, name, coalesce);
     emit("history");
-    if (rect !== false) emit("render", rect ? rect() : undefined);
+    // Texts moved by their perspective zone: all the page
+    if (rect !== false) emit("render", rect ? rect() : settled ? undefined : changedRect(doc, before, doc.state));
   };
   // The part of the page a layer's picture covers
   const visualBounds = (layer, doc) => {
@@ -11208,11 +11259,21 @@
       const doc = app.doc;
       if (!doc || !doc.live) return;
       const { ids, dx, dy } = doc.live;
-      doc.live = null;
       const x = Math.round(dx);
       const y = Math.round(dy);
+      // Let go where it was, or given up: back in its place, the page is drawn again where it
+      // was shown and where it is. A click that moved nothing leaves the page as it is.
+      let back = NO_RECT;
+      if ((x || y) && !commit) {
+        const shown = liveBounds(doc);
+        doc.live.dx = 0;
+        doc.live.dy = 0;
+        const home = liveBounds(doc);
+        back = shown && home ? pageRect(doc, Math.min(shown.left, home.left), Math.min(shown.top, home.top), Math.max(shown.right, home.right), Math.max(shown.bottom, home.bottom)) : undefined;
+      }
+      doc.live = null;
       if (commit && (x || y)) ops.moveLayers(Array.from(ids), x, y);
-      else emit("render");
+      else emit("render", back);
     },
     moveLayers(ids, dx, dy, coalesce) {
       const doc = app.doc;
@@ -14150,14 +14211,17 @@
     jump(index) {
       const doc = app.doc;
       const before = sizeOf(doc);
+      const left = doc.state;
       const { size } = doc.history[index];
       doc.historyIndex = index;
       doc.state = doc.history[index].state;
       if (size) Object.assign(doc, size);
+      const resized = doc.width !== before.width || doc.height !== before.height || doc.resolution !== before.resolution;
       emit("history");
       emit("selection", doc.state.selection);
-      emit("render");
-      if (doc.width !== before.width || doc.height !== before.height || doc.resolution !== before.resolution) sizeChanged(doc, before);
+      // An undo redraws what it changed, when that can be told
+      emit("render", resized ? undefined : changedRect(doc, left, doc.state));
+      if (resized) sizeChanged(doc, before);
       firePanelEvent(EVENT_HISTORY);
     },
     /* ---- documents ---- */

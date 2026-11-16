@@ -953,7 +953,8 @@
     placeReview();
   };
   const schedule = (compose, rect) => {
-    if (compose) {
+    // An empty part: the page itself is as it was (another layer chosen, a selection made)
+    if (compose && !(rect && (rect.right <= rect.left || rect.bottom <= rect.top))) {
       needCompose = true;
       if (!rect) composeAll = true;
       else if (!composeRect) composeRect = rect;
