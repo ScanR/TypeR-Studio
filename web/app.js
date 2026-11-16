@@ -11712,6 +11712,9 @@
   ui.layers.addEventListener("click", (event) => {
     if (event.target === ui.layers && app.doc && app.doc.state.activeIds.length) ops.clearActiveLayers();
   });
+  // A click in the list applies a transform waiting on the page first, as in Photoshop: the
+  // layer it picks or the eye it turns off would otherwise drop it
+  ui.layers.addEventListener("click", () => commitTransform(), true);
   ui.layers.addEventListener("contextmenu", (event) => {
     if (event.target !== ui.layers || Shell.touch) return;
     event.preventDefault();
