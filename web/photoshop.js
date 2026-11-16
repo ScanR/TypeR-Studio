@@ -155,6 +155,71 @@
     return style.ligature === false ? cased.replace(/(\p{Script=Latin})(?=\p{Script=Latin})/gu, "$1‌") : cased;
   };
 
+  // A letter with the marks it carries (a Thai consonant with its vowel and its tone mark, an
+  // "e" with a combining accent, an emoji made of several) is one letter to the reader: it is
+  // measured, kerned, cut and stepped over whole, or the marks would be set as letters of their
+  // own, off their base. Most texts have none: they aren't looked into.
+  const HAS_CLUSTERS = /[\p{M}‍ำຳ]|[\u{10000}-\u{10FFFF}]/u;
+  // What never stands without the letter before it: a mark, or the second half of an emoji
+  const CARRIED = /[\p{M}ำຳ\uDC00-\uDFFF]/u;
+  const segmenters = new Map();
+  const segmenterOf = (granularity, locale) => {
+    const key = granularity + "|" + (locale || "");
+    if (!segmenters.has(key)) {
+      let made = null;
+      try {
+        made = window.Intl && Intl.Segmenter ? new Intl.Segmenter(locale, { granularity }) : null;
+      } catch (error) {
+        made = null;
+      }
+      segmenters.set(key, made);
+    }
+    return segmenters.get(key);
+  };
+  const lettersOf = (text) => {
+    const segmenter = HAS_CLUSTERS.test(text) ? segmenterOf("grapheme") : null;
+    return segmenter ? Array.from(segmenter.segment(text), (part) => part.segment) : Array.from(text);
+  };
+  // Where a text can be cut between two letters: every index of a plain text (null), else the
+  // start of each letter and the text's end
+  const letterStartsOf = (text) => {
+    if (!HAS_CLUSTERS.test(text)) return null;
+    const starts = new Set([text.length]);
+    let at = 0;
+    lettersOf(text).forEach((letter) => {
+      starts.add(at);
+      at += letter.length;
+    });
+    return starts;
+  };
+
+  // Thai, Lao, Khmer and Burmese put no space between the words of a sentence: a line breaks
+  // between two words, which only a dictionary tells apart (the browser's own, the one that
+  // wraps a web page in these languages). No hyphen is added there. Photoshop's Latin
+  // composers know none of this; its World-Ready ones break these scripts the same way.
+  const UNSPACED_SCRIPTS = [["th", /\p{Script=Thai}/u], ["lo", /\p{Script=Lao}/u], ["km", /\p{Script=Khmer}/u], ["my", /\p{Script=Myanmar}/u]];
+  const UNSPACED = /[\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
+  // What never starts a line: the repetition and abbreviation signs and the marks that end a
+  // sentence, which stay with the word before them
+  const UNSPACED_NO_START = /[ฯๆ๚๛ຯໆ។-៚၊။]/;
+  const unspaced = (ch) => Boolean(ch) && UNSPACED.test(ch);
+  // Whether a line can end between these two letters with nothing added: both of a script
+  // written without spaces
+  const breaksBare = (before, after) => unspaced(before) && unspaced(after) && !UNSPACED_NO_START.test(after[0]);
+  // The places inside a text where a line can break without a space: null when it has none
+  const softBreaksOf = (text) => {
+    const script = UNSPACED.test(text) && UNSPACED_SCRIPTS.find((item) => item[1].test(text));
+    const segmenter = script ? segmenterOf("word", script[0]) : null;
+    if (!segmenter) return null;
+    const starts = letterStartsOf(text);
+    const breaks = new Set();
+    for (const part of segmenter.segment(text)) {
+      const at = part.index;
+      if (at > 0 && (!starts || starts.has(at)) && breaksBare(String.fromCodePoint(text.codePointAt(at - 1)), String.fromCodePoint(text.codePointAt(at)))) breaks.add(at);
+    }
+    return breaks.size ? breaks : null;
+  };
+
   // textKey -> lines, each with its runs (a run: text and the style of its range)
   const splitLines = (layerText) => {
     const text = layerText.textKey || "";
@@ -178,7 +243,9 @@
         continue;
       }
       const style = styleAt(i);
-      if (run && run.style === style) run.text += ch;
+      // A mark styled apart from the letter that carries it (kerning set by hand before a Thai
+      // letter goes on its consonant alone) is drawn with it, in the letter's style
+      if (run && (run.style === style || CARRIED.test(ch))) run.text += ch;
       else {
         run = { text: ch, style };
         current.push(run);
@@ -224,7 +291,7 @@
       // Each letter kerned by hand is drawn on its own, after its space (none at a line's start).
       // A tab draws nothing: what follows it starts at the next stop.
       const kern = kernBefore(run.style, size);
-      (kern ? Array.from(run.text) : run.text.includes("\t") ? run.text.split(/(\t)/).filter(Boolean) : [run.text]).forEach((text) => {
+      (kern ? lettersOf(run.text) : run.text.includes("\t") ? run.text.split(/(\t)/).filter(Boolean) : [run.text]).forEach((text) => {
         if (kern && (placed.length || advance)) advance += kern;
         if (text === "\t") {
           advance = (Math.floor(advance / TAB_STOP + 1e-6) + 1) * TAB_STOP;
@@ -328,9 +395,20 @@
   //   does: only a word longer than the word size, never next to its own hyphens or
   //   apostrophes, and not when the line without it already stops within the zone.
   // - A word wider than the box alone is cut at a syllable, or else between two letters.
+  // - Thai, Lao, Khmer and Burmese, written without spaces, also break between two words
+  //   (see softBreaksOf), with no hyphen.
+  // - A letter is never cut from the marks it carries (see lettersOf).
   const wrapRuns = (runs, width, resolution, hyphenRules, hanging) => {
     const text = runs.map((run) => run.text).join("");
     const isGap = (ch) => ch === " " || ch === "\t";
+    const soft = softBreaksOf(text);
+    const starts = letterStartsOf(text);
+    // The end of the letter that starts at `at`
+    const letterEnd = (at) => {
+      let end = at + 1;
+      while (starts && end < text.length && !starts.has(end)) end++;
+      return end;
+    };
     const setWidth = (lineRuns) => {
       const m = measureRuns(lineRuns, resolution);
       const advance = m.advance - trailingTracking(m);
@@ -354,7 +432,10 @@
     const pushLine = (from, to) => {
       let end = to;
       while (end > from && isGap(text[end - 1])) end--;
-      lines.push(sliceRuns(runs, from, end));
+      const line = sliceRuns(runs, from, end);
+      // No space was there to leave out: the next line follows this one's last letter
+      if (end === to && to < text.length) line.bare = true;
+      lines.push(line);
     };
     const lettersIn = (from, to) => (text.slice(from, to).match(/[\p{L}\p{N}]/gu) || []).length;
     // Where the word around `at`, which ends at `end`, can be cut with a hyphen so that the
@@ -379,7 +460,7 @@
       }
       cuts.sort((a, b) => b - a);
       for (const cut of cuts) {
-        if (cut <= lineStart || lettersIn(start, cut) < hyphenRules.pre || lettersIn(cut, end) < hyphenRules.post) continue;
+        if (cut <= lineStart || cut <= at || lettersIn(start, cut) < hyphenRules.pre || lettersIn(cut, end) < hyphenRules.post) continue;
         if (setWidth(withHyphen(lineStart, cut)) <= width) return cut;
       }
       return -1;
@@ -388,7 +469,7 @@
     let i = 0;
     while (i < text.length) {
       let end = i;
-      while (end < text.length && !isGap(text[end])) end++;
+      while (end < text.length && !isGap(text[end]) && !(soft && end > i && soft.has(end))) end++;
       if (end > lineStart && !fits(lineStart, end)) {
         if (i > lineStart) {
           // The line has words already: this one is cut when the line would stop too short
@@ -403,12 +484,12 @@
           continue;
         }
         // The word starts the line and is wider than the box
-        if (end - lineStart > 1) {
+        if (letterEnd(lineStart) < end) {
           let cut = hyphenCut(lineStart, i, end);
           if (cut > 0) lines.push(withHyphen(lineStart, cut));
           else {
-            cut = lineStart + 1;
-            while (cut + 1 < end && fitsInside(lineStart, cut + 1)) cut++;
+            cut = letterEnd(lineStart);
+            while (letterEnd(cut) < end && fitsInside(lineStart, letterEnd(cut))) cut = letterEnd(cut);
             pushLine(lineStart, cut);
           }
           lineStart = cut;
@@ -933,7 +1014,9 @@
           const xs = [line.x];
           // What follows a line's last tab in a box may be moved along (see relativeLayout)
           const moved = (k) => (line.tabShift && k >= line.tabShift.from ? line.tabShift.dx : 0);
-          for (let k = 1; k <= end - start; k++) xs.push(line.x + measureRuns(sliceRuns(runs, 0, k), doc.resolution).advance + moved(k));
+          // Inside a letter and its marks the caret has no place of its own: it stays before them
+          const starts = letterStartsOf(piece);
+          for (let k = 1; k <= end - start; k++) xs.push(starts && !starts.has(k) ? xs[k - 1] : line.x + measureRuns(sliceRuns(runs, 0, k), doc.resolution).advance + moved(k));
           const ascent = line.m.fontAscent || size * 0.8;
           const descent = line.m.fontDescent || size * 0.2;
           rel.push({ start, end, xs, baseline: line.baseline, top: line.baseline - ascent, bottom: line.baseline + descent, size });
@@ -8996,6 +9079,15 @@
   // without Latin or Cyrillic letters.
   const UNCUT_TEXT = /[ăđơưĂĐƠƯ\u1EA0-\u1EF9]/;
   const hyphenKey = (left, right) => `${left}-${(/^[^\s.,;:!?…"”»)\]]*/.exec(right) || [""])[0]}`.toLowerCase();
+  // A break between two words of a text written without spaces (see softBreaksOf) took nothing
+  // away; one made at a space of such a text took the space, which comes back when the lines
+  // are joined: the Line Breaks panel notes it, and so does the script TypeR pasted.
+  const spaceKey = (left, right) => " " + hyphenKey(left, right);
+  const spaceLost = (left, right, source, cuts) => {
+    if (cuts && cuts.includes(spaceKey(left, right))) return true;
+    const head = hyphenKey("", right).slice(1, 9);
+    return Boolean(source && left && head) && String(source).toLowerCase().includes(`${left.slice(-8).toLowerCase()} ${head}`);
+  };
   const realHyphen = (left, right, source, text, cuts) => {
     // The hyphens TypeR added itself, to cut a word in the Line Breaks panel
     if (cuts && cuts.includes(hyphenKey(left, right))) return false;
@@ -9020,12 +9112,22 @@
     const chars = [];
     const breaks = [];
     rows.forEach((runs, index) => {
-      runs.forEach((run) => Array.from(run.text).forEach((ch) => chars.push({ ch, style: run.style })));
+      runs.forEach((run) => lettersOf(run.text).forEach((ch) => chars.push({ ch, style: run.style })));
       if (index === rows.length - 1) return;
       const previous = chars[chars.length - 1];
       if (!previous) return;
+      const wordBefore = () => {
+        let left = "";
+        for (let at = chars.length - 1; at >= 0 && chars[at].ch !== " "; at--) left = chars[at].ch + left;
+        return left;
+      };
+      const following = rows[index + 1].map((run) => run.text).join("");
       if (runs.hyphenated) chars.pop();
-      else if (previous.ch === "-") {
+      else if (following && breaksBare(previous.ch, lettersOf(following.slice(0, 16))[0])) {
+        // Thai and the like: the next line follows with nothing between them, unless the
+        // break was made at a space
+        if (!runs.bare && spaceLost(wordBefore(), (/^[^\s]*/.exec(following) || [""])[0], layer.source, layer.cuts)) chars.push({ ch: " ", style: previous.style || base });
+      } else if (previous.ch === "-") {
         let left = "";
         for (let at = chars.length - 2; at >= 0 && chars[at].ch !== " "; at--) left = chars[at].ch + left;
         const next = rows[index + 1].map((run) => run.text).join("");
@@ -9059,11 +9161,20 @@
       for (let at = index; at >= 0 && at < model.chars.length && !/\s/.test(model.chars[at].ch); at += step) word = step < 0 ? model.chars[at].ch + word : word + model.chars[at].ch;
       return word;
     };
+    // The same, up to the next break: what the line after a break starts with
+    const lineStartAt = (index) => {
+      let word = "";
+      for (let at = index; at < model.chars.length && !/\s/.test(model.chars[at].ch) && !(at > index && set.has(at)); at++) word += model.chars[at].ch;
+      return word;
+    };
     model.chars.forEach((item, index) => {
       if (set.has(index) && index > 0) {
         const previous = model.chars[index - 1];
-        if (previous.ch === " ") out.pop();
-        else if (previous.ch !== "-") {
+        if (previous.ch === " ") {
+          out.pop();
+          // The space of a text written without spaces is noted, to come back with the lines joined
+          if (index > 1 && breaksBare(model.chars[index - 2].ch, item.ch)) cuts.push(spaceKey(wordAround(index - 2, -1), lineStartAt(index)));
+        } else if (previous.ch !== "-" && !breaksBare(previous.ch, item.ch)) {
           out.push({ ch: "-", style: previous.style });
           cuts.push(hyphenKey(wordAround(index - 1, -1), wordAround(index, 1)));
         }
@@ -14794,7 +14905,7 @@
     const language = hyphenRules ? hyphenLanguage(base) : null;
     // Where `word`, already cut at `from`, can be cut again so that `line` ends with its
     // start and a hyphen: the latest such place, or -1
-    const hyphenCut = (line, word, from) => {
+    const hyphenCut = (line, word, from, glue) => {
       if (!language) return -1;
       const lead = /^[^\p{L}]*/u.exec(word)[0].length;
       const core = /^[\p{L}'’]+/u.exec(word.slice(lead));
@@ -14804,23 +14915,33 @@
         .map((point) => lead + point)
         .filter((cut) => cut - lead >= hyphenRules.pre && lead + core[0].length - cut >= hyphenRules.post && cut - from >= hyphenRules.pre)
         .sort((a, b) => b - a);
-      return points.find((cut) => fits((line ? line + " " : "") + word.slice(from, cut) + "-")) || -1;
+      return points.find((cut) => fits((line ? line + glue : "") + word.slice(from, cut) + "-")) || -1;
     };
     const out = [];
     String(text || "").split(/\r\n?|\n/).forEach((paragraph) => {
       let line = "";
-      paragraph.split(/\s+/).filter(Boolean).forEach((word) => {
+      // Each word and what joins it to the one before: a space, or nothing between two words
+      // of a text written without spaces (see softBreaksOf)
+      const words = [];
+      paragraph.split(/\s+/).filter(Boolean).forEach((spaced) => {
+        let start = 0;
+        Array.from(softBreaksOf(spaced) || []).sort((a, b) => a - b).concat(spaced.length).forEach((end) => {
+          words.push([spaced.slice(start, end), start ? "" : " "]);
+          start = end;
+        });
+      });
+      words.forEach(([word, glue]) => {
         let from = 0;
         for (;;) {
           const rest = word.slice(from);
-          const candidate = line ? line + " " + rest : rest;
+          const candidate = line ? line + glue + rest : rest;
           if (fits(candidate)) {
             line = candidate;
             break;
           }
-          const cut = hyphenCut(line, word, from);
+          const cut = hyphenCut(line, word, from, glue);
           if (cut > 0) {
-            out.push((line ? line + " " : "") + word.slice(from, cut) + "-");
+            out.push((line ? line + glue : "") + word.slice(from, cut) + "-");
             line = "";
             from = cut;
             continue;
@@ -15712,6 +15833,8 @@
     imageResolution,
     withResolution,
     wrapWords,
+    softBreaksOf,
+    breaksBare,
     cssFont,
     EXTRA_BOLD_WIDTH,
     blendedText,

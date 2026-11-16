@@ -9877,6 +9877,16 @@
     let end = at + 1;
     while (inWord(start - 1)) start--;
     while (inWord(end)) end++;
+    // Thai and the like, written without spaces: the word the dictionary finds there
+    const soft = PS.softBreaksOf(text.slice(start, end));
+    if (soft) {
+      const [from, to] = [start, end];
+      soft.forEach((cut) => {
+        if (from + cut <= at) start = Math.max(start, from + cut);
+        else end = Math.min(end, from + cut);
+      });
+      end = Math.min(end, to);
+    }
     return [start, end];
   };
   // Four clicks take the paragraph

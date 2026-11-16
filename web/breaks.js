@@ -87,20 +87,48 @@
     return [start, end];
   };
 
+  // Where a text written without spaces (Thai, Lao, Khmer, Burmese) breaks between two of its
+  // words, with no hyphen: found once for each text
+  const softSets = new WeakMap();
+  const softBreaks = () => {
+    if (!softSets.has(model)) {
+      const found = new Set();
+      const soft = PS.softBreaksOf(model.chars.map((item) => item.ch).join(""));
+      let at = 0;
+      if (soft) {
+        model.chars.forEach((item, index) => {
+          if (soft.has(at)) found.add(index);
+          at += item.ch.length;
+        });
+      }
+      softSets.set(model, found);
+    }
+    return softSets.get(model);
+  };
+  // Whether a break after `previous` and before `next` adds no hyphen
+  const plainBreak = (previous, next) => previous.ch === " " || previous.ch === "-" || Boolean(next && PS.breaksBare(previous.ch, next.ch));
+
   // Punctuation, spaces and hyphens end a run of letters: "beaucoup," cuts like "beaucoup"
   const findSyllables = () => {
-    syllableSet = new Set();
+    syllableSet = new Set(softBreaks());
     const chars = model.chars;
     let start = -1;
     const close = (end) => {
       if (start < 0) return;
       const run = chars.slice(start, end).map((item) => item.ch).join("");
-      const from = start;
-      Hyphenation.breakPoints(run, language, true).forEach((point) => syllableSet.add(from + point));
+      // A letter with its marks is one of the panel's letters, and several of the word's
+      const places = new Map();
+      let length = 0;
+      for (let at = start; at < end; at++) {
+        places.set(length, at);
+        length += chars[at].ch.length;
+      }
+      Hyphenation.breakPoints(run, language, true).forEach((point) => places.has(point) && syllableSet.add(places.get(point)));
       start = -1;
     };
     chars.forEach((item, index) => {
-      if (!/[\p{L}\p{M}'’]/u.test(item.ch)) close(index);
+      // The words of a text written without spaces have no syllables to cut at
+      if (!/[\p{L}\p{M}'’]/u.test(item.ch) || PS.breaksBare(item.ch, item.ch)) close(index);
       else if (start < 0) start = index;
     });
     close(chars.length);
@@ -205,9 +233,9 @@
         const previous = model.chars[index - 1];
         const mark = document.createElement("button");
         mark.type = "button";
-        mark.className = "bl__m" + (previous.ch === " " || previous.ch === "-" ? "" : " bl__m--cut");
+        mark.className = "bl__m" + (plainBreak(previous, item) ? "" : " bl__m--cut");
         mark.dataset.at = index;
-        mark.innerHTML = previous.ch === " " || previous.ch === "-" ? "↵" : "<b>-</b>↵";
+        mark.innerHTML = plainBreak(previous, item) ? "↵" : "<b>-</b>↵";
         mark.title = T("Click to join these lines. Drag to move the break.");
         mark.setAttribute("aria-label", T("Remove this line break"));
         row.appendChild(mark);
@@ -380,7 +408,7 @@
     caret.style.left = `${x}px`;
     caret.style.top = `${rect.top - box.top}px`;
     caret.style.height = `${rect.height}px`;
-    const hyphen = previous.ch !== " " && previous.ch !== "-";
+    const hyphen = !plainBreak(previous, model.chars[at]);
     badge.textContent = hyphen ? "-↵" : "↵";
     badge.classList.toggle("is-cut", hyphen);
   };
@@ -405,8 +433,9 @@
 
   const allGaps = () => {
     const out = [];
+    const soft = softBreaks();
     model.chars.forEach((item, index) => {
-      if (index > 0 && index < model.chars.length && (model.chars[index - 1].ch === " " || model.chars[index - 1].ch === "-") && item.ch !== " ") out.push(index);
+      if (index > 0 && index < model.chars.length && (model.chars[index - 1].ch === " " || model.chars[index - 1].ch === "-" || soft.has(index)) && item.ch !== " ") out.push(index);
     });
     return out;
   };
