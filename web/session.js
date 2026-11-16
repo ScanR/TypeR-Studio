@@ -107,21 +107,68 @@
     return pack;
   };
 
-  const encoded = (source) => new Promise((done, fail) => {
-    if (ArrayBuffer.isView(source)) {
-      done({ ctor: source.constructor.name, blob: new Blob([source]) });
-      return;
+  // A canvas as a PNG, made by session-worker.js: the page hands it a copy of the picture and
+  // stays free. Null where that can't be done (no worker, a browser without OffscreenCanvas, a
+  // picture it refuses): the page then makes the PNG itself, as it always could.
+  let encoder = null;
+  let lastJob = 0;
+  const jobs = new Map();
+  const encodedAway = async (source) => {
+    if (encoder === false || typeof Worker !== "function" || typeof OffscreenCanvas !== "function" || typeof createImageBitmap !== "function") return null;
+    try {
+      if (!encoder) {
+        encoder = new Worker("session-worker.js");
+        encoder.onmessage = ({ data }) => {
+          const job = jobs.get(data.id);
+          jobs.delete(data.id);
+          if (job) job(data.blob || null);
+        };
+        // A worker that doesn't start, or stops: what waits on it is made here, as is the rest
+        encoder.onerror = () => {
+          encoder = false;
+          jobs.forEach((job) => job(null));
+          jobs.clear();
+        };
+      }
+      const bitmap = await createImageBitmap(source);
+      if (!encoder) {
+        bitmap.close();
+        return null;
+      }
+      return await new Promise((done) => {
+        const id = ++lastJob;
+        // A worker that never answers (stopped for want of memory, without a word) must not
+        // keep the documents from being stored: after a long wait the page takes over for good
+        const late = setTimeout(() => {
+          if (!jobs.has(id)) return;
+          jobs.delete(id);
+          if (encoder) encoder.terminate();
+          encoder = false;
+          done(null);
+        }, 120000);
+        jobs.set(id, (blob) => {
+          clearTimeout(late);
+          done(blob);
+        });
+        encoder.postMessage({ id, bitmap }, [bitmap]);
+      });
+    } catch (error) {
+      console.warn("TypeR web: storing a picture without the worker", error);
+      return null;
     }
+  };
+  const encoded = async (source) => {
+    if (ArrayBuffer.isView(source)) return { ctor: source.constructor.name, blob: new Blob([source]) };
     const row = { width: source.width, height: source.height, blob: null };
-    if (!source.width || !source.height) {
-      done(row);
-      return;
-    }
-    source.toBlob((blob) => {
-      if (blob) done(Object.assign(row, { blob }));
-      else fail(new Error("A layer's pixels could not be stored"));
-    }, "image/png");
-  });
+    if (!source.width || !source.height) return row;
+    row.blob = await encodedAway(source) || await new Promise((done, fail) => {
+      source.toBlob((blob) => {
+        if (blob) done(blob);
+        else fail(new Error("A layer's pixels could not be stored"));
+      }, "image/png");
+    });
+    return row;
+  };
 
   const saveDoc = async (doc) => {
     let keep = kept.get(doc);
