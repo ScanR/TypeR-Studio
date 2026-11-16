@@ -3961,7 +3961,10 @@
   const STORE_SETTINGS = "typer.web.settings";
   // How far the pointer goes, dragged sideways with Ctrl + Space or the Zoom tool, to zoom twice as close
   const ZOOM_SPEEDS = { normal: 150, fast: 90, veryFast: 55 };
-  const settings = { wheel: "pan", zoomSpeed: "normal", smartGuides: true, snapText: false, transformControls: true, bubbleRoom: true, spellcheck: true, taskBar: true, taskBarPlace: null, hiddenChars: false, discord: "page", sizeStep: 2, workspace: "solo", flowDirection: "rtl", flowGap: 80, flowGapDown: 0, flowPerRow: 0, flowPairs: false, flowPairsShift: 0 };
+  // How far a notch of a mouse's wheel scrolls or zooms, against the usual: some mice turn in
+  // many small notches, and the page then runs away
+  const WHEEL_SPEEDS = { verySlow: 0.25, slow: 0.5, normal: 1, fast: 2 };
+  const settings = { wheel: "pan", zoomSpeed: "normal", wheelSpeed: "normal", smartGuides: true, snapText: false, transformControls: true, bubbleRoom: true, spellcheck: true, taskBar: true, taskBarPlace: null, hiddenChars: false, discord: "page", sizeStep: 2, workspace: "solo", flowDirection: "rtl", flowGap: 80, flowGapDown: 0, flowPerRow: 0, flowPairs: false, flowPairsShift: 0 };
   // Flow's ways of laying the pages out, and the space between two pages, in the pages' pixels:
   // one for the pages side by side, one for the pages one under the other, which a manhwa's
   // strips are read without (flowGapDown)
@@ -3994,6 +3997,7 @@
     if (place && place.pinned && number(place.left) && number(place.top)) settings.taskBarPlace = { pinned: true, left: place.left, top: place.top };
     else if (place && (place.side === "below" || place.side === "above") && number(place.gap) && number(place.dx)) settings.taskBarPlace = { side: place.side, gap: place.gap, dx: place.dx };
     if (ZOOM_SPEEDS[saved.zoomSpeed]) settings.zoomSpeed = saved.zoomSpeed;
+    if (WHEEL_SPEEDS[saved.wheelSpeed]) settings.wheelSpeed = saved.wheelSpeed;
     if (saved.hiddenChars === true) settings.hiddenChars = true;
     if (typeof saved.sizeStep === "number" && saved.sizeStep > 0 && saved.sizeStep <= 100) settings.sizeStep = saved.sizeStep;
     if (saved.discord === "app" || saved.discord === "off") settings.discord = saved.discord;
@@ -4011,7 +4015,7 @@
     const d = app.textDefaults;
     try {
       // A language nobody chose keeps following the interface
-      window.localStorage.setItem(STORE_SETTINGS, JSON.stringify({ spellcheck: settings.spellcheck ? undefined : false, wheel: settings.wheel, zoomSpeed: settings.zoomSpeed === "normal" ? undefined : settings.zoomSpeed, smartGuides: settings.smartGuides, snapText: settings.snapText || undefined, transformControls: settings.transformControls ? undefined : false, bubbleRoom: settings.bubbleRoom ? undefined : false, taskBar: settings.taskBar ? undefined : false, taskBarPlace: settings.taskBarPlace || undefined, hiddenChars: settings.hiddenChars || undefined, discord: settings.discord === "page" ? undefined : settings.discord, sizeStep: settings.sizeStep === 2 ? undefined : settings.sizeStep, workspace: settings.workspace === "flow" ? "flow" : undefined, flowDirection: settings.flowDirection === "rtl" ? undefined : settings.flowDirection, flowGap: settings.flowGap === 80 ? undefined : settings.flowGap, flowGapDown: settings.flowGapDown || undefined, flowPerRow: settings.flowPerRow || undefined, flowPairs: settings.flowPairs || undefined, flowPairsShift: settings.flowPairsShift || undefined, ligature: d.ligature, hyphenate: d.hyphenate || undefined, autoKern: d.autoKern === "manual" || d.autoKern === "opticalKern" ? d.autoKern : undefined, textOnTop: d.textOnTop || undefined, language: d.language === PS.DEFAULT_TEXT_LANGUAGE ? undefined : d.language }));
+      window.localStorage.setItem(STORE_SETTINGS, JSON.stringify({ spellcheck: settings.spellcheck ? undefined : false, wheel: settings.wheel, zoomSpeed: settings.zoomSpeed === "normal" ? undefined : settings.zoomSpeed, wheelSpeed: settings.wheelSpeed === "normal" ? undefined : settings.wheelSpeed, smartGuides: settings.smartGuides, snapText: settings.snapText || undefined, transformControls: settings.transformControls ? undefined : false, bubbleRoom: settings.bubbleRoom ? undefined : false, taskBar: settings.taskBar ? undefined : false, taskBarPlace: settings.taskBarPlace || undefined, hiddenChars: settings.hiddenChars || undefined, discord: settings.discord === "page" ? undefined : settings.discord, sizeStep: settings.sizeStep === 2 ? undefined : settings.sizeStep, workspace: settings.workspace === "flow" ? "flow" : undefined, flowDirection: settings.flowDirection === "rtl" ? undefined : settings.flowDirection, flowGap: settings.flowGap === 80 ? undefined : settings.flowGap, flowGapDown: settings.flowGapDown || undefined, flowPerRow: settings.flowPerRow || undefined, flowPairs: settings.flowPairs || undefined, flowPairsShift: settings.flowPairsShift || undefined, ligature: d.ligature, hyphenate: d.hyphenate || undefined, autoKern: d.autoKern === "manual" || d.autoKern === "opticalKern" ? d.autoKern : undefined, textOnTop: d.textOnTop || undefined, language: d.language === PS.DEFAULT_TEXT_LANGUAGE ? undefined : d.language }));
     } catch (error) {
       console.warn("TypeR web: could not keep the settings", error);
     }
@@ -4479,7 +4483,7 @@
         };
         const general = document.createElement("div");
         general.className = "settings__pane";
-        general.append(heading(T("General")), card("lang", ...(Shell.touch ? [] : ["wheel", "zoomSpeed"]), ...(discord ? ["discord"] : [])), ...(Flow && !Shell.touch ? [card("workspace", "flowDirection", "flowPairs", "flowGap", "flowPerRow")] : []), card("language", "ligature", "hyphenate", "textOnTop", ...(Shell.touch ? [] : ["sizeStep"])));
+        general.append(heading(T("General")), card("lang", ...(Shell.touch ? [] : ["wheel", "wheelSpeed", "zoomSpeed"]), ...(discord ? ["discord"] : [])), ...(Flow && !Shell.touch ? [card("workspace", "flowDirection", "flowPairs", "flowGap", "flowPerRow")] : []), card("language", "ligature", "hyphenate", "textOnTop", ...(Shell.touch ? [] : ["sizeStep"])));
         if (canChooseFolder) general.appendChild(folderCard());
         // The statistics last, on their own: a choice made once, not a setting of the work
         if (Stats) general.appendChild(card("stats"));
@@ -4554,6 +4558,7 @@
       fields: [
         { id: "lang", label: T("Interface language"), value: lang, options: Object.keys(LANGUAGES).map((code) => [code, LANGUAGES[code]]) },
         { id: "wheel", label: T("Navigation mode"), value: settings.wheel, options: [["pan", T("Like Photoshop")], ["zoom", T("Wheel zooms, wheel click moves")], ...(IS_MAC ? [] : [["auto", T("Mouse zooms, trackpad scrolls")]])], hint: (value) => (value === "zoom" ? T("The wheel zooms. Alt + wheel scrolls up and down, Shift + wheel sideways. On a trackpad, two fingers zoom too, and so does a pinch.") : T(value === "auto" ? "A mouse's wheel zooms. Alt + wheel scrolls up and down, Shift + wheel sideways. On a trackpad, two fingers scroll and a pinch zooms." : "The wheel scrolls up and down. Alt + wheel zooms, Ctrl or Cmd + wheel scrolls sideways. On a trackpad, two fingers scroll and a pinch zooms.")) },
+        { id: "wheelSpeed", label: T("Mouse wheel speed"), value: settings.wheelSpeed, options: [["verySlow", T("Very slow")], ["slow", T("Slow")], ["normal", T("Normal")], ["fast", T("Fast")]], hint: () => T("How far each notch of a mouse's wheel scrolls or zooms. A trackpad keeps following the fingers.") },
         ...(Flow && !Shell.touch ? [
           { id: "workspace", label: T("Page display"), value: settings.workspace, options: [["solo", T("Solo mode")], ["flow", T("Flow mode")]], hint: (value) => T(value === "flow" ? "Flow: every page of the chapter on one surface, to move over freely. The page in the middle of the screen is the one you work on, and the script follows it." : "Solo: one page at a time, as in Photoshop.") },
           { id: "flowDirection", label: T("Pages in Flow"), value: settings.flowDirection, options: FLOW_DIRECTIONS.map(([id, name]) => [id, T(name)]) },
@@ -4575,6 +4580,7 @@
     if (!answer) return;
     settings.wheel = answer.wheel;
     settings.zoomSpeed = answer.zoomSpeed;
+    if (answer.wheelSpeed) settings.wheelSpeed = answer.wheelSpeed;
     if (answer.workspace) {
       const whole = (value, fallback) => (Number.isFinite(parseFloat(value)) ? parseFloat(value) : fallback);
       setFlowLayout({ direction: answer.flowDirection, gap: whole(answer.flowGap, flowGapOf(answer.flowDirection)), perRow: whole(answer.flowPerRow, settings.flowPerRow), pairs: Boolean(answer.flowPairs) });
@@ -9455,8 +9461,9 @@
   const wheelGesture = (event, way = settings.wheel) => {
     const mouse = wheelIsMouse(event);
     const pixels = WHEEL_PIXELS[event.deltaMode];
-    // A notch moves the same on every mouse, even those that report 4 pixels for it
-    const notch = (delta) => (mouse && delta ? Math.sign(delta) * Math.max(50, Math.min(120, Math.abs(delta))) : delta);
+    // A notch moves the same on every mouse, even those that report 4 pixels for it, and as far
+    // as Settings' Mouse wheel speed says. A trackpad follows the fingers.
+    const notch = (delta) => (mouse && delta ? Math.sign(delta) * Math.max(50, Math.min(120, Math.abs(delta))) * WHEEL_SPEEDS[settings.wheelSpeed] : delta);
     const x = notch(event.deltaX * pixels);
     const y = notch(event.deltaY * pixels);
     const wheelZooms = way === "zoom";
