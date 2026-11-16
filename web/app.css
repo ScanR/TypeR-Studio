@@ -276,7 +276,7 @@ input[type="range"]:disabled::-moz-range-thumb { background: var(--muted); }
 .stage.is-flow-held, .stage.is-flow-held * { cursor: grabbing !important; }
 .stage.is-spacing.is-marquee { cursor: move; }
 .stage[data-tool="zoom"] { cursor: zoom-in; }
-.stage[data-tool="brush"], .stage[data-tool="eraser"], .stage[data-tool="stamp"], .stage[data-tool="heal"] { cursor: none; }
+.stage[data-tool="brush"], .stage[data-tool="eraser"], .stage[data-tool="stamp"], .stage[data-tool="heal"], .stage[data-tool="quickSelect"] { cursor: none; }
 .stage[data-tool="gradient"], .stage[data-tool="pen"] { cursor: crosshair; }
 /* Held, Ctrl or Cmd with Space wins over what the tool shows, the brush's ring as well */
 .stage.is-zoom-hold { cursor: zoom-in !important; }

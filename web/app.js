@@ -92,6 +92,8 @@
     lasso: SVG('<path d="M3.704 14.467a10 8 0 1 1 3.115 2.375"/> <path d="M7 22a5 5 0 0 1-2-3.994"/> <circle cx="5" cy="16" r="2"/>'),
     polygon: SVG('<path d="M3.700 14.500 2 8l7-6 11 1.500 2 7.500-8 7-7.200-1.200"/><path d="M7 22a5 5 0 0 1-2-4"/><circle cx="5" cy="16" r="2"/>'),
     wand: SVG('<path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/> <path d="m14 7 3 3"/> <path d="M5 6v4"/> <path d="M19 14v4"/> <path d="M10 2v2"/> <path d="M7 8H3"/> <path d="M21 16h-4"/> <path d="M11 3H9"/>'),
+    // A brush's tip on the dashed outline it draws
+    quickSelect: SVG('<path d="M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031"/> <path d="M6.500 21A3.500 3.500 0 1 0 3 17.500a2.620 2.620 0 0 1-.708 1.792A1 1 0 0 0 3 21z"/> <path d="M12.500 20.500a7 7 0 0 0 1-3.500M3.300 11a7 7 0 0 1 3.200-1.800M10 9.700a7 7 0 0 1 3 3.300" stroke-dasharray="2.400 2.400"/>'),
     brush: SVG('<path d="m11 10 3 3"/> <path d="M6.5 21A3.5 3.5 0 1 0 3 17.5a2.62 2.62 0 0 1-.708 1.792A1 1 0 0 0 3 21z"/> <path d="M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031"/>'),
     eraser: SVG('<path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/> <path d="m5.082 11.09 8.828 8.828"/>'),
     // Lucide's eraser, with the sparkles of its wand-sparkles in the corner left free
@@ -2553,6 +2555,10 @@
     ["lasso", "Lasso", "L"],
     ["polygon", "Polygonal Lasso", "Shift+L"],
     ["wand", "Magic Wand", "W"],
+    // Photoshop's W goes round both, with Shift: here Shift+W is Warp Text's, so W pressed once
+    // more on the Magic Wand is the Quick Selection Tool, and once more the wand again (see
+    // toolForKey). It has no key of its own unless it is given one in Keyboard Shortcuts.
+    ["quickSelect", "Quick Selection", ""],
     ["crop", "Crop", "C"],
     null,
     ["clean", "Bubble Cleaner", "J"],
@@ -2597,6 +2603,7 @@
     lasso: "Draw around an area. Shift before: add, Alt before: subtract.",
     polygon: "Click to place each corner. Shift: 45° steps. Alt held: draw freehand. Close: click the first corner, double-click or Enter. Backspace: remove the last corner. Esc: cancel. Shift before: add, Alt before: subtract.",
     wand: "Click a bubble: TypeR pastes the next line in it. Shift: add, Alt: subtract.",
+    quickSelect: "Paint over an area: it is selected up to the lines around it, and each stroke adds to it. Alt: subtract. [ ]: size. W again: the Magic Wand.",
     crop: "Drag the edges, or draw a new frame. Shift: keep the proportions. Alt: from the centre. Enter: crop. Esc: cancel.",
     brush: "Paints on the active pixel layer. [ ]: size. Alt: eyedropper. Alt + right-drag: size / hardness.",
     eraser: "Erases on the active pixel layer. [ ]: size. Alt + right-drag: size / hardness.",
@@ -2712,6 +2719,7 @@
     if (window.TypeRPerspectiveTool) window.TypeRPerspectiveTool.toolChosen(tool);
     if (window.TypeRPen) window.TypeRPen.toolChosen(tool);
     if (window.TypeRRetouch) window.TypeRRetouch.toolChosen(tool);
+    if (window.TypeRQuickSelect) window.TypeRQuickSelect.toolChosen(tool);
     renderOptions();
     renderStatus();
     schedule(false);
@@ -2722,7 +2730,7 @@
   // Each place shows one tool of its group, the last one used. A drag moves a place, or one
   // tool out of its group's list; dropped on another place, it joins that group.
   const STORE_TOOLBAR = "typer.web.toolbar";
-  const TOOL_GROUPS = [["rectangle", "ellipse"], ["lasso", "polygon"], ["clean", "heal", "reshape"], ["eraser", "magicEraser"], ["blur", "sharpen", "smudge"]];
+  const TOOL_GROUPS = [["rectangle", "ellipse"], ["lasso", "polygon"], ["wand", "quickSelect"], ["clean", "heal", "reshape"], ["eraser", "magicEraser"], ["blur", "sharpen", "smudge"]];
   const toolEntry = (id) => TOOLS.find((entry) => entry && entry[0] === id);
   // Tools that share a key, as in Photoshop: the first has the key, the second Shift + it. While
   // they keep these keys, Shift + the key goes from one to the other at each press; the plain key
@@ -2765,7 +2773,9 @@
   // brings back either
   const shownToolKey = (id) => {
     const pair = pairOf(id);
-    return pair && pair.last ? pair.key : toolEntry(id)[2];
+    if (pair && pair.last) return pair.key;
+    // The Quick Selection Tool's is the Magic Wand's, pressed again
+    return toolEntry(id)[2] || (id === "quickSelect" ? toolEntry("wand")[2] : "");
   };
   const defaultSlots = () => {
     const slots = [];
@@ -6442,7 +6452,7 @@
   // With nothing selected, the bar offers Detect Text only with a tool for cleaning the page:
   // whoever only letters doesn't see it. The marquees have it in their options bar instead, as
   // the Bubble Cleaner also does; and it's always in Select > Text.
-  const TEXT_BAR_TOOLS = new Set(["clean", "heal", "stamp", "brush", "eraser", "magicEraser", "lasso", "polygon", "wand"]);
+  const TEXT_BAR_TOOLS = new Set(["clean", "heal", "stamp", "brush", "eraser", "magicEraser", "lasso", "polygon", "wand", "quickSelect"]);
   const placeTextBar = (doc) => {
     const several = app.docs.length > 1;
     const picked = several ? pickedDocs() : [];
@@ -7751,6 +7761,7 @@
       bar.appendChild(checkbox(T("Contiguous"), app.contiguous !== false, (on) => { app.contiguous = on; }));
       bar.appendChild(checkbox(T("Sample all layers"), app.sampleAll, (on) => { app.sampleAll = on; }));
     }
+    if (tool === "quickSelect" && window.TypeRQuickSelect) window.TypeRQuickSelect.options(bar);
     if (tool === "magicEraser") {
       bar.appendChild(scrubbed(T("Tolerance"), numberInput(app.magicTolerance, 0, 255, (value) => { app.magicTolerance = Math.max(0, Math.min(255, value)); })));
       bar.appendChild(checkbox(T("Anti-alias"), app.magicAntiAlias !== false, (on) => { app.magicAntiAlias = on; }));
@@ -7938,7 +7949,7 @@
   // and fingers pan.
   let multi = null;
   let penSeen = false;
-  const DRAWN_TOOLS = new Set(["brush", "eraser", "rectangle", "ellipse", "lasso", "polygon", "heal", "gradient", "blur", "sharpen", "smudge", "pen"]);
+  const DRAWN_TOOLS = new Set(["brush", "eraser", "rectangle", "ellipse", "lasso", "polygon", "quickSelect", "heal", "gradient", "blur", "sharpen", "smudge", "pen"]);
   const isFinger = (event) => Shell.touch && event.pointerType !== "mouse";
 
   const selectionMode = (event) => {
@@ -7978,7 +7989,7 @@
   // Cmd on a Mac, Ctrl elsewhere, lends the Move tool while it is held, as in Photoshop: a drag
   // moves the layer, a click on another one picks it. Not to the tools Ctrl already means
   // something to (the Magic Wand, the Bubble Cleaner, the SFX), nor while a polygon is drawn.
-  const LENDS_MOVE = new Set(["rectangle", "ellipse", "lasso", "polygon", "brush", "eraser", "magicEraser", "stamp", "heal", "blur", "sharpen", "smudge", "gradient", "eyedropper", "text"]);
+  const LENDS_MOVE = new Set(["rectangle", "ellipse", "lasso", "polygon", "quickSelect", "brush", "eraser", "magicEraser", "stamp", "heal", "blur", "sharpen", "smudge", "gradient", "eyedropper", "text"]);
   const moveLent = (event) => LENDS_MOVE.has(app.tool) && (IS_MAC ? event.metaKey : event.ctrlKey) && !spacing && !polygon && Boolean(app.doc) && !transformOf();
   let hoverAt = null;
   const showWandSetAside = (event) => {
@@ -8632,6 +8643,7 @@
       if (gesture && gesture.kind === "stroke") ops.endStroke();
       if (gesture && gesture.kind === "move") ops.endLiveMove(false);
       if (gesture && gesture.kind === "retouch") window.TypeRRetouch.cancel(gesture);
+      if (gesture && gesture.kind === "quickSelect") window.TypeRQuickSelect.cancel(gesture);
       gesture = null;
       setDrag("");
       hud(null);
@@ -8841,6 +8853,15 @@
       event.preventDefault();
       return;
     }
+    if (tool === "quickSelect" && window.TypeRQuickSelect) {
+      const made = window.TypeRQuickSelect.down(event, point, base);
+      if (made) {
+        gesture = made;
+        ui.stage.setPointerCapture(event.pointerId);
+      }
+      event.preventDefault();
+      return;
+    }
     if (tool === "text") {
       const hit = textAt(point);
       if (hit) beginEdit(hit, false, event, true);
@@ -8998,9 +9019,11 @@
       if (!event.altKey) showStampPreview(event);
       schedule(false);
     }
-    if ((tool === "brush" || tool === "eraser" || tool === "stamp" || tool === "heal" || RETOUCH_BRUSHES.has(tool)) && !(event.pointerType === "touch" && !gesture) && !(gesture && gesture.kind === "brushAdjust")) {
+    // The Quick Selection Tool's brush has its own size (quick-select.js)
+    const quickBrush = tool === "quickSelect" && window.TypeRQuickSelect;
+    if ((tool === "brush" || tool === "eraser" || tool === "stamp" || tool === "heal" || RETOUCH_BRUSHES.has(tool) || quickBrush) && !(event.pointerType === "touch" && !gesture) && !(gesture && gesture.kind === "brushAdjust")) {
       const rect = stageRectOf(event);
-      showBrushRing(event.clientX - rect.left, event.clientY - rect.top, Math.max(1, (app.brush.size / 2) * view().zoom));
+      showBrushRing(event.clientX - rect.left, event.clientY - rect.top, Math.max(1, ((quickBrush ? quickBrush.size() : app.brush.size) / 2) * view().zoom));
     }
     if ((tool === "move" || !ui.editor.hidden) && !gesture && app.doc) {
       const over = hitHandle(event);
@@ -9052,6 +9075,10 @@
     }
     if (current.kind === "retouch") {
       window.TypeRRetouch.move(current, event, toDoc(event));
+      return;
+    }
+    if (current.kind === "quickSelect") {
+      window.TypeRQuickSelect.move(current, event, toDoc);
       return;
     }
     if (current.kind === "brushAdjust") {
@@ -9350,6 +9377,10 @@
     }
     if (kind === "retouch") {
       window.TypeRRetouch.up(current, event, point, cancelled);
+      return;
+    }
+    if (kind === "quickSelect") {
+      window.TypeRQuickSelect.up(current, cancelled);
       return;
     }
     if (kind === "transform") {
@@ -19704,10 +19735,18 @@
   /* ---- the shortcuts: every tool, every menu command, a few more ---- */
 
   const scaleBrush = (factor) => {
-    app.brush.size = Math.max(1, Math.round(app.brush.size * factor));
+    if (app.tool === "quickSelect" && window.TypeRQuickSelect) window.TypeRQuickSelect.scale(factor);
+    else app.brush.size = Math.max(1, Math.round(app.brush.size * factor));
     renderOptions();
   };
   const TOOL_ITEMS = TOOLS.filter(Boolean).map((entry) => ({ label: entry[1], keys: entry[2], entry, virtual: true, action: () => setTool(entry[0]) }));
+  // The Magic Wand's key pressed while the Magic Wand is the tool: the Quick Selection Tool, as
+  // Photoshop's W goes from one to the other. Only by the key: the wand picked in the toolbar,
+  // the search or an action is the wand. And only while the Quick Selection Tool has no key of
+  // its own.
+  const quickSelectItem = TOOL_ITEMS.find((item) => item.entry[0] === "quickSelect");
+  quickSelectItem.shownKeys = () => keyLabel(shownToolKey("quickSelect"));
+  const toolForKey = (item) => (item.entry && item.entry[0] === "wand" && app.tool === "wand" && !quickSelectItem.keys ? quickSelectItem : item);
   const MORE_ITEMS = [
     // On a layer mask, white paints and black is behind it, as in Photoshop
     { label: "Default colours", keys: "D", virtual: true, action: () => {
@@ -20937,7 +20976,7 @@
       schedule(false);
       return;
     }
-    if (doc.state.selection && SELECTION_TOOLS.has(app.tool) && !layers) ops.nudgeSelection(dx, dy, "nudge-selection");
+    if (doc.state.selection && (SELECTION_TOOLS.has(app.tool) || app.tool === "quickSelect") && !layers) ops.nudgeSelection(dx, dy, "nudge-selection");
     else ops.moveLayers(doc.state.activeIds, dx, dy, "nudge");
   };
 
@@ -21052,7 +21091,7 @@
         const before = app.tool;
         // A key two tools share brings the one it should (keyedTool): that one is counted
         const tool = item.entry && keyedTool(item.entry[0]);
-        const run = (tool && TOOL_ITEMS.find((one) => one.entry[0] === tool)) || item;
+        const run = toolForKey((tool && TOOL_ITEMS.find((one) => one.entry[0] === tool)) || item);
         countUse(run, "key");
         runCommand(run);
         // The panel keeps its key ups: only the page's keys lend a tool
@@ -22288,7 +22327,7 @@
   // unless the user would rather not, what is being done on it, where it is in the chapter.
   // Null: nothing shown. Moving around or zooming doesn't change what was being done.
   const TYPESETTING = new Set(["text", "sfx", "wand", "perspective"]);
-  const CLEANING = new Set(["brush", "eraser", "magicEraser", "stamp", "clean", "heal", "reshape", "blur", "sharpen", "smudge", "pen"]);
+  const CLEANING = new Set(["brush", "eraser", "magicEraser", "stamp", "clean", "heal", "reshape", "blur", "sharpen", "smudge", "pen", "quickSelect"]);
   let presenceWork = "";
   const presence = () => {
     if (settings.discord === "off") return null;

@@ -7064,9 +7064,10 @@
     return identities.get(object);
   };
 
-  // What the Magic Wand reads: the pixel layers on white, never the text
-  const sampleData = (doc, everyLayer) => {
-    const onlyActive = !everyLayer && !app.sampleAll && activeRaster(doc);
+  // What the Magic Wand reads: the pixel layers on white, never the text. `ownChoice`: the
+  // tool asking has its own Sample All Layers (the Quick Selection Tool), `everyLayer` says it all.
+  const sampleData = (doc, everyLayer, ownChoice) => {
+    const onlyActive = !everyLayer && (ownChoice || !app.sampleAll) && activeRaster(doc);
     // Pixels are never drawn on again once made: the same objects are the same picture
     const key = doc.state.layers.filter((layer) => layer.kind !== "text").map((layer) => [layer.id, layer.visible, layer.opacity, layer.blend, layer.group, layer.clipping, layer.dx, layer.dy, layer.left, layer.top, identity(layer.bitmap), identity(layer.mask), identity(layer.vectorMask), identity((layer.paint || NONE)[(layer.paint || NONE).length - 1]), (layer.paint || NONE).length].join(",")).join(";") + "|" + (onlyActive ? onlyActive.id : "all");
     if (doc.sampleCache && doc.sampleKey === key) return doc.sampleCache;
@@ -11209,6 +11210,34 @@
       if (bubbleOnly && !looksLikeBubble(doc, selection)) return false;
       selection.trigger = { source: "wand", x: Math.round(x), y: Math.round(y) };
       return ops.userSelection(selection, "Magic Wand", mode);
+    },
+    // What the Quick Selection Tool reads (quick-select.js): the page as the Magic Wand reads
+    // it, with every layer or the active pixel layer alone, and a key that changes when those
+    // pixels do
+    quickSelectSource(everyLayer) {
+      const doc = app.doc;
+      if (!doc) return null;
+      const data = sampleData(doc, everyLayer, true);
+      return { data, width: doc.width, height: doc.height, key: `${doc.id}|${doc.sampleKey}` };
+    },
+    // The Quick Selection Tool's stroke as it grows: `part` is what the stroke selects so far, a
+    // byte per pixel of its box of the page (null: nothing), put together with `base`, the
+    // selection there was before the stroke. The whole stroke is one step of history (`token`).
+    // The panel hears of it once, at the end (`done`), and not as a click to paste into: it is
+    // a tool for cleaning, as in Photoshop, where TypeR doesn't paste into its selections either.
+    quickSelection(part, mode, base, token, done) {
+      const doc = app.doc;
+      if (!doc) return null;
+      const grown = part ? fromBoxMask(part.mask, part.left, part.top, part.width, part.height, "quick") : null;
+      let final = grown;
+      if (mode === "subtract") final = base && grown ? combineSelections(doc, base, grown, "subtract") : base;
+      else if (mode === "add" && base) final = grown ? combineSelections(doc, base, grown, "add") : base;
+      final = final || null;
+      if (!final && !doc.state.selection) return null;
+      commitState(doc, "Quick Selection", { selection: final, lastSelection: final || doc.state.lastSelection }, token);
+      emit("selection", final);
+      if (done) firePanelEvent(EVENT_HISTORY);
+      return final;
     },
     // Color Range reads what the Magic Wand reads with all layers: the page, never the text
     colorRangeSource(maxSide) {
@@ -15599,7 +15628,7 @@
     smartPasteSelectionProbe() {
       const doc = app.doc;
       if (!doc) return JSON.stringify({ error: "doc" });
-      const toolId = { wand: "magicWandTool", rectangle: "marqueeRectTool", ellipse: "marqueeEllipTool", lasso: "lassoTool", polygon: "polySelTool", move: "moveTool", brush: "paintbrushTool", eraser: "eraserTool", magicEraser: "magicEraserTool", text: "typeCreateOrEditTool" }[app.tool] || "";
+      const toolId = { wand: "magicWandTool", quickSelect: "quickSelectTool", rectangle: "marqueeRectTool", ellipse: "marqueeEllipTool", lasso: "lassoTool", polygon: "polySelTool", move: "moveTool", brush: "paintbrushTool", eraser: "eraserTool", magicEraser: "magicEraserTool", text: "typeCreateOrEditTool" }[app.tool] || "";
       const selection = doc.state.selection;
       const b = selection && selection.bounds;
       return JSON.stringify({ documentId: doc.id, tool: toolId, bounds: b ? { left: b.left, top: b.top, right: b.right, bottom: b.bottom } : null });

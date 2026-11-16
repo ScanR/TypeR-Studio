@@ -408,7 +408,7 @@
     return before;
   };
 
-  const TOOLS = { moveTool: "move", marqueeRectTool: "rectangle", marqueeEllipTool: "ellipse", lassoTool: "lasso", polySelTool: "polygon", magicWandTool: "wand", quickSelectTool: "wand", cropTool: "crop", eyedropperTool: "eyedropper", spotHealingBrushTool: "heal", paintbrushTool: "brush", cloneStampTool: "stamp", eraserTool: "eraser", magicEraserTool: "magicEraser", gradientTool: "gradient", blurTool: "blur", sharpenTool: "sharpen", smudgeTool: "smudge", typeCreateOrEditTool: "text", handTool: "hand", zoomTool: "zoom" };
+  const TOOLS = { moveTool: "move", marqueeRectTool: "rectangle", marqueeEllipTool: "ellipse", lassoTool: "lasso", polySelTool: "polygon", magicWandTool: "wand", quickSelectTool: "quickSelect", cropTool: "crop", eyedropperTool: "eyedropper", spotHealingBrushTool: "heal", paintbrushTool: "brush", cloneStampTool: "stamp", eraserTool: "eraser", magicEraserTool: "magicEraser", gradientTool: "gradient", blurTool: "blur", sharpenTool: "sharpen", smudgeTool: "smudge", typeCreateOrEditTool: "text", handTool: "hand", zoomTool: "zoom" };
 
   const VIEW_ITEMS = { FtOn: "View:Fit on Screen", ZmIn: "View:Zoom In", ZmOt: "View:Zoom Out", ActP: "View:100%" };
 
