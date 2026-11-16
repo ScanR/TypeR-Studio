@@ -308,20 +308,52 @@ const ask = async (port, route, body, signal) => {
   if (!response.ok) throw new LocalError("local", (json && json.error && (json.error.message || json.error)) || text.slice(0, 300) || `HTTP ${response.status}`);
   return json;
 };
+// What the engine says about the graphics card it draws with, written in the app's log (Help >
+// Show Log File, main.js) so that a fill that runs on the processor can be explained: the Vulkan
+// devices it sees and which one it keeps (its auto-fit plan, with their free memory), the backend
+// it falls back to, where the weights went (VRAM or RAM). Only these lines, never a step's: INFO
+// and WARN come on its stdout, ERROR and ggml's own lines before it is set up on its stderr.
+const DEVICE_LINE = /ggml_vulkan:|ggml_metal\w*: GPU name|loaded \w+ backend from|failed to load \S+ backend|backend devices|(^|\] )#\d+: |Initializing backend|CPU backend|SD_VK_DEVICE|failed to init|No devices found|auto-fit|free +-?\d+ MiB|-> compute |total params memory size|max-vram/i;
+const DEVICE_LINES_MAX = 40;
+const logDeviceLines = () => {
+  let count = 0;
+  return (line) => {
+    if (count >= DEVICE_LINES_MAX || !DEVICE_LINE.test(line)) return;
+    count += 1;
+    // Without the source file and line the engine adds to its own
+    console.warn("Local Generative Fill engine:", line.replace(/\s+---\s+\S+$/, "").trim().slice(0, 400));
+  };
+};
+// A stream's lines, whole even when they come in pieces
+const eachLine = (stream, use) => {
+  let rest = "";
+  stream.setEncoding("utf8");
+  stream.on("data", (chunk) => {
+    const parts = (rest + chunk).split(/\r?\n|\r/);
+    rest = parts.pop();
+    parts.forEach((line) => { if (line.trim()) use(line); });
+  });
+  stream.on("end", () => { if (rest.trim()) use(rest); });
+};
 const startServer = async (model) => {
   if (server && server.model === model && server.proc.exitCode === null) return server.ready;
   stopServer();
   killLeftover();
   const one = MODELS[model];
   const port = await freePort();
-  const args = ["--diffusion-model", filePath(one.diffusion), "--llm", filePath(one.llm), "--vae", filePath(one.vae), "--listen-ip", "127.0.0.1", "--listen-port", String(port)];
-  const proc = spawn(path.join(engineDir(), engine.server), args, { cwd: engineDir(), windowsHide: true, stdio: ["ignore", "ignore", "pipe"] });
+  // --verbose: its list of devices, and the one it starts on, are said only then (see DEVICE_LINE)
+  const args = ["--diffusion-model", filePath(one.diffusion), "--llm", filePath(one.llm), "--vae", filePath(one.vae), "--listen-ip", "127.0.0.1", "--listen-port", String(port), "--verbose"];
+  const proc = spawn(path.join(engineDir(), engine.server), args, { cwd: engineDir(), windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   // An engine that can't start at all (missing, blocked by an antivirus) says so at once
   let failed = null;
   proc.on("error", (error) => { failed = error; });
   const lines = [];
-  proc.stderr.on("data", (chunk) => {
-    lines.push(...String(chunk).split(/[\r\n]+/).filter(Boolean));
+  const device = logDeviceLines();
+  // Read to the end, or the engine would wait once the pipe is full
+  eachLine(proc.stdout, device);
+  eachLine(proc.stderr, (line) => {
+    device(line);
+    lines.push(line);
     lines.splice(0, Math.max(0, lines.length - 20));
   });
   const current = { model, proc, port, lines };
