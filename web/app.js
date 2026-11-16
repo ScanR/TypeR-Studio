@@ -1923,8 +1923,14 @@
     renderStatus();
     return true;
   };
+  // Esc on an image being placed (File > Place Embedded…) takes the whole place back, as in
+  // Photoshop: its layer goes with the transform
   const cancelTransform = () => {
-    if (transform) endTransform();
+    if (!transform) return;
+    const t = transform;
+    const placed = t.place && t.doc === app.doc && t.state === t.doc.state;
+    endTransform();
+    if (placed) ops.rollbackHistory(t.place.index);
   };
   const commitTransform = () => {
     const t = transformOf();
@@ -1937,10 +1943,69 @@
     }
     const matrix = transformMatrix(t);
     endTransform();
+    if (t.place) {
+      settlePlace(t, matrix, unchanged);
+      return;
+    }
     if (unchanged) return;
     ops.transformLayers(t.ids, matrix, "Free Transform");
     // Photoshop's Transform step: W, H, angle and skew, and where the middle went
     recordStep("transform", { sx: t.sx, sy: t.sy, angle: (t.angle * 180) / Math.PI, kh: t.kh || 0, kv: t.kv || 0, dx: t.cx - t.base.xMid, dy: t.cy - t.base.yMid, turned: Boolean(t.base.frame) });
+  };
+  /* ---- Place Embedded ---- */
+
+  // File > Place Embedded…, as Photoshop's: the image comes as a new layer above the active
+  // one, named after its file, no larger than the page (Photoshop's Resize Image During Place),
+  // in a Free Transform that Enter commits and Esc takes back with the layer. The layer holds
+  // the image whole while it waits: sized up again, it keeps its pixels. `at`: where its middle
+  // goes on the page. One step of history either way.
+  const placeFit = (doc, bitmap) => Math.min(1, doc.width / bitmap.width, doc.height / bitmap.height);
+  const placeLayer = (bitmap, name, source, at) => {
+    const doc = app.doc;
+    if (!doc) return null;
+    if (!ui.editor.hidden) endEdit();
+    if (!settleTransform()) return null;
+    const index = doc.historyIndex;
+    const from = doc.history[index].id;
+    const left = Math.round(at[0] - bitmap.width / 2);
+    const top = Math.round(at[1] - bitmap.height / 2);
+    const layer = ops.newLayer(name, undefined, { bitmap, left, top });
+    if (!layer || !beginTransform()) {
+      // Nothing but transparent pixels: nothing to place
+      ops.rollbackHistory(index);
+      return null;
+    }
+    transform.place = { index, from, source, name, xMid: left + bitmap.width / 2, yMid: top + bitmap.height / 2 };
+    return transform;
+  };
+  // The image placed for good: one step of history, named as Photoshop's, and the step an
+  // action records (how far the image's middle is from the page's, as Photoshop counts it)
+  const settlePlace = (t, matrix, unchanged) => {
+    const doc = t.doc;
+    const { place } = t;
+    if (!unchanged) ops.transformLayers(t.ids, matrix, "Place Embedded");
+    ops.groupHistory(doc, place.from, "Place Embedded");
+    const [a, b, c, d, e, f] = matrix;
+    recordStep("place", {
+      source: place.source,
+      sx: t.sx,
+      sy: t.sy,
+      angle: (t.angle * 180) / Math.PI,
+      kh: t.kh || 0,
+      kv: t.kv || 0,
+      dx: a * place.xMid + c * place.yMid + e - doc.width / 2,
+      dy: b * place.xMid + d * place.yMid + f - doc.height / 2,
+    });
+  };
+  const beginPlace = (bitmap, name, source) => {
+    const doc = app.doc;
+    const t = placeLayer(bitmap, name, source, pastePoint(doc));
+    if (!t) return false;
+    t.sx = t.sy = placeFit(doc, bitmap);
+    showTransform();
+    renderOptions();
+    renderStatus();
+    return true;
   };
   // An action's Transform step on the active layers, as Free Transform would commit it:
   // { sx, sy, angle (degrees), kh, kv (tangents), dx, dy }
@@ -19255,6 +19320,8 @@
       { label: "Open…", keys: "Cmd+O", action: openDialog },
       { label: "Open a Chapter…", id: "Open Folder…", keys: "Shift+Cmd+O", action: openPages },
       { label: "Open Recent…", enabled: () => Recent.available, action: showRecentFiles },
+      // Photoshop has no key for it either: one can be given in Keyboard Shortcuts
+      { label: "Place Embedded…", enabled: hasDoc, action: () => placeEmbedded() },
       null,
       // Close and Save go for the pages picked, in Flow or in the tabs, when there are
       { label: "Close", title: pickedTitle("Close", "Close {count} Pages"), keys: DESKTOP ? "Cmd+W" : "Alt+Cmd+W", enabled: hasDoc, action: () => closePicked() },
@@ -21110,6 +21177,71 @@
     const doc = app.doc;
     const [x, y] = at || [doc.width / 2, doc.height / 2];
     ops.newLayer(name, undefined, { bitmap, left: Math.round(x - bitmap.width / 2), top: Math.round(y - bitmap.height / 2) });
+  };
+
+  /* ---- File > Place Embedded… ---- */
+
+  // What can be placed: an image, or a PSD as it looks (Photoshop places it as a whole too)
+  const PLACE_TYPES = [{ description: "Photoshop, PNG, JPEG, WebP", accept: { "image/vnd.adobe.photoshop": [".psd", ".psb"], "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"], "image/webp": [".webp"] } }];
+  const PLACEABLE = /\.(psd|psb|png|jpe?g|webp)$/i;
+  const pickPlaceFile = async () => {
+    if (!canPickFiles) {
+      return new Promise((resolve) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        // iOS greys out the PSDs as soon as there's a filter (see touch.js)
+        if (!Shell.touch) input.accept = ".psd,.psb,.png,.jpg,.jpeg,.webp";
+        input.addEventListener("change", () => resolve(input.files[0] ? { file: input.files[0], handle: null } : null));
+        input.addEventListener("cancel", () => resolve(null));
+        input.click();
+      });
+    }
+    try {
+      const [handle] = await pickIn("showOpenFilePicker", { id: "typer-place", types: PLACE_TYPES });
+      return { file: await handle.getFile(), handle };
+    } catch (error) {
+      if (error.name !== "AbortError") toast(fill(T("{name} can't be read: {error}"), { name: T("Place Embedded…"), error: error.message || error }), true);
+      return null;
+    }
+  };
+  // A file as one image, or null with the reason said
+  const pictureOfFile = async (file) => {
+    if (!PLACEABLE.test(file.name) && !IS_PICTURE.test(file.type)) {
+      toast(fill(T("{name} can't be placed. Use a PSD, PNG, JPEG or WebP."), { name: file.name }), true);
+      return null;
+    }
+    working(fill(T("Opening {name}…"), { name: file.name }));
+    let read = null;
+    try {
+      await nextPaint();
+      read = await ops.readDetached(file, file.name);
+      const bitmap = PS.newCanvas(read.width, read.height);
+      PS.paintDoc(read, bitmap.getContext("2d"), { keep: true });
+      return bitmap;
+    } catch (error) {
+      console.error(error);
+      if (error.tooLarge) toast(tooLargeText(error.tooLarge.width, error.tooLarge.height), true);
+      else toast(fill(T("{name} can't be read: {error}"), { name: file.name, error: error.message || error }), true);
+      return null;
+    } finally {
+      if (read) ops.dropDetached(read);
+      working(null);
+    }
+  };
+  const layerNameOfFile = (name) => name.replace(/\.[^.]+$/, "") || name;
+  const placeEmbedded = async () => {
+    const doc = app.doc;
+    const entry = await pickPlaceFile();
+    if (!entry) return;
+    const bitmap = await pictureOfFile(entry.file);
+    // The page was left while the file was read
+    if (!bitmap || app.doc !== doc) return;
+    // The file's place on the disk, which the desktop app knows: what an action records, and
+    // Photoshop finds the file there too. The browser only knows its name.
+    let source = entry.file.name;
+    if (Studio && entry.handle) source = (await whereIs(entry.handle).catch(() => null)) || source;
+    if (app.doc !== doc) return;
+    if (!beginPlace(bitmap, layerNameOfFile(entry.file.name), source)) toast(fill(T("{name} is empty: there is nothing to place."), { name: entry.file.name }), true);
   };
   window.addEventListener("dragover", (event) => {
     if (dragIds) return;
