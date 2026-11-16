@@ -69,6 +69,9 @@ contextBridge.exposeInMainWorld("TypeRDesktop", {
       forget: () => ipcRenderer.invoke("photoshop-forget"),
     } : {}),
   },
+  // The image an action's Place step names, by its path: its bytes, or null when it isn't an
+  // image or can't be read. Read only.
+  readImage: (file) => ipcRenderer.invoke("read-image", file),
   // Help > Show Log File: the app's log, shown in the Finder or the Explorer
   showLog: () => ipcRenderer.invoke("show-log"),
   // What Discord friends see while TypeR Studio is open (Settings > Discord activity): the

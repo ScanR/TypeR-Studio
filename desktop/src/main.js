@@ -1170,6 +1170,33 @@ ipcMain.handle("photoshop-forget", async (event) => {
     return [];
   }
 });
+// An action's Place step names its file by its path (web/actions.js): the editor reads it
+// here. Images only, told by their name and by their first bytes, and only read: null for
+// anything else, or for a file that isn't there.
+const IMAGE_FILE = /\.(png|jpe?g|webp|psd|psb)$/i;
+const IMAGE_FILE_LIMIT = 1024 * 1024 * 1024;
+const isImage = (head) => {
+  const text = head.toString("latin1");
+  return text.startsWith("\x89PNG\r\n\x1a\n") || text.startsWith("\xff\xd8\xff") || text.startsWith("8BPS") || (text.startsWith("RIFF") && text.slice(8, 12) === "WEBP");
+};
+ipcMain.handle("read-image", async (event, file) => {
+  if (!fromEditor(event) || typeof file !== "string" || !path.isAbsolute(file) || !IMAGE_FILE.test(file)) return null;
+  let handle = null;
+  try {
+    handle = await fs.promises.open(file, "r");
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.size < 12 || stat.size > IMAGE_FILE_LIMIT) return null;
+    const head = Buffer.alloc(12);
+    await handle.read(head, 0, 12, 0);
+    if (!isImage(head)) return null;
+    return new Uint8Array(await handle.readFile());
+  } catch (error) {
+    return null;
+  } finally {
+    if (handle) await handle.close().catch(() => {});
+  }
+});
+
 // Help > Show Log File: the log, shown in the Finder or the Explorer
 ipcMain.handle("show-log", (event) => {
   if (!fromPage(event)) return false;

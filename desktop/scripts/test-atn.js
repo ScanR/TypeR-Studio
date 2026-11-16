@@ -245,6 +245,21 @@ test("every ready-made step writes and reads back", () => {
   }
 });
 
+test("a Place step holds its file, its offset and its size", () => {
+  // A Mac path as the alias Photoshop resolves, any other as a 'Pth '
+  for (const file of ["/Users/me/Pictures/water mark.png", "C:\\Scans\\watermark.png", "watermark.png"]) {
+    const item = ATN.make.place({ path: file, x: 120, y: -40.5, width: 50, height: 50, angle: 15 });
+    const back = ATN.parse(bytesOf(ATN.write(ATN.file("S", [ATN.action("A", [item])])))).actions[0].items[0];
+    assert.deepEqual(back, JSON.parse(JSON.stringify(item)));
+    assert.equal(back.event, "placeEvent");
+    const d = back.descriptor;
+    assert.equal(ATN.get(d, "null").type, file.startsWith("/") ? "alis" : "Pth ");
+    assert.equal(ATN.pathOf(ATN.get(d, "null")), file);
+    assert.deepEqual([ATN.get(d, "Ofst", "Hrzn").value, ATN.get(d, "Ofst", "Vrtc").value, ATN.get(d, "Wdth").value, ATN.get(d, "Hght").value, ATN.get(d, "Angl").value], [120, -40.5, 50, 50, 15]);
+    assert.match(ATN.summary(back), /^Place — File: /);
+  }
+});
+
 /* ----------------------------- Photoshop's own files ----------------------------- */
 
 test("Photoshop's own .atn files go back byte for byte", { skip: !realFiles.length && "Photoshop 2026 is not installed" }, () => {

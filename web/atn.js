@@ -1360,7 +1360,9 @@
   event("close", "Cls ", "Close", false, "file+played", "Cls { Svng: enum YsN .N   |Ys  , DocI?: long, forceNotify?: bool }", [["Svng", "Saving"]]);
   event("export", "Expr", "Export", true, "", "");
   event("open", "Opn ", "Open", true, "", "");
-  event("placeEvent", "Plc ", "Place", true, "", "");
+  event("placeEvent", "Plc ", "Place", true, "",
+    "Plc { ID?: long, null: alis | 'Pth ' (the file), FTcs: enum QCSt.Qcsa, Ofst: Objc Ofst{ Hrzn: UntF #Pxl|#Rlt, Vrtc: UntF #Pxl|#Rlt } (the image's middle from the page's), Wdth?: UntF #Prc, Hght?: UntF #Prc, Angl?: UntF #Ang, Skew?: Objc Pnt { Hrzn: UntF #Ang, Vrtc: UntF #Ang }, Lnkd?: bool (Place Linked) }",
+    [["null", "File"], ["Ofst", "Offset"], ["Wdth", "Width"], ["Hght", "Height"], ["Angl", "Angle"], ["Lnkd", "Linked"]]);
   event("stop", "Stop", "Stop", true, "file", 'Stop{ Msge: TEXT, Cntn?: bool } (class "null" in recent files; always played with its dialog)', [["Msge", "Message"], ["Cntn", "Allow Continue"]]);
   event("play", "Ply ", "Play", false, "file+played", 'Ply { null: ref(name Actn "…" < name ASet "…") }', [["null", "Action"]]);
 
@@ -1704,6 +1706,20 @@
         Angl: o.angle === undefined ? undefined : angle(o.angle),
         Skew: o.skewX || o.skewY ? obj("Pnt ", { Hrzn: angle(o.skewX || 0), Vrtc: angle(o.skewY || 0) }) : undefined,
         Intr: enumv("Intp", "Bcbc"),
+      }),
+    // File > Place Embedded: { path, x, y (the image's middle from the page's, in px), width,
+    // height (%), angle, skewX, skewY (degrees), linked }. A POSIX path is the alias Photoshop
+    // for Mac resolves; any other (a Windows path, a bare file name) a 'Pth ', as read back.
+    place: (o) =>
+      step("placeEvent", {
+        null: String(o.path).startsWith("/") ? fileAlias(o.path) : filePath(o.path),
+        FTcs: enumv("QCSt", "Qcsa"),
+        Ofst: obj("Ofst", { Hrzn: px(o.x || 0), Vrtc: px(o.y || 0) }),
+        Wdth: o.width === undefined ? undefined : pct(o.width),
+        Hght: o.height === undefined ? undefined : pct(o.height),
+        Angl: o.angle ? angle(o.angle) : undefined,
+        Skew: o.skewX || o.skewY ? obj("Pnt ", { Hrzn: angle(o.skewX || 0), Vrtc: angle(o.skewY || 0) }) : undefined,
+        Lnkd: o.linked ? true : undefined,
       }),
     rasterizeLayer: (o = {}) => step("rasterizeLayer", { null: ref(target()), What: o.what && enumv("rasterizeItem", o.what) }),
     // Layer > Smart Objects > Convert to Smart Object, as Photoshop records it before a Smart Filter

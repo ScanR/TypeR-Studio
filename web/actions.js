@@ -881,6 +881,36 @@
         need(done, T("This layer has nothing to transform."));
       };
     },
+    // File > Place Embedded (and Place Linked, which TypeR embeds too): the file the step
+    // names, its middle as far from the page's as recorded, at the recorded size
+    placeEvent(item) {
+      const d = item.descriptor;
+      const path = ATN.pathOf(get(d, "null"));
+      if (!path) return null;
+      const center = get(d, "FTcs");
+      if (center && !same(center.value, "Qcsa")) return null;
+      return async () => {
+        needDoc();
+        const page = doc();
+        const offset = get(d, "Ofst");
+        const skew = get(d, "Skew");
+        const deg = (v) => (v ? Number(v.value) : 0);
+        const done = await host.playPlaceFile(path, {
+          sx: get(d, "Wdth") ? Number(get(d, "Wdth").value) / 100 : undefined,
+          sy: get(d, "Hght") ? Number(get(d, "Hght").value) / 100 : undefined,
+          angle: deg(get(d, "Angl")),
+          kh: Math.tan((deg(skew && get(skew, "Hrzn")) * Math.PI) / 180),
+          kv: Math.tan((deg(skew && get(skew, "Vrtc")) * Math.PI) / 180),
+          dx: offset ? pixels(get(offset, "Hrzn"), page.width) || 0 : 0,
+          dy: offset ? pixels(get(offset, "Vrtc"), page.height) || 0 : 0,
+        });
+        const name = String(path).split(/[\\/]/).pop();
+        need(done !== "no file", fill(T("The file “{name}” wasn't chosen."), { name }));
+        // Said already, with the reason
+        need(done !== "unreadable", "");
+        need(done === "placed", fill(T("{name} is empty: there is nothing to place."), { name }));
+      };
+    },
     flip(item) {
       const target = get(item.descriptor, "null");
       if (!isTargetRef(target)) return null;
@@ -1643,6 +1673,18 @@
     gaussianBlur: ({ radius }) => [ATN.make.gaussianBlur({ radius })],
     motionBlur: ({ angle, distance }) => [ATN.make.motionBlur({ angle, distance })],
     transform: (t) => [ATN.make.transform({
+      x: Math.round(t.dx * 100) / 100,
+      y: Math.round(t.dy * 100) / 100,
+      width: Math.round(t.sx * 100000) / 1000,
+      height: Math.round(t.sy * 100000) / 1000,
+      angle: t.angle ? Math.round(t.angle * 1000) / 1000 : undefined,
+      skewX: t.kh ? Math.round((Math.atan(t.kh) * 180000) / Math.PI) / 1000 : 0,
+      skewY: t.kv ? Math.round((Math.atan(t.kv) * 180000) / Math.PI) / 1000 : 0,
+    })],
+    // File > Place Embedded…: the file by its place on the disk where the app knows it (the
+    // desktop app), else by its name, and where its middle went from the page's
+    place: (t) => [ATN.make.place({
+      path: t.source,
       x: Math.round(t.dx * 100) / 100,
       y: Math.round(t.dy * 100) / 100,
       width: Math.round(t.sx * 100000) / 1000,

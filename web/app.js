@@ -2007,6 +2007,33 @@
     renderStatus();
     return true;
   };
+  // An action's Place step, done at once: { sx, sy, angle (degrees), kh, kv (tangents), dx, dy
+  // (the image's middle from the page's) }. A step that gives no size leaves the image as Place
+  // Embedded brings it: no larger than the page.
+  const playPlace = (bitmap, name, to) => {
+    const doc = app.doc;
+    const tool = app.tool;
+    const t = placeLayer(bitmap, name, null, [doc.width / 2, doc.height / 2]);
+    if (!t) {
+      setTool(tool);
+      return false;
+    }
+    const fit = placeFit(doc, bitmap);
+    Object.assign(t, { sx: to.sx === undefined ? fit : to.sx, sy: to.sy === undefined ? fit : to.sy, angle: (to.angle * Math.PI) / 180, kh: to.kh, kv: to.kv });
+    // The image's middle goes where the step says. The frame is around its pixels only: its
+    // own middle follows.
+    const [a, b, c, d] = transformMatrix(t);
+    const ox = t.place.xMid - t.base.xMid;
+    const oy = t.place.yMid - t.base.yMid;
+    t.cx = doc.width / 2 + to.dx - (a * ox + c * oy);
+    t.cy = doc.height / 2 + to.dy - (b * ox + d * oy);
+    commitTransform();
+    // Too large to be made: nothing is left of it
+    if (transformOf()) cancelTransform();
+    setTool(tool);
+    return doc.historyIndex > t.place.index;
+  };
+
   // An action's Transform step on the active layers, as Free Transform would commit it:
   // { sx, sy, angle (degrees), kh, kv (tangents), dx, dy }
   const applyTransform = (step) => {
@@ -21229,6 +21256,9 @@
     }
   };
   const layerNameOfFile = (name) => name.replace(/\.[^.]+$/, "") || name;
+  // The files placed or picked for an action since the app opened, by the path a Place step
+  // names: an action that places one again finds it without asking
+  const placedFiles = new Map();
   const placeEmbedded = async () => {
     const doc = app.doc;
     const entry = await pickPlaceFile();
@@ -21241,7 +21271,44 @@
     let source = entry.file.name;
     if (Studio && entry.handle) source = (await whereIs(entry.handle).catch(() => null)) || source;
     if (app.doc !== doc) return;
+    placedFiles.set(source, entry.file);
     if (!beginPlace(bitmap, layerNameOfFile(entry.file.name), source)) toast(fill(T("{name} is empty: there is nothing to place."), { name: entry.file.name }), true);
+  };
+  // An action's Place step: the file it names. The desktop app reads it where it is; else,
+  // and in the browser, which can't, the user shows it once.
+  const baseName = (path) => String(path).split(/[\\/]/).pop() || String(path);
+  const fileOfPlace = async (path) => {
+    const Desktop = window.TypeRDesktop;
+    if (Desktop && Desktop.readImage) {
+      const bytes = await Desktop.readImage(path).catch(() => null);
+      if (bytes) return new File([bytes], baseName(path));
+    }
+    if (placedFiles.has(path)) return placedFiles.get(path);
+    const answer = await dialog({
+      title: T("Place Embedded"),
+      body: fill(T("This action places the file “{name}”, which TypeR Studio can't find by itself. Choose it: it won't be asked again until the app is closed."), { name: baseName(path) }),
+      ok: T("Choose the File…"),
+      cancel: T("Cancel"),
+    });
+    if (!answer) return null;
+    const entry = await pickPlaceFile();
+    if (!entry) return null;
+    placedFiles.set(path, entry.file);
+    return entry.file;
+  };
+  // Plays it on the page in front: "placed", or why not ("no file", "unreadable", "empty")
+  const playPlaceFile = async (path, step) => {
+    const doc = app.doc;
+    const file = await fileOfPlace(path);
+    if (!file) return "no file";
+    const bitmap = await pictureOfFile(file);
+    if (!bitmap) {
+      // Not the image it was taken for: asked again next time
+      if (placedFiles.get(path) === file) placedFiles.delete(path);
+      return "unreadable";
+    }
+    if (app.doc !== doc) PS.setActiveDoc(doc);
+    return playPlace(bitmap, layerNameOfFile(baseName(path)), step) ? "placed" : "empty";
   };
   window.addEventListener("dragover", (event) => {
     if (dragIds) return;
@@ -22337,6 +22404,7 @@
       applyMotionBlur,
       applyTransform,
       cancelTransform,
+      playPlaceFile,
       askRadius,
       playContentAwareFill,
       settleForResize,
