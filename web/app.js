@@ -861,11 +861,22 @@
     schedule(false);
   };
 
+  // What the screen's canvas shows: which page, as last drawn (`pageStamp`), where and how
+  // large. Asked for the same again (the cursor moved in a text, a handle lit up: only what is
+  // drawn over the page changed), it is left alone: scaling a page of fifty million pixels
+  // down to the screen is 15 ms the processor can keep. Not in Flow, whose other pages come
+  // in as they are read.
+  let pageStamp = 0;
+  let shownAs = "";
   // The picture on screen is drawn at the size it shows: small pages stay sharp
   const blit = () => {
     const ratio = dpr();
     const w = Math.round((stageW + under.l + under.r) * ratio);
     const h = Math.round((stageH + under.t + under.b) * ratio);
+    const quality = pinch || gesture || performance.now() < quickUntil ? "low" : "high";
+    const as = app.doc && settings.workspace !== "flow" ? [app.doc.id, pageStamp, app.doc.width, app.doc.height, w, h, under.l, under.t, Math.round(app.doc.view.x), Math.round(app.doc.view.y), app.doc.view.zoom, quality].join(" ") : "";
+    if (as && as === shownAs && ui.canvas.width === w && ui.canvas.height === h) return;
+    shownAs = as;
     if (ui.canvas.width !== w || ui.canvas.height !== h) {
       ui.canvas.width = w;
       ui.canvas.height = h;
@@ -902,7 +913,7 @@
     ctx.fillRect(x, y, dw, dh);
     ctx.imageSmoothingEnabled = v.zoom < 2;
     // While something moves, speed: the sharp picture comes when it stops
-    ctx.imageSmoothingQuality = pinch || gesture || performance.now() < quickUntil ? "low" : "high";
+    ctx.imageSmoothingQuality = quality;
     const part = PS.offCard(docCanvas) ? partOnScreen(doc, x, y, v.zoom) : null;
     if (!part) onScreen = null;
     if (!part) ctx.drawImage(docCanvas, x, y, dw, dh);
@@ -916,6 +927,15 @@
     }
     if (flowing) Flow.drawOver(ctx);
   };
+  // A canvas the browser emptied (its graphics card lost, the window back from sleep) is drawn again
+  ["contextlost", "contextrestored"].forEach((type) => ui.canvas.addEventListener(type, () => {
+    shownAs = "";
+    schedule(false);
+  }));
+  document.addEventListener("visibilitychange", () => {
+    shownAs = "";
+    if (!document.hidden) schedule(false);
+  });
 
   let paintRequest = 0;
   let needCompose = true;
@@ -937,6 +957,7 @@
       if (composeAll || composedDoc !== doc || !composeRect) PS.paintDoc(doc, docCanvas.getContext("2d"), { screen: true });
       else if (composeRect.right > composeRect.left && composeRect.bottom > composeRect.top) PS.paintDoc(doc, docCanvas.getContext("2d"), { rect: composeRect, screen: true });
       composedDoc = doc;
+      pageStamp++;
     }
     needCompose = false;
     composeAll = false;
