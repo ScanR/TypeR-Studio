@@ -267,6 +267,13 @@ html.touch .library__grid { grid-template-columns: repeat(auto-fill, minmax(84px
 html.touch .library__ghead { padding: 10px 12px; font-size: 14px; }
 html.touch .styles__item { padding: 3px; }
 
+/* swatches: colours a finger can hit */
+html.touch .swatch-list { --chip: 36px; gap: 6px; padding: 10px; }
+html.touch .swatch-list--large { --chip: 52px; }
+html.touch .swatch-list--list { gap: 0; padding: 0; }
+html.touch .swatch-list--list .swatch-list__item { min-height: 48px; padding: 5px 14px; font-size: 15px; }
+html.touch .swatch-list--list .swatch-list__chip { --chip: 28px; }
+
 /* character */
 html.touch .character { gap: 10px 12px; padding: 12px; grid-template-columns: 1fr; font-size: 14px; }
 html.touch .character label { flex-wrap: nowrap; gap: 8px; }

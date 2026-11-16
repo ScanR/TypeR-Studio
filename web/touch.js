@@ -271,6 +271,7 @@
     layerStyles: { title: "Layer Styles", element: () => $("pane-styles") },
     // Brushes and materials brought in from Clip Studio Paint (library.js)
     library: { title: "Library", element: () => $("pane-library"), tall: true },
+    swatches: { title: "Swatches", element: () => $("pane-swatches") },
     position: { title: "Position", element: () => NATIVE.position, follows: true },
     pages: { title: "Pages", element: () => NATIVE.pages },
     more: { title: "More", element: () => NATIVE.more, icon: "more", tall: true },
@@ -1114,6 +1115,7 @@
       row(T("History"), () => openSheet("history"), false, "undo"),
       row(T("Layer Styles"), () => openSheet("layerStyles"), false, `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>`),
       row(T("Library"), () => openSheet("library"), false, `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.500 4l4.500 4.500-9 9-5 .500.500-5z"/><path d="M4 20.500h7"/></svg>`),
+      row(T("Swatches"), () => openSheet("swatches"), false, `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 0 0 0 17c1 0 1.6-.7 1.6-1.5 0-.9-.7-1.3-.7-2.1 0-.9.7-1.5 1.6-1.5h1.9a4 4 0 0 0 4-4c0-4.4-3.8-7.9-8.4-7.9Z"/><circle cx="7.5" cy="11.5" r="1.2"/><circle cx="10" cy="7.5" r="1.2"/><circle cx="15" cy="7.8" r="1.2"/></svg>`),
       row(T("Line Breaks"), () => openSheet("lines"), false, "lines"),
       row(T("Character"), () => openSheet("text"), false, "font"),
       row("TextShapeR", () => openSheet("shapes"), false, "shapes"),

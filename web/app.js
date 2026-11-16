@@ -383,15 +383,46 @@
     }
     return [h * 60, max ? (span / max) * 100 : 0, (max / 255) * 100];
   };
+  // The swatches, shared by the Color Picker and the Swatches panel (swatches.js): { hex, name }
+  // each. Kept as before, a list of "#rrggbb", but a named one is kept as { hex, name }.
   const STORE_SWATCHES = "typer.web.swatches";
-  const MAX_SWATCHES = 24;
+  const MAX_SWATCHES = 1000;
+  const swatchOf = (value) => {
+    const hex = typeof value === "string" ? value : value && typeof value === "object" ? value.hex : null;
+    if (typeof hex !== "string" || !/^#[0-9a-f]{6}$/i.test(hex)) return null;
+    const name = value && typeof value.name === "string" ? value.name.trim().slice(0, 120) : "";
+    return { hex: hex.toLowerCase(), name };
+  };
   const readSwatches = () => {
     try {
       const saved = JSON.parse(window.localStorage.getItem(STORE_SWATCHES));
-      return Array.isArray(saved) ? saved.filter((value) => /^#[0-9a-f]{6}$/.test(value)) : [];
+      return Array.isArray(saved) ? saved.map(swatchOf).filter(Boolean).slice(0, MAX_SWATCHES) : [];
     } catch (error) {
       return [];
     }
+  };
+  // Kept, then said to whoever shows them
+  const writeSwatches = (list) => {
+    const kept = list.map(swatchOf).filter(Boolean).slice(0, MAX_SWATCHES);
+    try {
+      window.localStorage.setItem(STORE_SWATCHES, JSON.stringify(kept.map((swatch) => (swatch.name ? swatch : swatch.hex))));
+    } catch (error) {
+      console.warn("TypeR web: could not keep the swatches", error);
+      toast(T("The swatches could not be kept: the browser's storage is full."), true);
+    }
+    window.dispatchEvent(new CustomEvent("typer-swatches"));
+    return kept;
+  };
+  // A colour not yet among the swatches goes at their end, as Photoshop adds one
+  const addSwatch = (hex) => {
+    const list = readSwatches();
+    if (list.some((swatch) => swatch.hex === hex)) return true;
+    if (list.length >= MAX_SWATCHES) {
+      toast(T("The Swatches panel is full: delete a swatch first."), true);
+      return false;
+    }
+    writeSwatches(list.concat({ hex, name: "" }));
+    return true;
   };
 
   // Tried out as it changes, as the browser's own picker did. Cancel takes all of it back.
@@ -504,8 +535,8 @@
     const no = make("button", "btn", right, T("Cancel"));
     no.type = "button";
     no.addEventListener("click", () => done(false));
-    const addSwatch = make("button", "btn", right, T("Add to Swatches"));
-    addSwatch.type = "button";
+    const addSwatchButton = make("button", "btn", right, T("Add to Swatches"));
+    addSwatchButton.type = "button";
     if (window.EyeDropper) {
       const dropper = make("button", "btn", right, T("Pick from the screen"));
       dropper.type = "button";
@@ -526,12 +557,12 @@
     const swatchRow = make("div", "picker__swatches", side);
     const showSwatches = () => {
       swatchRow.textContent = "";
-      readSwatches().forEach((value) => {
+      readSwatches().forEach(({ hex: value, name }) => {
         const swatch = make("button", "", swatchRow);
         swatch.type = "button";
         swatch.style.background = value;
-        swatch.title = value;
-        swatch.setAttribute("aria-label", value);
+        swatch.title = name ? `${name} (${value})` : value;
+        swatch.setAttribute("aria-label", swatch.title);
         swatch.addEventListener("click", () => {
           const c = fromHex(value);
           setRgb(c.r, c.g, c.b);
@@ -539,15 +570,10 @@
         });
       });
     };
-    addSwatch.addEventListener("click", () => {
-      const value = hex();
-      const list = [value, ...readSwatches().filter((item) => item !== value)].slice(0, MAX_SWATCHES);
-      try {
-        window.localStorage.setItem(STORE_SWATCHES, JSON.stringify(list));
-      } catch (error) {
-        console.warn("TypeR web: could not keep the swatches", error);
-      }
+    addSwatchButton.addEventListener("click", () => {
+      if (!addSwatch(hex())) return;
       showSwatches();
+      swatchRow.scrollTop = swatchRow.scrollHeight;
     });
     showSwatches();
     shownOld.addEventListener("click", () => {
@@ -12975,6 +13001,10 @@
         await window.TypeRStyles.loadFile(file);
         continue;
       }
+      if (/\.(aco|ase)$/i.test(file.name) && window.TypeRSwatches) {
+        await window.TypeRSwatches.loadFile(file);
+        continue;
+      }
       // A Word or a text file is a script: it becomes the panel's
       if (SCRIPT_FILE.test(file.name)) {
         await importScriptFile(file);
@@ -19684,6 +19714,8 @@
       { label: "Styles", check: () => Workspace().isVisible("styles"), action: () => Workspace().toggle("styles") },
       // Brushes and materials brought in from Clip Studio Paint (library.js)
       { label: "Library", check: () => Workspace().isVisible("library"), action: () => Workspace().toggle("library") },
+      // Photoshop's Swatches: colours kept, a click away (swatches.js)
+      { label: "Swatches", check: () => Workspace().isVisible("swatches"), action: () => Workspace().toggle("swatches") },
       { label: "Line Breaks", keys: "Alt+Cmd+L", check: () => Workspace().isVisible("breaks"), action: () => Workspace().toggle("breaks") },
       ...(Shell.touch ? [] : [{ label: "Contextual Task Bar", check: () => settings.taskBar, action: () => setTaskBar(!settings.taskBar) }]),
       null,
@@ -22462,6 +22494,8 @@
     nudge,
     flattened,
     applyTextPatch,
+    // The swatches the Color Picker and the Swatches panel share (swatches.js)
+    swatches: { read: readSwatches, write: writeSwatches, add: addSwatch, max: MAX_SWATCHES },
     openFontMenu,
     scrubbed,
     scrubs,
