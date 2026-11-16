@@ -10660,6 +10660,33 @@
   // Layer Style's items, in its dialog's order: the layer's own blending, then the effects
   const FX_PANES = [["blending", "Blending"], ["stroke", "Stroke"], ["dropShadow", "Drop Shadow"], ["outerGlow", "Outer Glow"], ["innerShadow", "Inner Shadow"], ["innerGlow", "Inner Glow"], ["colorOverlay", "Colour Overlay"], ["gradientOverlay", "Gradient Overlay"]];
   const fxLabel = (name) => T((FX_PANES.find(([id]) => id === name) || [name, name])[1]);
+  // What an effect starts from when it is turned on for a layer that doesn't have it, in Layer
+  // Style or with the Character panel's Stroke: Photoshop's own, or those the user kept with
+  // Make Default (so a bubble's colours aren't set again by hand on every text)
+  const STORE_FX_DEFAULTS = "typer.web.fxDefaults";
+  const factoryFx = (name) => (name === "stroke" ? { enabled: true, size: 3, opacity: 100, position: "outer", color: { r: 255, g: 255, b: 255 } } : PS.fxDefault(name));
+  let fxDefaults = {};
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(STORE_FX_DEFAULTS));
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) fxDefaults = saved;
+  } catch (error) {
+    fxDefaults = {};
+  }
+  const fxStart = (name) => {
+    const own = fxDefaults[name];
+    const usable = own && typeof own === "object" && (name !== "stroke" || own.size > 0);
+    return Object.assign(factoryFx(name), usable ? JSON.parse(JSON.stringify(own)) : {}, { enabled: true });
+  };
+  // `next`: { [effect]: settings }, or {} for Photoshop's own again
+  const keepFxDefaults = (next) => {
+    fxDefaults = next;
+    try {
+      if (Object.keys(next).length) window.localStorage.setItem(STORE_FX_DEFAULTS, JSON.stringify(next));
+      else window.localStorage.removeItem(STORE_FX_DEFAULTS);
+    } catch (error) {
+      // Kept for this session only
+    }
+  };
   // A gradient's stops as a CSS gradient, left to right
   const gradientCss = (stops, reverse) => {
     const list = (stops || []).map((item) => ({ at: reverse ? 1 - item.at : item.at, c: `rgba(${item.r}, ${item.g}, ${item.b}, ${item.a === undefined ? 1 : item.a})` })).sort((a, b) => a.at - b.at);
@@ -12279,7 +12306,7 @@
     const strokeOf = (item) => (item.stroke && item.stroke.enabled ? item.stroke : stroke);
     const changeStrokes = (change, coalesce) => ops.setTextStroke(strokeIds(), (item) => change(strokeOf(item)), coalesce);
     const strokeOn = checkbox(T("Stroke"), Boolean(stroke), (on) => {
-      const fresh = { enabled: true, size: 3, opacity: 100, position: "outer", color: { r: 255, g: 255, b: 255 } };
+      const fresh = fxStart("stroke");
       ops.setTextStroke(strokeIds(), on ? (item) => (item.stroke && item.stroke.enabled ? item.stroke : fresh) : null);
     });
     strokeRow.appendChild(strokeOn);
@@ -18004,7 +18031,6 @@
   // takes them back. The window leaves the page as it is, which is the preview, and moves by its
   // title. The useful settings first, the others under Advanced (kept open or closed meanwhile).
   let fxAdvanced = false;
-  const freshStroke = () => ({ enabled: true, size: 3, opacity: 100, position: "outer", color: { r: 255, g: 255, b: 255 } });
   // A stroke's gradient when its Fill Type first becomes Gradient: black to white, as Gradient
   // Overlay's
   const freshStrokeGradient = () => ({ stops: [{ at: 0, r: 0, g: 0, b: 0, a: 1 }, { at: 1, r: 255, g: 255, b: 255, a: 1 }], style: "linear", angle: 90, scale: 100, reverse: false });
@@ -18102,12 +18128,15 @@
     const kept = {};
     let current = FX_ITEMS.some(([id]) => id === start) ? start : "blending";
 
-    // What an item shows: the active layer's own, what was set here, or Photoshop's defaults
+    // What an item shows: the active layer's own, what was set here, or the defaults (fxStart)
     const shownOf = (name) => {
       const layer = lead();
-      if (name === "stroke") return (layer && hasStrokeFx(layer) ? layer.stroke : null) || kept.stroke || freshStroke();
-      return (layer && layer.effects && layer.effects[name]) || kept[name] || PS.fxDefault(name);
+      if (name === "stroke") return (layer && hasStrokeFx(layer) ? layer.stroke : null) || kept.stroke || fxStart("stroke");
+      return (layer && layer.effects && layer.effects[name]) || kept[name] || fxStart(name);
     };
+    // An effect's settings all replaced by its defaults, none of its own left over (a stroke's
+    // gradient or the stroke around it, a shadow's knockout)
+    const startOver = (name) => (own) => Object.assign(Object.fromEntries(Object.keys(own).map((key) => [key, undefined])), fxStart(name));
     const isOn = (name) => {
       const layer = lead();
       return Boolean(layer) && fxIsOn(layer, name);
@@ -18209,6 +18238,40 @@
       });
       foot.insertBefore(keepStyle, no);
     }
+    // Photoshop's Make Default: every effect's settings shown here, the stroke's too, become
+    // what it starts from on a layer that doesn't have it, from now on (Cancel keeps them)
+    const makeDefault = make("button", "btn", null, T("Make Default"));
+    makeDefault.type = "button";
+    makeDefault.title = T("Effects turned on from now on start from these settings, the stroke too.");
+    makeDefault.addEventListener("click", () => {
+      flush();
+      const next = {};
+      FX_ITEMS.forEach(([name]) => {
+        if (name === "blending") return;
+        const fx = JSON.parse(JSON.stringify(shownOf(name)));
+        delete fx.enabled;
+        next[name] = fx;
+      });
+      keepFxDefaults(next);
+      toast(T("Each effect now starts from these settings."));
+    });
+    // Reset to Default: the effects of the layers back to those, each left on or off. Alt+click
+    // forgets them first, for Photoshop's own.
+    const resetDefault = make("button", "btn", null, T("Reset to Default"));
+    resetDefault.type = "button";
+    resetDefault.title = T("Puts the effects back to their defaults. Alt+click: back to Photoshop's own defaults.");
+    resetDefault.addEventListener("click", (event) => {
+      flush();
+      if (event.altKey) keepFxDefaults({});
+      FX_ITEMS.forEach(([name]) => {
+        if (name === "blending") return;
+        delete kept[name];
+        changeFx(name, (own) => Object.assign(startOver(name)(own), { enabled: own.enabled }), true);
+      });
+      buildPane();
+    });
+    foot.insertBefore(makeDefault, foot.firstChild);
+    foot.insertBefore(resetDefault, makeDefault.nextSibling);
 
     /* the rail: Blending, then each effect with its switch */
     const railItems = {};
@@ -18743,8 +18806,7 @@
           setBlending("blend", "normal");
           setBlending("opacity", 100);
           setBlending("fill", 100);
-        } else if (current === "stroke") setFx("stroke", () => Object.assign(freshStroke(), { outer: undefined }));
-        else setFx(current, () => PS.fxDefault(current));
+        } else setFx(current, startOver(current));
         buildPane();
       });
       fields = make("div", "fxdlg__fields", pane);

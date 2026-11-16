@@ -1492,7 +1492,7 @@ body.is-dragging-tool, body.is-dragging-tool * { cursor: grabbing !important; }
 .fxdlg .fxdlg__more[aria-expanded="true"] svg { transform: none; }
 .fxdlg__advanced[hidden] { display: none; }
 .fxdlg__hint { grid-column: 1 / -1; margin: -4px 0 0; padding-inline-start: calc(var(--fx-label) + 10px); color: var(--muted); font-size: 11.5px; line-height: 1.4; }
-.fxdlg__foot { border-top: 1px solid var(--line); }
+.fxdlg__foot { flex-wrap: wrap; border-top: 1px solid var(--line); }
 .fxdlg__foot .btn { min-width: 76px; }
 .fxdlg .blend-menu { z-index: 2; }
 /* Gradient Overlay's gradient */
