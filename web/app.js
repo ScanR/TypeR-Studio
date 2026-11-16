@@ -1802,8 +1802,8 @@
   };
   const showTransform = () => {
     const t = transform;
-    ops.setLiveTransform(t.ids, transformMatrix(t));
-    schedule(true);
+    // On a large page, only where the layers were and are is drawn again
+    schedule(true, ops.setLiveTransform(t.ids, transformMatrix(t)));
   };
   const canTransform = () => ops.transformableIds().length > 0;
   // Just outside a corner of the move tool's controls is where a drag turns the layer

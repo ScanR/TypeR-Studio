@@ -9457,6 +9457,41 @@
   // Where a pixel layer really has pixels, without its mask. A painted layer's picture covers
   // the whole page, whatever is on it. Null for a layer with nothing on it.
   const trimmedBoxes = new WeakMap();
+  // A pixel's alpha, in the number its four bytes make on this machine
+  const ALPHA_BITS = new Uint8Array(new Uint32Array([0xff000000]).buffer)[3] ? 0xff000000 : 0xff;
+  // Does a picture reach its four sides? Most layers do (a page's art, a layer as its file
+  // cut it), and its sides alone tell: a few thousand pixels read, not the fifty million of a
+  // large page.
+  let sideRows = null;
+  let sideColumns = null;
+  const fillsItsPicture = (canvas) => {
+    const { width, height } = canvas;
+    const strip = (kept, w, h) => {
+      const made = kept && kept.width >= w && kept.height >= h ? kept : newCanvas(w, h);
+      const ctx = made.getContext("2d", { willReadFrequently: true });
+      ctx.globalCompositeOperation = "copy";
+      ctx.imageSmoothingEnabled = false;
+      return made;
+    };
+    const shows = (ctx, w, h) => {
+      const px = new Uint32Array(ctx.getImageData(0, 0, w, h).data.buffer);
+      for (let i = 0; i < px.length; i++) if (px[i] & ALPHA_BITS) return true;
+      return false;
+    };
+    sideRows = strip(sideRows, width, 1);
+    sideColumns = strip(sideColumns, 1, height);
+    const rows = sideRows.getContext("2d");
+    const columns = sideColumns.getContext("2d");
+    for (const y of [0, height - 1]) {
+      rows.drawImage(canvas, 0, y, width, 1, 0, 0, width, 1);
+      if (!shows(rows, width, 1)) return false;
+    }
+    for (const x of [0, width - 1]) {
+      columns.drawImage(canvas, x, 0, 1, height, 0, 0, 1, height);
+      if (!shows(columns, 1, height)) return false;
+    }
+    return true;
+  };
   const trimmedBox = (layer, doc) => {
     const visual = visualOf(Object.assign({}, layer, { mask: null }), doc);
     if (!visual) return null;
@@ -9466,18 +9501,27 @@
     let box = trimmedBoxes.get(key);
     if (box === undefined) {
       const { width, height } = visual.canvas;
-      const { data } = visual.canvas.getContext("2d").getImageData(0, 0, width, height);
       let left = width;
-      let top = height;
+      let top = 0;
       let right = 0;
-      let bottom = 0;
-      for (let y = 0, i = 3; y < height; y++) {
-        for (let x = 0; x < width; x++, i += 4) {
-          if (!data[i]) continue;
-          if (x < left) left = x;
-          if (x >= right) right = x + 1;
-          if (y < top) top = y;
-          bottom = y + 1;
+      let bottom = height;
+      if (fillsItsPicture(visual.canvas)) {
+        left = 0;
+        right = width;
+      } else {
+        // From the edges inwards, a pixel at a time as one number
+        const px = new Uint32Array(visual.canvas.getContext("2d").getImageData(0, 0, width, height).data.buffer);
+        const rowHas = (y) => {
+          for (let i = y * width, end = i + width; i < end; i++) if (px[i] & ALPHA_BITS) return true;
+          return false;
+        };
+        while (top < height && !rowHas(top)) top++;
+        if (top === height) bottom = top;
+        else while (!rowHas(bottom - 1)) bottom--;
+        for (let y = top; y < bottom && (left > 0 || right < width); y++) {
+          const row = y * width;
+          for (let x = 0; x < left; x++) if (px[row + x] & ALPHA_BITS) left = x;
+          for (let x = width - 1; x >= right; x--) if (px[row + x] & ALPHA_BITS) right = x + 1;
         }
       }
       const ox = visual.x - dx;
@@ -9656,6 +9700,29 @@
       box = box ? { left: Math.min(box.left, left), top: Math.min(box.top, top), right: Math.max(box.right, right), bottom: Math.max(box.bottom, bottom) } : { left, top, right, bottom };
     });
     return box;
+  };
+
+  // Where what is being transformed shows right now, with room for the smoothing of its edges.
+  // Null when it can't be told from the layers' pictures: one of them in a styled folder,
+  // drawn with it as one picture.
+  const turnedArea = (doc, { ids, matrix }) => {
+    const layers = doc.state.layers;
+    const byId = new Map(layers.map((layer) => [layer.id, layer]));
+    const [a, b, c, d, e, f] = matrix;
+    let box = null;
+    for (const layer of layers) {
+      if (!ids.has(layer.id) || layer.kind === "group") continue;
+      if (nearestStyledOf(layer, byId, layers)) return null;
+      const visual = pageVisualOf(layer, doc);
+      if (!visual || !visual.canvas || !visual.canvas.width) continue;
+      const area = visualRect(visual);
+      [[area.left, area.top], [area.right, area.top], [area.right, area.bottom], [area.left, area.bottom]].forEach(([x, y]) => {
+        const px = a * x + c * y + e;
+        const py = b * x + d * y + f;
+        box = box ? { left: Math.min(box.left, px), top: Math.min(box.top, py), right: Math.max(box.right, px), bottom: Math.max(box.bottom, py) } : { left: px, top: py, right: px, bottom: py };
+      });
+    }
+    return box && { left: box.left - 2, top: box.top - 2, right: box.right + 2, bottom: box.bottom + 2 };
   };
 
   // Levels on the selected part of the layer's picture, from the pixels it had at the start
@@ -10820,11 +10887,22 @@
       if (!doc) return null;
       return layer.kind === "text" ? boxOf(layer, doc) : trimmedBox(layer, doc);
     },
+    // Gives back the part of the page to draw again, when it can be told: where the layers
+    // showed through the matrix before, and where they show through this one
     setLiveTransform(ids, matrix) {
       const doc = app.doc;
-      if (!doc) return;
-      doc.liveTransform = ids ? { ids: new Set(ids), matrix } : null;
-      if (!ids) doc.sampleCache = null;
+      if (!doc) return undefined;
+      const last = doc.liveTransform;
+      doc.liveTransform = ids ? { ids: new Set(ids), matrix, area: null } : null;
+      if (!ids) {
+        doc.sampleCache = null;
+        return undefined;
+      }
+      const area = turnedArea(doc, doc.liveTransform);
+      doc.liveTransform.area = area;
+      // The first one draws the page whole: the layers leave where they were
+      if (!area || !last || !last.area || last.ids.size !== ids.length || ids.some((id) => !last.ids.has(id))) return undefined;
+      return pageRect(doc, Math.min(area.left, last.area.left), Math.min(area.top, last.area.top), Math.max(area.right, last.area.right), Math.max(area.bottom, last.area.bottom));
     },
     transformLayers(ids, matrix, name) {
       const doc = app.doc;
