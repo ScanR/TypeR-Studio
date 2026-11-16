@@ -3568,7 +3568,8 @@
     });
     return input;
   };
-  // − and + around a number, for screens that have no arrow keys
+  // − and + around a number, for screens that have no arrow keys. `control`: what holds the
+  // number, when it has more beside it (Size's list)
   const withSteps = (input, step = 1, control = input) => {
     const box = document.createElement("span");
     box.className = "steps";
@@ -4790,6 +4791,8 @@
 
   const ANTI_ALIAS_NAMES = [["antiAliasNone", "None"], ["antiAliasSharp", "Sharp"], ["antiAliasCrisp", "Crisp"], ["antiAliasStrong", "Strong"], ["antiAliasSmooth", "Smooth"]];
 
+  // The sizes Photoshop lists under its Size field
+  const SIZE_PRESETS = [6, 7, 8, 9, 10, 11, 12, 14, 18, 24, 30, 36, 48, 60, 72];
   const textControls = (host, compact) => {
     const layer = activeTexts()[0];
     const style = layer ? styleShown(layer) : null;
@@ -4848,6 +4851,36 @@
       applyTextPatch({ size: value }, null, "size");
     });
     size.title = T("Size");
+    // Photoshop's sizes, in a list beside the field, opened as Leading's is
+    const sizeBox = document.createElement("span");
+    sizeBox.className = "combo";
+    const sizeOpener = document.createElement("button");
+    sizeOpener.type = "button";
+    sizeOpener.className = "combo__open";
+    sizeOpener.title = T("Size");
+    sizeOpener.setAttribute("aria-label", T("Size"));
+    sizeOpener.setAttribute("aria-haspopup", "listbox");
+    sizeOpener.setAttribute("aria-expanded", "false");
+    const openSizes = (byKeys) => {
+      const entries = SIZE_PRESETS.map((value) => [String(value), String(value)]);
+      openLeadingMenu(sizeOpener, size.value === "" ? null : String(Number(size.value)), (chosen) => {
+        size.value = chosen;
+        size.dispatchEvent(new Event("change"));
+      }, byKeys, entries);
+    };
+    // Pressed, the button leaves the focus where it is: in the text being typed, too
+    sizeOpener.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      if (leadingMenu && leadingMenu.opener === sizeOpener) closeLeadingMenu();
+      else openSizes(false);
+    });
+    sizeOpener.addEventListener("keydown", (event) => {
+      if (leadingMenu || !(event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Enter" || event.key === " ")) return;
+      event.preventDefault();
+      openSizes(true);
+    });
+    sizeBox.append(withUnit(size, "pt"), sizeOpener);
     const color = document.createElement("input");
     color.type = "color";
     color.title = T("Text colour");
@@ -4910,7 +4943,7 @@
       if (texts.some((item) => item.raster && Fonts.isMissing(item.params.layerText.textStyleRange[0].textStyle.fontPostScriptName))) toast(T("This text's font is missing: it will be drawn with another font."), true);
       ops.setTextAntiAlias(texts.map((item) => item.id), antiAlias.value);
     });
-    return { family, faces, size, color, aligns, antiAlias, style, layer, compact, host };
+    return { family, faces, size, sizeBox, color, aligns, antiAlias, style, layer, compact, host };
   };
 
   // At the end of the bar with every tool. It gives focus back, or holding Space to pan
@@ -5257,7 +5290,7 @@
   };
   const buildTaskBar = () => {
     const c = textControls(taskBar, true);
-    const sizeIcon = scrubbed("", c.size, withUnit(c.size, "pt"));
+    const sizeIcon = scrubbed("", c.size, c.sizeBox);
     sizeIcon.firstChild.classList.add("ctxbar__size");
     sizeIcon.firstChild.innerHTML = ICON.textSize;
     sizeIcon.firstChild.setAttribute("aria-label", T("Size"));
@@ -7668,7 +7701,7 @@
       }
       if (activeTexts().length) {
         const c = textControls(bar, true);
-        bar.append(c.family, c.faces, scrubbed(T("Size"), c.size, withUnit(c.size, "pt")), labelled("aa", c.antiAlias), c.color, c.aligns, ...[recentGradientSwatches()].filter(Boolean), hiddenCharsButton());
+        bar.append(c.family, c.faces, scrubbed(T("Size"), c.size, c.sizeBox), labelled("aa", c.antiAlias), c.color, c.aligns, ...[recentGradientSwatches()].filter(Boolean), hiddenCharsButton());
       }
     }
     if (tool === "brush" || tool === "eraser" || tool === "stamp" || tool === "heal" || RETOUCH_BRUSHES.has(tool)) {
@@ -7736,7 +7769,7 @@
     if (tool === "brush" && window.TypeRLibrary) window.TypeRLibrary.options(bar);
     if (tool === "text") {
       const c = textControls(bar, true);
-      bar.append(c.family, c.faces, scrubbed(T("Size"), c.size, withUnit(c.size, "pt")), labelled("aa", c.antiAlias), c.color, c.aligns, ...[recentGradientSwatches()].filter(Boolean), hiddenCharsButton());
+      bar.append(c.family, c.faces, scrubbed(T("Size"), c.size, c.sizeBox), labelled("aa", c.antiAlias), c.color, c.aligns, ...[recentGradientSwatches()].filter(Boolean), hiddenCharsButton());
     }
     if (tool === "crop") cropOptions(bar);
     if (tool === "zoom" || tool === "hand") {
@@ -12078,7 +12111,7 @@
         host.appendChild(use);
       }
     }
-    host.append(scrubbed(T("Size"), c.size, withSteps(c.size, 1, withUnit(c.size, "pt"))));
+    host.append(scrubbed(T("Size"), c.size, withSteps(c.size, 1, c.sizeBox)));
     const leading = leadingField(layer, style);
     // Dragged on its name, as Size, from what Auto gives when it is on
     host.append(scrubbed(T("Leading"), leading.input, leading.box, { from: leading.from, step: leading.step }));
