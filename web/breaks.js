@@ -343,10 +343,10 @@
   const preview = (list) => {
     if (layer) ops.previewBreaks(layer.id, model, list);
   };
-  const commit = (list) => {
+  const commit = (list, coalesce) => {
     if (!layer) return;
     App.warnMissingFont(layer);
-    ops.setLineBreaks(layer.id, model, list);
+    ops.setLineBreaks(layer.id, model, list, coalesce);
     hover = null;
   };
 
@@ -575,11 +575,11 @@
   footButton("breaks-more", () => balanced(breakSet.size + 2));
   footButton("breaks-balance", () => balanced(breakSet.size + 1));
 
-  // From the keys, the panel open or not: one line less or more on the active text
-  const stepLines = (direction) => {
+  // The active text as the panel sees it, for a moment, the panel open or not
+  const onActive = (run) => {
     const doc = app.doc;
     const target = activeText();
-    if (!doc || !target || (target.rotated && target.raster)) return;
+    if (!doc || !target || (target.rotated && target.raster)) return undefined;
     const shown = layer && model && layer.id === target.id ? null : { layer, model, breakSet };
     if (shown) {
       layer = target;
@@ -587,12 +587,30 @@
       breakSet = new Set(model.breaks);
     }
     try {
-      const total = breakSet.size + 1;
-      if (direction < 0 ? total > 1 : total <= allGaps().length) commit(balanced(total + direction));
+      return run();
     } finally {
       // The panel, closed, shows nothing again
       if (shown && layer === target) ({ layer, model, breakSet } = shown);
     }
+  };
+  // From the keys, the panel open or not: one line less or more on the active text
+  const stepLines = (direction) => onActive(() => {
+    const total = breakSet.size + 1;
+    if (direction < 0 ? total > 1 : total <= allGaps().length) commit(balanced(total + direction));
+  });
+  // The proofreading review (verify.js): the active text in `total` lines, as − and + set
+  // them, only shown on the page (`preview`) or put in, joined to the step `coalesce` names.
+  // False when it can't have that many.
+  const setLines = (total, { preview: only, coalesce } = {}) => {
+    const plan = onActive(() => {
+      if (total < 1 || total > allGaps().length + 1) return null;
+      const plan = { id: layer.id, model, list: balanced(total) };
+      if (!only) commit(plan.list, coalesce);
+      return plan;
+    });
+    // Shown once the panel, closed, is itself again: its own update would take it away
+    if (plan && only) ops.previewBreaks(plan.id, plan.model, plan.list);
+    return Boolean(plan);
   };
 
   /* ------------------------------- the panel ------------------------------- */
@@ -695,6 +713,9 @@
     toggle: () => window.TypeRWorkspace.toggle("breaks"),
     fewer: () => stepLines(-1),
     more: () => stepLines(1),
+    setLines,
+    // How many lines the active text can have at most (one per gap between its words, plus one)
+    maxLines: () => onActive(() => allGaps().length + 1) || 1,
     get model() { return model; },
   };
 })();

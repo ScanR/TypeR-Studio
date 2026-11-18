@@ -11969,12 +11969,14 @@
       doc.preview = next;
       emit("render");
     },
-    setLineBreaks(id, model, breaks) {
+    // `coalesce`: joined to the step before when it has the same (a proofreading correction and
+    // the shape it is then given make one step)
+    setLineBreaks(id, model, breaks, coalesce) {
       const doc = app.doc;
       const layer = doc && doc.state.layers.find((item) => item.id === id);
       if (!layer) return;
       doc.preview = null;
-      commitState(doc, "Line Breaks", { layers: replaceLayer(doc, layer, layerWithBreaks(layer, doc, model, breaks)) });
+      commitState(doc, "Line Breaks", { layers: replaceLayer(doc, layer, layerWithBreaks(layer, doc, model, breaks)) }, coalesce);
       firePanelEvent(EVENT_HISTORY);
     },
     /* ---- Image > Levels ---- */
@@ -13742,6 +13744,13 @@
     lockOf,
     groupVisual: (group, doc) => groupVisual(group, doc),
     centredOn,
+    // For Verification (verify-rules.js): the page as the Magic Wand reads it, where Align
+    // centres a text in a bubble, whether a hyphen at the end of a line is the word's own, and
+    // the width of a line of runs, to find which words each line of Photoshop's pixels holds
+    sampleData,
+    openedSelectionBounds,
+    realHyphen,
+    measureRuns,
     get fonts() { return Fonts.list(); },
     extensionId: EXTENSION_ID,
     activeTextLayer,

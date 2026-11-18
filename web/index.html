@@ -39,7 +39,7 @@
   <script>window.TYPER_SUPPORTED = ["en", "fr", "es", "it", "de", "pt", "ru", "uk", "pl", "nl", "tr", "ar", "vi", "id", "th", "ja", "ko", "zh"]</script>
   <!-- The query keeps browsers from reusing the i18n.js of the former site, which had the same address. -->
   <script src="../i18n.js?v=3"></script>
-  <script>if (window.TYPER_I18N.lang !== "en") document.write('<script src="strings/' + window.TYPER_I18N.lang + '.js"><\/script><script src="strings/sfx/' + window.TYPER_I18N.lang + '.js"><\/script><script src="strings/guide/' + window.TYPER_I18N.lang + '.js"><\/script>')</script>
+  <script>if (window.TYPER_I18N.lang !== "en") document.write('<script src="strings/' + window.TYPER_I18N.lang + '.js"><\/script><script src="strings/sfx/' + window.TYPER_I18N.lang + '.js"><\/script><script src="strings/guide/' + window.TYPER_I18N.lang + '.js"><\/script><script src="strings/verify/' + window.TYPER_I18N.lang + '.js"><\/script>')</script>
   <script>document.documentElement.classList.add("js")</script>
 </head>
 <body>
@@ -178,6 +178,11 @@
           <div class="styles" id="styles" role="listbox"></div>
           <div class="layers__foot styles__foot" id="styles-foot"></div>
         </section>
+        <section class="pane pane--verify" id="pane-verify">
+          <div class="dock__head"><span id="head-verify"></span></div>
+          <div class="verify" id="verify"></div>
+          <div class="layers__foot verify__foot" id="verify-foot"></div>
+        </section>
       </aside>
     </div>
 
@@ -214,6 +219,8 @@
   <script src="workspace.js"></script>
   <script src="generative.js"></script>
   <script src="textmask.js"></script>
+  <script src="verify-rules.js"></script>
+  <script src="proofread.js"></script>
   <script src="whats-new.js"></script>
   <script src="feedback.js"></script>
   <script src="stats.js"></script>
@@ -221,6 +228,7 @@
   <script src="app.js"></script>
   <script src="actions.js"></script>
   <script src="styles.js"></script>
+  <script src="verify.js"></script>
   <script src="sfx.js"></script>
   <script src="retouch.js"></script>
   <script src="reshape.js"></script>

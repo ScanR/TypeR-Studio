@@ -12431,6 +12431,58 @@
     const style = styles.find((one) => one && one.id === storage.currentStyleId);
     return Object.assign(found, { style: style && style.name ? style.name : "" });
   };
+  // The script of a page, for the Verification (verify.js): the lines under its "Page N"
+  // heading, cleaned as the panel pastes them (no lines to skip, no style tags, no tags to
+  // remove). The page's number is the last number of its file's name, as the panel finds a
+  // page's picture, else its place in the chapter. Null with no script, or no heading for it.
+  const numberInName = (name) => {
+    const found = String(name || "").replace(/\.[^.]+$/, "").match(/[0-9]+/g);
+    const number = found ? Number(found[found.length - 1]) : 0;
+    return Number.isSafeInteger(number) && number > 0 ? number : 0;
+  };
+  const pageNumberOf = (doc) => {
+    const at = pageOf(doc);
+    if (at < 0) return numberInName(doc && doc.name);
+    const own = numberInName(chapter.pages[at].file.name);
+    return own && chapter.pages.filter((page) => numberInName(page.file.name) === own).length === 1 ? own : at + 1;
+  };
+  const scriptOf = (doc) => {
+    let storage = null;
+    try {
+      const bridge = panelBridge();
+      storage = JSON.parse((bridge ? bridge.getFile(PANEL_STORAGE_KEEPS()) : Kit.read(PANEL_STORAGE_KEEPS())) || "null");
+    } catch (error) {
+      storage = readPanelStorage();
+    }
+    if (!storage || typeof storage !== "object") return null;
+    const tabs = Array.isArray(storage.tabs) ? storage.tabs.filter((tab) => tab && typeof tab === "object") : [];
+    const tab = tabs.find((one) => one.id === storage.currentTabId) || tabs[0] || storage;
+    const text = typeof tab.text === "string" ? tab.text : "";
+    const page = doc ? pageNumberOf(doc) : 0;
+    if (!text.trim() || !page) return null;
+    const skip = Array.isArray(storage.ignoreLinePrefixes) ? storage.ignoreLinePrefixes.filter(Boolean) : ["##"];
+    const tags = (Array.isArray(storage.ignoreTags) ? storage.ignoreTags : []).filter(Boolean);
+    const styles = Array.isArray(storage.styles) ? storage.styles : [];
+    const prefixes = styles.flatMap((style) => (style && !style.prefixesDisabled && Array.isArray(style.prefixes) ? style.prefixes : [])).filter(Boolean).sort((a, b) => b.length - a.length);
+    let current = 0;
+    let found = false;
+    const lines = [];
+    text.split("\n").forEach((raw) => {
+      const heading = pageOfHeading(raw);
+      if (heading) {
+        current = heading;
+        if (heading === page) found = true;
+        return;
+      }
+      if (current !== page || skip.some((prefix) => raw.startsWith(prefix))) return;
+      const tag = raw.startsWith("//") ? (raw.startsWith("//:") ? "//:" : "//") : prefixes.find((prefix) => raw.startsWith(prefix)) || "";
+      let shown = raw.replace(tag, "");
+      tags.forEach((one) => { shown = shown.split(one).join(""); });
+      shown = shown.trim();
+      if (shown) lines.push(shown);
+    });
+    return found ? lines : null;
+  };
   const statusTyper = $("status-typer");
   const renderTyperLine = () => {
     const line = panelBridge() ? typerLine() : null;
@@ -12551,6 +12603,7 @@
     chapter = pages.length > 1 ? { pages, at: 0 } : null;
     renderStatus();
     renderMenusState();
+    if (window.TypeRVerification) window.TypeRVerification.pagesChanged();
     const bridge = !fromPanel && panelBridge();
     if (bridge && !chapter && had) bridge.unlinkPages();
     if (window.TypeRTouch) window.TypeRTouch.chapterChanged();
@@ -13196,6 +13249,9 @@
       if (state.sourceFolder) scan();
       else if (pickedFiles) state.items = inReadingOrder(pickedFiles.filter((item) => on || !item.path.length));
     });
+    // What the last Verification left on the open pages, said without stopping the save
+    const verifyNote = window.TypeRVerification ? window.TypeRVerification.batchNote(app.docs, () => { const no = ui.modal.querySelector(".modal__foot .btn:not(.btn--main)"); if (no) no.click(); }) : null;
+    if (verifyNote) one.appendChild(verifyNote);
 
     // 2. Where they go
     const two = step("2", T("Save to"));
@@ -13323,6 +13379,7 @@
       source.row.hidden = !fromFolder;
       subfolders.row.hidden = !fromFolder;
       subfolders.sync();
+      if (verifyNote) verifyNote.hidden = fromFolder;
       source.said.classList.toggle("is-empty", !state.sourceName);
       if (state.scanning) source.said.textContent = T("Looking for images…");
       else if (!state.sourceName) source.said.textContent = T("No folder chosen yet.");
@@ -17086,6 +17143,16 @@
   };
 
   const DESKTOP = Boolean(window.TypeRDesktop);
+  // The Verification panel (verify.js), with its checks (verify-rules.js) and the AI
+  // proofreading (proofread.js): Window > Verification, Alt+Cmd+V (V for Verification; Photoshop
+  // leaves it free), and in Edit beside Check Spelling
+  const Verification = () => window.TypeRVerification || null;
+  const VERIFY_ITEMS = window.TypeRVerify ? [
+    { label: "Check Typesetting", enabled: hasDoc, action: () => Verification() && Verification().check() },
+    ...(window.TypeRProofread ? [{ label: "Proofread with AI…", enabled: hasDoc, action: () => Verification() && Verification().proofread() }] : []),
+    // The suggestions one by one, on the page itself (P for Proofreading; Photoshop leaves it free)
+    ...(window.TypeRProofread ? [{ label: "Review Proofreading", keys: "Alt+Cmd+P", enabled: () => hasDoc() && Boolean(Verification()) && Verification().suggestions() > 0, action: () => Verification() && Verification().review() }] : []),
+  ] : [];
   const findItem = { label: "Find Layers", keys: "Alt+Shift+Cmd+F", enabled: hasDoc, action: () => openFind() };
   // Layer > Layer Style, as Photoshop's. Its first part is the fx button's menu too (Layers
   // panel). On a layer that can't take a style, each says why when picked.
@@ -17157,6 +17224,7 @@
       { label: "Auto-Align Layers…", enabled: canAutoAlign, action: autoAlignLayers },
       null,
       { label: "Check Spelling", check: () => settings.spellcheck, action: () => { settings.spellcheck = !settings.spellcheck; ui.editor.spellcheck = settings.spellcheck; keepSettings(); } },
+      ...VERIFY_ITEMS,
       { label: "Settings…", keys: "Cmd+K", action: () => showSettings() },
     ]],
     ["Image", [
@@ -17292,6 +17360,7 @@
       { label: "Actions", keys: "Alt+F9", check: () => Workspace().isVisible("actions"), action: () => Workspace().toggle("actions") },
       // Photoshop's Styles: layer styles kept, a click away (styles.js)
       { label: "Styles", check: () => Workspace().isVisible("styles"), action: () => Workspace().toggle("styles") },
+      ...(window.TypeRVerify ? [{ label: "Verification", keys: "Alt+Cmd+V", check: () => Boolean(Verification() && Verification().isOpen()), action: () => Verification() && Verification().toggle() }] : []),
       { label: "Line Breaks", keys: "Shift+L", check: () => Workspace().isVisible("breaks"), action: () => Workspace().toggle("breaks") },
       ...(Shell.touch ? [] : [{ label: "Contextual Task Bar", check: () => settings.taskBar, action: () => setTaskBar(!settings.taskBar) }]),
       null,
@@ -19755,6 +19824,36 @@
       modalOpen: () => ui.modal.open || Boolean(ui.layerStyle),
       setFill,
       soloLayer,
+    },
+    // For the Verification panel (verify.js): a page's lines of the script, and the panel's
+    // reading order (right to left unless TypeR's settings say otherwise)
+    verify: {
+      scriptOf,
+      // Edit > Review Proofreading's keys as they are set, for the titles that lead there
+      reviewKeys: () => {
+        const item = VERIFY_ITEMS.find((one) => one.label === "Review Proofreading");
+        return item && item.keys ? keyLabel(item.keys) : "";
+      },
+      readingOrder: () => ((readPanelStorage() || {}).readingOrder === "ltr" ? "ltr" : "rtl"),
+      // The chapter's pages in order, each with its document when a tab shows it: All pages
+      // checks the pages imported, open or not
+      chapterPages: () => (chapter ? chapter.pages.map((page) => ({ ref: page, key: pageKey(page), name: page.file.name, doc: app.docs.find((doc) => doc.path === pageKey(page)) || null })) : []),
+      // A closed page read without a tab, for its check; let go with ops.dropDetached()
+      readPage: async (ref) => {
+        const key = pageKey(ref);
+        const file = ref.handle ? await ref.handle.getFile() : app.files.get(key) || ref.file;
+        const doc = await ops.readDetached(file, ref.file.name);
+        // Its script is found as the open page's is (see scriptOf)
+        doc.path = key;
+        return doc;
+      },
+      // A closed page brought to the front through the pager: its document, or null
+      openPage: async (ref) => {
+        const at = chapter ? chapter.pages.indexOf(ref) : -1;
+        if (at < 0) return null;
+        await goToPage(at);
+        return app.docs.find((doc) => doc.path === pageKey(ref)) || null;
+      },
     },
   };
 })();

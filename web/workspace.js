@@ -22,12 +22,12 @@
   const ICONS = 36;
   const ICON = 30;
   const MIN_DOCS = 320;
-  const ELEMENTS = { tools: "tools", typer: "dock-typer", layers: "pane-layers", character: "pane-character", sfx: "pane-sfx", breaks: "breaks", history: "pane-history", actions: "pane-actions", styles: "pane-styles" };
-  const PANELS = ["typer", "layers", "character", "sfx", "breaks", "history", "actions", "styles"];
-  const SIDE = ["layers", "character", "sfx", "breaks", "history", "actions", "styles"];
+  const ELEMENTS = { tools: "tools", typer: "dock-typer", layers: "pane-layers", character: "pane-character", sfx: "pane-sfx", breaks: "breaks", history: "pane-history", actions: "pane-actions", styles: "pane-styles", verify: "pane-verify" };
+  const PANELS = ["typer", "layers", "character", "sfx", "breaks", "history", "actions", "styles", "verify"];
+  const SIDE = ["layers", "character", "sfx", "breaks", "history", "actions", "styles", "verify"];
   const SIDES = ["left", "right"];
-  const MIN = { tools: [42, 42], typer: [280, 260], layers: [170, 90], character: [210, 130], sfx: [230, 160], breaks: [210, 120], history: [150, 80], actions: [190, 110], styles: [150, 90] };
-  const HEIGHTS = { typer: 600, layers: 290, character: 240, sfx: 420, breaks: 290, history: 180, actions: 260, styles: 220 };
+  const MIN = { tools: [42, 42], typer: [280, 260], layers: [170, 90], character: [210, 130], sfx: [230, 160], breaks: [210, 120], history: [150, 80], actions: [190, 110], styles: [150, 90], verify: [200, 140] };
+  const HEIGHTS = { typer: 600, layers: 290, character: 240, sfx: 420, breaks: 290, history: 180, actions: 260, styles: 220, verify: 320 };
   // How far a drop that makes a new column reaches into what lies on either side of the line:
   // only a sliver of a column, so the rest of it still stacks or floats, more of the page,
   // which is easier to aim at
@@ -63,11 +63,11 @@
         left: [],
         right: [
           { id: "middle", width: 360, icons: false, groups: [single("typer")] },
-          { id: "right", width: 250, icons: false, groups: [single("layers"), single("character"), single("sfx"), single("breaks"), makeGroup(["history", "actions"], 220), single("styles")] },
+          { id: "right", width: 250, icons: false, groups: [single("layers"), single("character"), single("sfx"), single("breaks"), makeGroup(["history", "actions"], 220), single("styles"), single("verify")] },
         ],
       },
-      // The SFX panel comes with the SFX tool; History, Actions and Styles wait to be asked for
-      hidden: { history: true, sfx: true, actions: true, styles: true },
+      // The SFX panel comes with the SFX tool; History, Actions, Styles and Verification wait to be asked for
+      hidden: { history: true, sfx: true, actions: true, styles: true, verify: true },
       floats: [],
       // Where each panel was docked last: { column, side, at, before, width, with }
       dockOf: {},
@@ -176,8 +176,8 @@
     PANELS.forEach((id) => {
       if (seen.has(id)) return;
       // A panel this layout never had goes to the column at the far right; the SFX one waits
-      // for its tool, the Actions and Styles ones to be asked for (Window menu)
-      if (id === "sfx" || id === "actions" || id === "styles") out.hidden[id] = true;
+      // for its tool, the Actions, Styles and Verification ones to be asked for (Window menu)
+      if (id === "sfx" || id === "actions" || id === "styles" || id === "verify") out.hidden[id] = true;
       const right = out.docks.right;
       const single = makeGroup([id], HEIGHTS[id]);
       if (right.length) right[right.length - 1].groups.push(single);
@@ -308,6 +308,7 @@
     history: '<path d="M2.500 3.500h11M2.500 7h5M2.500 10.500h5"/><path d="M13.500 9.500a3 3 0 1 1-1-2.200"/><path d="M12.700 5.600v1.900h-1.900"/>',
     actions: '<path d="M5 3l8 5-8 5z"/>',
     styles: '<rect x="2.500" y="2.500" width="11" height="11" rx="1"/><path d="M2.500 13.500l11-11"/>',
+    verify: '<circle cx="8" cy="8" r="5.500"/><path d="M5.500 8.200l1.800 1.800 3.300-3.600"/>',
   };
   const svg = (paths) => `<svg viewBox="0 0 16 16" aria-hidden="true">${paths}</svg>`;
   // Toward the page or toward the window's edge

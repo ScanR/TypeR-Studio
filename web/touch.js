@@ -260,6 +260,8 @@
     history: { title: "History", element: () => $("pane-history") },
     // Photoshop's Styles panel (styles.js), named apart from TypeR's own text styles
     layerStyles: { title: "Layer Styles", element: () => $("pane-styles") },
+    // The Verification panel (verify.js)
+    verify: { title: "Verification", element: () => $("pane-verify") },
     position: { title: "Position", element: () => NATIVE.position, follows: true },
     pages: { title: "Pages", element: () => NATIVE.pages },
     more: { title: "More", element: () => NATIVE.more, icon: "more", tall: true },
@@ -831,6 +833,7 @@
       row(T("History"), () => openSheet("history"), false, "undo"),
       row(T("Layer Styles"), () => openSheet("layerStyles"), false, `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>`),
       row(T("Line Breaks"), () => openSheet("lines"), false, "lines"),
+      ...(window.TypeRVerification ? [row(T("Verification"), () => openSheet("verify"), false, `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11.5 11.5 14 16 9"/><path d="M20 12a8 8 0 1 1-3.1-6.3"/></svg>`)] : []),
       row(T("Character"), () => openSheet("text"), false, "font"),
       row("TextShapeR", () => openSheet("shapes"), false, "shapes"),
       row(T("TypeR Settings"), () => openPanelPart('[data-tour="settings"]'), false, "tag"),
