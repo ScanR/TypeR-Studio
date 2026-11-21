@@ -249,6 +249,18 @@ input[type="range"]:disabled::-moz-range-thumb { background: var(--muted); }
 .stage__over { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
 /* the page also shows below the columns' panels, where they leave room (see placeUnder) */
 .stage.is-under { overflow: visible; }
+/* The scroll bars: thin over the page's edge, wider and clearer under the pointer */
+.scrollbar { position: absolute; z-index: 3; box-sizing: border-box; padding: 2px; opacity: .55; transition: opacity .15s; touch-action: none; }
+.scrollbar:hover, .scrollbar.is-dragging { opacity: 1; }
+.scrollbar[hidden] { display: none; }
+.scrollbar--v { top: 0; right: 0; bottom: 0; width: 12px; }
+.scrollbar--h { left: 0; right: 0; bottom: 0; height: 12px; }
+.scrollbar--v.is-short { bottom: 12px; }
+.scrollbar--h.is-short { right: 12px; }
+.scrollbar__thumb { border-radius: 4px; background: color-mix(in srgb, var(--text, #ccc) 45%, transparent); }
+.scrollbar:hover .scrollbar__thumb, .scrollbar.is-dragging .scrollbar__thumb { background: color-mix(in srgb, var(--text, #ccc) 70%, transparent); }
+.scrollbar--v .scrollbar__thumb { width: 100%; }
+.scrollbar--h .scrollbar__thumb { height: 100%; }
 .stage.is-under .stage__canvas { background: var(--stage); }
 .status.is-under { position: relative; z-index: 1; }
 /* Two fingers zooming on a touch screen: the page alone, to see the text as it will be */
@@ -272,7 +284,7 @@ input[type="range"]:disabled::-moz-range-thumb { background: var(--muted); }
 .stage.is-cloning { cursor: crosshair; }
 .stage.is-cloning .brush-ring { display: none; }
 .stage.is-over-selection { cursor: default; }
-.stage[data-tool="eyedropper"], .stage.is-sampling, .fxdlg.is-picking.is-over-page::backdrop { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath stroke='%23fff' stroke-width='3.5' d='m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12m3-3 .4.4a1 1 0 1 1-3 3l-3.800-3.800a1 1 0 1 1 3-3l.4.4 3.400-3.400a1 1 0 1 1 3 3zM2 22l.414-.414'/%3E%3Cpath stroke='%23000' stroke-width='1.500' d='m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12m3-3 .4.4a1 1 0 1 1-3 3l-3.800-3.800a1 1 0 1 1 3-3l.4.4 3.400-3.400a1 1 0 1 1 3 3zM2 22l.414-.414'/%3E%3C/svg%3E") 2 22, crosshair; }
+.stage[data-tool="eyedropper"], .stage.is-sampling, .fxdlg.is-picking.is-over-page::backdrop, .modal--picker.is-over-page::backdrop { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath stroke='%23fff' stroke-width='3.5' d='m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12m3-3 .4.4a1 1 0 1 1-3 3l-3.800-3.800a1 1 0 1 1 3-3l.4.4 3.400-3.400a1 1 0 1 1 3 3zM2 22l.414-.414'/%3E%3Cpath stroke='%23000' stroke-width='1.500' d='m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12m3-3 .4.4a1 1 0 1 1-3 3l-3.800-3.800a1 1 0 1 1 3-3l.4.4 3.400-3.400a1 1 0 1 1 3 3zM2 22l.414-.414'/%3E%3C/svg%3E") 2 22, crosshair; }
 .stage.is-sampling .brush-ring { display: none; }
 /* Cmd, or Ctrl, held: the Move tool is lent */
 .stage.is-move-lent { cursor: move !important; }

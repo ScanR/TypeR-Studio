@@ -14068,8 +14068,9 @@
 
   /* --------------------- what ExtendScript answers --------------------- */
 
-  // Sizes are in points here, which are pixels only at 72 ppi
-  const typeUnitAt = (resolution) => (resolution === 72 ? "pixelsUnit" : "pointsUnit");
+  // Sizes are kept in points here, which are pixels only at 72 ppi. As Photoshop's
+  // Preferences > Units > Type, the panel is told the unit chosen in the settings.
+  const typeUnitAt = (resolution) => (app.textDefaults.typeUnit === "pixels" || resolution === 72 ? "pixelsUnit" : "pointsUnit");
 
   // Photoshop honours the unit a style was saved with: a size in pixels is that many pixels on
   // every page. What the panel sends is brought to points, the only unit a layer is kept in.
@@ -14088,9 +14089,17 @@
     return out;
   };
 
+  // A layer's lengths (in points) in the unit the panel is told, for one text style
+  const lengthsInTypeUnit = (textStyle, resolution) => lengthsInPoints(textStyle, 1 / pointsPerTypeUnit(typeUnitAt(resolution), resolution));
+  const sizeInTypeUnit = (points, resolution) => (typeof points === "number" ? points / pointsPerTypeUnit(typeUnitAt(resolution), resolution) : points);
+
   // Photoshop always names the unit, and the style window can't open without one. It is
   // this model's unit, whatever the style the layer was made from said.
-  const textProps = (layer, doc) => Object.assign(clone(layer.params), { typeUnit: typeUnitAt(doc.resolution) });
+  const textProps = (layer, doc) => {
+    const out = Object.assign(clone(layer.params), { typeUnit: typeUnitAt(doc.resolution) });
+    ((out.layerText && out.layerText.textStyleRange) || []).forEach((range) => lengthsInTypeUnit(range.textStyle, doc.resolution));
+    return out;
+  };
 
   // As Photoshop's host: a stroke switched off keeps its settings but isn't applied
   const strokeToApply = (stroke) => {
@@ -14372,6 +14381,44 @@
       else rows.push({ y, left: first / m.width, right: (last + 1) / m.width, width: (last + 1 - first) / m.width });
     }
     return { scan: "web", bounds: b, rows, fallback: false };
+  };
+
+  // Smart Paste turns the text white on a black bubble: the panel's rule, a bubble whose pixels
+  // are all 15 or less. Here a bubble goes by how bright it looks, so a dark grey or a dark
+  // colour does too: the middle brightness of its inside, where white text reads better than
+  // black (relative luminance under 0.179, where both contrast alike). The pixels are the
+  // page's before the paste, without its texts; the old lettering is outnumbered.
+  const DARK_LUMINANCE = 0.179;
+  const linearOf = (c) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const bubbleIsDark = (doc, plan) => {
+    if (!plan) return false;
+    const raw = Array.isArray(plan.cleanPolygon) && plan.cleanPolygon.length >= 3 ? plan.cleanPolygon : null;
+    const polygon = raw ? raw.map((point) => (Array.isArray(point) ? point : [point.x, point.y])) : null;
+    const b = polygon
+      ? { left: Math.min(...polygon.map((p) => p[0])), top: Math.min(...polygon.map((p) => p[1])), right: Math.max(...polygon.map((p) => p[0])), bottom: Math.max(...polygon.map((p) => p[1])) }
+      : plan.selectionBounds;
+    if (!b || !(b.right > b.left) || !(b.bottom > b.top)) return false;
+    const data = sampleData(doc, true);
+    const values = [];
+    const STEPS = 16;
+    for (let iy = 0; iy < STEPS; iy++) {
+      for (let ix = 0; ix < STEPS; ix++) {
+        const x = b.left + ((b.right - b.left) * (ix + 0.5)) / STEPS;
+        const y = b.top + ((b.bottom - b.top) * (iy + 0.5)) / STEPS;
+        if (polygon && !insidePolygon(polygon, x, y, 0)) continue;
+        const px = Math.floor(x);
+        const py = Math.floor(y);
+        if (px < 0 || py < 0 || px >= doc.width || py >= doc.height) continue;
+        const i = (py * doc.width + px) * 4;
+        values.push(0.2126 * linearOf(data[i]) + 0.7152 * linearOf(data[i + 1]) + 0.0722 * linearOf(data[i + 2]));
+      }
+    }
+    if (values.length < 8) return false;
+    values.sort((x, y) => x - y);
+    return values[Math.floor(values.length / 2)] < DARK_LUMINANCE;
   };
 
   const layerSignature = (doc, layer) => (layer ? layer.id + ":" + doc.historyIndex : "");
@@ -14820,7 +14867,9 @@
         // a box frame follow by the same ratio
         const first = lt.textStyleRange[0].textStyle;
         const shown = first.impliedFontSize || first.size;
-        const ratio = Math.max(1, shown + Number(value)) / shown;
+        // The step is in the panel's unit; the sizes here are in points
+        const step = Number(value) * pointsPerTypeUnit(typeUnitAt(doc.resolution), doc.resolution);
+        const ratio = Math.max(pointsPerTypeUnit(typeUnitAt(doc.resolution), doc.resolution), shown + step) / shown;
         lt.textStyleRange.forEach((range) => {
           const style = range.textStyle;
           style.size = Math.max(0.1, (style.impliedFontSize || style.size) * ratio);
@@ -14905,7 +14954,7 @@
             typeUnit: typeUnitAt(resolution),
             paragraphStyle: params.layerText.paragraphStyleRange[0].paragraphStyle,
             stroke: stroke || null,
-            runs: params.layerText.textStyleRange.map((range) => range.textStyle),
+            runs: params.layerText.textStyleRange.map((range) => lengthsInTypeUnit(clone(range.textStyle), resolution)),
           })),
         });
       } catch (error) {
@@ -14966,7 +15015,7 @@
       if (data && data.keepSize) {
         const layer = activeTextLayer(doc);
         if (layer) {
-          result.activeTextSize = layer.params.layerText.textStyleRange[0].textStyle.size;
+          result.activeTextSize = sizeInTypeUnit(layer.params.layerText.textStyleRange[0].textStyle.size, doc.resolution);
           result.activeTextUnit = typeUnitAt(doc.resolution);
         }
       }
@@ -15007,7 +15056,16 @@
           const op = { t: "poly", polygon: plan.cleanupPolygon, color: plan.fillRGB || { red: 255, green: 255, blue: 255 }, inset: plan.cleanupInset || 0 };
           layers = paintOnCleanLayer(layers, () => op);
         }
-        let layer = newTextLayer(doc, followTextDefaults(paramsInPoints(session.text.params, doc.resolution)), session.text.stroke, session.layerName);
+        const params = followTextDefaults(paramsInPoints(session.text.params, doc.resolution));
+        let stroke = session.text.stroke;
+        // As the panel does on a black bubble: white text, without a stroke
+        if (bubbleIsDark(doc, plan)) {
+          params.layerText.textStyleRange.forEach((range) => {
+            if (range.textStyle) range.textStyle.color = { red: 255, green: 255, blue: 255 };
+          });
+          stroke = null;
+        }
+        let layer = newTextLayer(doc, params, stroke, session.layerName);
         // As TypeR's hosts settle a pasted text (_smartSettleInk): the middle of its ink box on
         // the bubble's centre, where the engine laid it out and where Align puts it. Photoshop
         // reads whole pixels and moves when half a pixel off; Studio's ink and moves are exact,

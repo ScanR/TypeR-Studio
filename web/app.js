@@ -243,6 +243,7 @@
     modal.className = "modal";
     modal.onkeydown = null;
     modal.onpointerdown = null;
+    modal.onpointermove = null;
     const head = document.createElement("div");
     head.className = "modal__head";
     head.textContent = title;
@@ -482,9 +483,11 @@
 
     const right = make("div", "picker__right", body);
     const done = (keep) => {
-      modal.classList.remove("modal--picker");
+      modal.classList.remove("modal--picker", "is-over-page");
       modal.style.transform = "";
       modal.onkeydown = null;
+      modal.onpointerdown = null;
+      modal.onpointermove = null;
       modal.close();
       cancelAnimationFrame(frame);
       frame = 0;
@@ -640,6 +643,43 @@
       head.addEventListener("pointerup", end);
     });
 
+    // As Layer Style's: outside the window, over the page, the pointer is the eyedropper. A
+    // click there takes the page's colour, a drag goes on picking.
+    const onPage = (event) => {
+      if (!app.doc) return false;
+      const box = modal.getBoundingClientRect();
+      if (event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom) return false;
+      const stage = ui.stage.getBoundingClientRect();
+      return event.clientX >= stage.left && event.clientX <= stage.right && event.clientY >= stage.top && event.clientY <= stage.bottom;
+    };
+    const pickAt = (event) => {
+      const [x, y] = toDoc(event);
+      const rgb = ops.colorAt(x, y);
+      if (!rgb) return;
+      setRgb(rgb[0], rgb[1], rgb[2]);
+      changed();
+    };
+    modal.onpointermove = (event) => {
+      if (event.target === modal) modal.classList.toggle("is-over-page", onPage(event));
+      else modal.classList.remove("is-over-page");
+    };
+    modal.onpointerdown = (event) => {
+      if (event.target !== modal || event.button !== 0 || !onPage(event)) return;
+      event.preventDefault();
+      // A field being typed in would keep showing what was typed, not the colour picked
+      if (modal.contains(document.activeElement) && document.activeElement.tagName === "INPUT") document.activeElement.blur();
+      modal.setPointerCapture(event.pointerId);
+      const move = (e) => pickAt(e);
+      const stop = () => {
+        modal.removeEventListener("pointermove", move);
+        modal.removeEventListener("pointerup", stop);
+        modal.removeEventListener("pointercancel", stop);
+      };
+      modal.addEventListener("pointermove", move);
+      modal.addEventListener("pointerup", stop);
+      modal.addEventListener("pointercancel", stop);
+      pickAt(event);
+    };
     modal.oncancel = (event) => {
       event.preventDefault();
       done(false);
@@ -938,6 +978,7 @@
       docCanvas.height = 1;
     }
     blit();
+    placeScrollbars();
     drawOverlay();
     placeTaskBar();
     placeReview();
@@ -965,6 +1006,159 @@
     placeEditor();
     PS.announce("view");
     if (Flow) Flow.rested();
+  };
+
+  /* ----------------------------- the scroll bars --------------------------- */
+
+  // Along the stage's right and bottom edges, as in Photoshop: how much of the page (in Flow,
+  // of every page) is on screen, and a way to move over it. They move the view as the Hand
+  // does, so Flow follows: the page in the middle of the screen comes in front once it rests.
+  // With Shift, they go tile by tile: a page that fits the screen is a tile, centred; a larger
+  // one is gone through a screen at a time, from its start to its end.
+  const SCROLL_MARGIN = 16;
+  const scrollbars = { v: null, h: null };
+  const scrollAxis = (axis) => (axis === "v" ? { a: "y", len: "height", view: () => stageH } : { a: "x", len: "width", view: () => stageW });
+  // The pages on screen, in pixels of the screen
+  const scrollPages = () => {
+    const doc = app.doc;
+    if (!doc) return [];
+    const flowing = Flow && flowOn() ? Flow.pages() : null;
+    if (flowing && flowing.length) return flowing;
+    const v = doc.view;
+    return [{ x: v.x, y: v.y, width: doc.width * v.zoom, height: doc.height * v.zoom }];
+  };
+  // How far the view can go on one axis: the pages with a margin, and the screen itself
+  const scrollExtent = (axis, pages) => {
+    const { a, len, view } = scrollAxis(axis);
+    const from = Math.min(0, ...pages.map((page) => page[a] - SCROLL_MARGIN));
+    const to = Math.max(view(), ...pages.map((page) => page[a] + page[len] + SCROLL_MARGIN));
+    return { from, to };
+  };
+  // The tiles: each a pan of the view, from where it is now, that shows one
+  const scrollStops = (axis, pages) => {
+    const { a, len, view } = scrollAxis(axis);
+    const V = view();
+    const room = Math.max(20, V - SCROLL_MARGIN * 2);
+    const stops = [];
+    pages.forEach((page) => {
+      const start = page[a];
+      const end = page[a] + page[len];
+      if (page[len] <= room) {
+        stops.push(V / 2 - (start + end) / 2);
+        return;
+      }
+      const first = SCROLL_MARGIN - start;
+      const last = V - SCROLL_MARGIN - end;
+      for (let at = first; at > last + 1; at -= room) stops.push(at);
+      stops.push(last);
+    });
+    return stops;
+  };
+  // One tile on: the next one forward (down or right) or back. Shift with the bar or the wheel.
+  const stepTile = (axis, forward) => {
+    const stops = scrollStops(axis, scrollPages());
+    const ahead = forward ? stops.filter((stop) => stop < -1) : stops.filter((stop) => stop > 1);
+    if (!ahead.length) return;
+    const amount = forward ? Math.max(...ahead) : Math.min(...ahead);
+    if (axis === "v") panBy(0, amount);
+    else panBy(amount, 0);
+  };
+  const makeScrollbar = (axis) => {
+    const bar = document.createElement("div");
+    bar.className = `scrollbar scrollbar--${axis}`;
+    bar.hidden = true;
+    bar.setAttribute("aria-hidden", "true");
+    const thumb = document.createElement("div");
+    thumb.className = "scrollbar__thumb";
+    bar.appendChild(thumb);
+    const pan = (amount) => (axis === "v" ? panBy(0, amount) : panBy(amount, 0));
+    // A press on the bar is the bar's: no tool acts on the page under it
+    bar.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+      if (event.button !== 0 || !app.doc) return;
+      event.preventDefault();
+      const pages = scrollPages();
+      const { a, view } = scrollAxis(axis);
+      const track = axis === "v" ? bar.clientHeight : bar.clientWidth;
+      const extent = scrollExtent(axis, pages);
+      const rect = thumb.getBoundingClientRect();
+      const at = axis === "v" ? event.clientY : event.clientX;
+      if (event.target !== thumb) {
+        // On the track: a screen towards the press, or with Shift the next tile that way
+        const forward = at > (axis === "v" ? rect.bottom : rect.right);
+        if (event.shiftKey) stepTile(axis, forward);
+        else pan((forward ? -1 : 1) * Math.max(20, view() - SCROLL_MARGIN * 4));
+        return;
+      }
+      // The thumb dragged: the view follows it, and with Shift falls on the nearest tile
+      const ratio = (extent.to - extent.from) / Math.max(1, track);
+      const boxes = pages.map((page) => Object.assign({}, page));
+      const drag = { done: 0, start: at };
+      bar.classList.add("is-dragging");
+      bar.setPointerCapture(event.pointerId);
+      const move = (e) => {
+        if (!app.doc) return;
+        const want = -((axis === "v" ? e.clientY : e.clientX) - drag.start) * ratio;
+        let to = want;
+        if (e.shiftKey) {
+          // The tiles as they would be with the view where the thumb is, then the nearest one
+          const moved = boxes.map((box) => Object.assign({}, box, { [a]: box[a] + want }));
+          const stops = scrollStops(axis, moved).map((stop) => stop + want);
+          if (stops.length) to = stops.reduce((best, stop) => (Math.abs(stop - want) < Math.abs(best - want) ? stop : best));
+        }
+        if (Math.abs(to - drag.done) < 0.01) return;
+        pan(to - drag.done);
+        drag.done = to;
+        movingQuickly();
+      };
+      const up = () => {
+        bar.removeEventListener("pointermove", move);
+        bar.removeEventListener("pointerup", up);
+        bar.removeEventListener("pointercancel", up);
+        bar.classList.remove("is-dragging");
+        schedule(false);
+      };
+      bar.addEventListener("pointermove", move);
+      bar.addEventListener("pointerup", up);
+      bar.addEventListener("pointercancel", up);
+    });
+    // Nor does a double-click on it
+    bar.addEventListener("dblclick", (event) => event.stopPropagation());
+    ui.stage.appendChild(bar);
+    return { bar, thumb };
+  };
+  const placeScrollbars = () => {
+    if (Shell.touch) return;
+    if (!scrollbars.v) {
+      scrollbars.v = makeScrollbar("v");
+      scrollbars.h = makeScrollbar("h");
+    }
+    const pages = app.doc ? scrollPages() : [];
+    const extents = {};
+    const shown = {};
+    ["v", "h"].forEach((axis) => {
+      extents[axis] = pages.length ? scrollExtent(axis, pages) : null;
+      shown[axis] = Boolean(extents[axis] && extents[axis].to - extents[axis].from > scrollAxis(axis).view() + 1);
+    });
+    ["v", "h"].forEach((axis) => {
+      const { bar, thumb } = scrollbars[axis];
+      const on = shown[axis];
+      if (bar.hidden !== !on) bar.hidden = !on;
+      // Where both show, they leave each other the corner
+      bar.classList.toggle("is-short", on && shown[axis === "v" ? "h" : "v"]);
+      if (!on) return;
+      const V = scrollAxis(axis).view();
+      const extent = extents[axis];
+      const track = axis === "v" ? bar.clientHeight : bar.clientWidth;
+      const total = extent.to - extent.from;
+      const size = Math.max(24, Math.min(track, (track * V) / total));
+      const at = Math.max(0, Math.min(track - size, ((0 - extent.from) / Math.max(1, total - V)) * (track - size)));
+      const length = `${Math.round(size)}px`;
+      const offset = `translate${axis === "v" ? "Y" : "X"}(${Math.round(at)}px)`;
+      if (axis === "v" && thumb.style.height !== length) thumb.style.height = length;
+      if (axis === "h" && thumb.style.width !== length) thumb.style.width = length;
+      if (thumb.style.transform !== offset) thumb.style.transform = offset;
+    });
   };
 
   /* ------------------------------ the overlay ----------------------------- */
@@ -3790,6 +3984,7 @@
     if (saved.hyphenate === true) app.textDefaults.hyphenate = true;
     if (saved.autoKern === "manual") app.textDefaults.autoKern = "manual";
     if (saved.textOnTop === true) app.textDefaults.textOnTop = true;
+    if (saved.typeUnit === "pixels") app.textDefaults.typeUnit = "pixels";
     if (saved.smartGuides === false) settings.smartGuides = false;
     if (saved.snapText === true) settings.snapText = true;
     if (saved.spellcheck === false) settings.spellcheck = false;
@@ -3818,7 +4013,7 @@
     const d = app.textDefaults;
     try {
       // A language nobody chose keeps following the interface
-      window.localStorage.setItem(STORE_SETTINGS, JSON.stringify({ spellcheck: settings.spellcheck ? undefined : false, wheel: settings.wheel, zoomSpeed: settings.zoomSpeed === "normal" ? undefined : settings.zoomSpeed, smartGuides: settings.smartGuides, snapText: settings.snapText || undefined, transformControls: settings.transformControls ? undefined : false, bubbleRoom: settings.bubbleRoom ? undefined : false, taskBar: settings.taskBar ? undefined : false, taskBarPlace: settings.taskBarPlace || undefined, hiddenChars: settings.hiddenChars || undefined, discord: settings.discord === "page" ? undefined : settings.discord, sizeStep: settings.sizeStep === 2 ? undefined : settings.sizeStep, workspace: settings.workspace === "flow" ? "flow" : undefined, flowDirection: settings.flowDirection === "rtl" ? undefined : settings.flowDirection, flowGap: settings.flowGap === 80 ? undefined : settings.flowGap, flowGapDown: settings.flowGapDown || undefined, flowPerRow: settings.flowPerRow || undefined, ligature: d.ligature, hyphenate: d.hyphenate || undefined, autoKern: d.autoKern === "manual" ? "manual" : undefined, textOnTop: d.textOnTop || undefined, language: d.language === PS.DEFAULT_TEXT_LANGUAGE ? undefined : d.language }));
+      window.localStorage.setItem(STORE_SETTINGS, JSON.stringify({ spellcheck: settings.spellcheck ? undefined : false, wheel: settings.wheel, zoomSpeed: settings.zoomSpeed === "normal" ? undefined : settings.zoomSpeed, smartGuides: settings.smartGuides, snapText: settings.snapText || undefined, transformControls: settings.transformControls ? undefined : false, bubbleRoom: settings.bubbleRoom ? undefined : false, taskBar: settings.taskBar ? undefined : false, taskBarPlace: settings.taskBarPlace || undefined, hiddenChars: settings.hiddenChars || undefined, discord: settings.discord === "page" ? undefined : settings.discord, sizeStep: settings.sizeStep === 2 ? undefined : settings.sizeStep, workspace: settings.workspace === "flow" ? "flow" : undefined, flowDirection: settings.flowDirection === "rtl" ? undefined : settings.flowDirection, flowGap: settings.flowGap === 80 ? undefined : settings.flowGap, flowGapDown: settings.flowGapDown || undefined, flowPerRow: settings.flowPerRow || undefined, ligature: d.ligature, hyphenate: d.hyphenate || undefined, autoKern: d.autoKern === "manual" ? "manual" : undefined, textOnTop: d.textOnTop || undefined, typeUnit: d.typeUnit === "pixels" ? "pixels" : undefined, language: d.language === PS.DEFAULT_TEXT_LANGUAGE ? undefined : d.language }));
     } catch (error) {
       console.warn("TypeR web: could not keep the settings", error);
     }
@@ -4178,7 +4373,7 @@
         };
         const general = document.createElement("div");
         general.className = "settings__pane";
-        general.append(heading(T("General")), card("lang", ...(Shell.touch ? [] : ["wheel", "zoomSpeed"]), ...(discord ? ["discord"] : []), ...(Stats ? ["stats"] : [])), ...(Flow && !Shell.touch ? [card("workspace", "flowDirection", "flowGap", "flowPerRow")] : []), card("language", "ligature", "hyphenate", "textOnTop", ...(Shell.touch ? [] : ["sizeStep"])));
+        general.append(heading(T("General")), card("lang", ...(Shell.touch ? [] : ["wheel", "zoomSpeed"]), ...(discord ? ["discord"] : []), ...(Stats ? ["stats"] : [])), ...(Flow && !Shell.touch ? [card("workspace", "flowDirection", "flowGap", "flowPerRow")] : []), card("language", "ligature", "hyphenate", "textOnTop", "typeUnit", ...(Shell.touch ? [] : ["sizeStep"])));
         if (canChooseFolder) general.appendChild(folderCard());
         middle.textContent = "";
         const panes = { general, appearance: appearance.pane };
@@ -4264,6 +4459,7 @@
         { id: "ligature", label: T("Standard ligatures in new text"), type: "checkbox", checked: d.ligature },
         { id: "hyphenate", label: T("Hyphenate new paragraph text"), type: "checkbox", checked: Boolean(d.hyphenate), hint: () => T("Long words are cut at a syllable, with a hyphen, at the end of a line: in paragraph text, and in the text TypeR fits in a bubble.") },
         { id: "textOnTop", label: T("Always place new text on top"), type: "checkbox", checked: Boolean(d.textOnTop), hint: () => T("When off, new text goes right above the selected layer, as in Photoshop.") },
+        { id: "typeUnit", label: T("Type units"), value: d.typeUnit === "pixels" ? "pixels" : "points", options: [["points", T("Points")], ["pixels", T("Pixels")]], hint: (value) => (value === "pixels" ? T("Sizes and leading in the Character panel and in TypeR's styles are in pixels of the page. Your styles are converted at the page's resolution.") : T("Sizes and leading in the Character panel and in TypeR's styles are in points, as in Photoshop. A point is a pixel at 72 ppi.")) },
         { id: "sizeStep", label: T("Text size step"), value: settings.sizeStep, type: "number", min: 0.1, step: "any", hint: () => T("How much Ctrl + Shift + < and > change the size of the text. With Alt, five times as much.") },
       ],
     });
@@ -4285,6 +4481,9 @@
     d.ligature = answer.ligature;
     d.hyphenate = answer.hyphenate;
     d.textOnTop = answer.textOnTop;
+    const retyped = (answer.typeUnit === "pixels" ? "pixels" : "points") !== (d.typeUnit === "pixels" ? "pixels" : "points");
+    d.typeUnit = answer.typeUnit === "pixels" ? "pixels" : undefined;
+    if (retyped) convertStyleUnits();
     const step = Math.round(parseFloat(String(answer.sizeStep).replace(",", ".")) * 100) / 100;
     if (step > 0 && step <= 100) settings.sizeStep = step;
     keepSettings();
@@ -4328,6 +4527,31 @@
       console.warn("TypeR web: could not keep the Type tool's settings", error);
     }
   };
+  // The Magic Wand's and the Magic Eraser's options come back after a reload too, as in Photoshop
+  const STORE_WAND = "typer.web.wand";
+  const WAND_FIELDS = { tolerance: "number", contiguous: "boolean", sampleAll: "boolean", magicTolerance: "number", magicAntiAlias: "boolean", magicContiguous: "boolean", magicSampleAll: "boolean" };
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(STORE_WAND)) || {};
+    Object.keys(WAND_FIELDS).forEach((field) => {
+      const value = saved[field];
+      if (typeof value !== WAND_FIELDS[field]) return;
+      if (typeof value === "number" && !(value >= 0 && value <= 255)) return;
+      app[field] = value;
+    });
+  } catch (error) {
+    console.warn("TypeR web: could not read the Magic Wand's settings", error);
+  }
+  const keepWand = () => {
+    const out = {};
+    Object.keys(WAND_FIELDS).forEach((field) => {
+      if (typeof app[field] === WAND_FIELDS[field]) out[field] = app[field];
+    });
+    try {
+      window.localStorage.setItem(STORE_WAND, JSON.stringify(out));
+    } catch (error) {
+      console.warn("TypeR web: could not keep the Magic Wand's settings", error);
+    }
+  };
   // A font kept from last time that is no longer on this computer gives way to the first one.
   // What was kept stays: the font may come back.
   const checkTextToolFont = async () => {
@@ -4343,6 +4567,10 @@
 
   const ANTI_ALIAS_NAMES = [["antiAliasNone", "None"], ["antiAliasSharp", "Sharp"], ["antiAliasCrisp", "Crisp"], ["antiAliasStrong", "Strong"], ["antiAliasSmooth", "Smooth"]];
 
+  // Settings > Type units, as Photoshop's Preferences > Units > Type: the sizes the panels show,
+  // in points or in the page's pixels. The text keeps them in points: a point is a pixel at 72 ppi.
+  const typePixelsPerPoint = () => (app.textDefaults.typeUnit === "pixels" ? ((app.doc && app.doc.resolution) || 72) / 72 : 1);
+  const typeUnitName = () => (app.textDefaults.typeUnit === "pixels" ? "px" : "pt");
   const textControls = (host, compact) => {
     const layer = activeTexts()[0];
     const style = layer ? styleShown(layer) : null;
@@ -4394,13 +4622,15 @@
       keepTextTool();
       Fonts.ensure(face.postScriptName).then(() => applyTextPatch({ fontPostScriptName: face.postScriptName, fontName: face.family, fontStyleName: face.style }, null, "font"));
     });
-    const size = numberInput(style ? Math.round((style.impliedFontSize || style.size) * 10) / 10 : d.size, 1, 2000, (value) => {
+    const perPoint = typePixelsPerPoint();
+    const size = numberInput(Math.round((style ? style.impliedFontSize || style.size : d.size) * perPoint * 10) / 10, 1, Math.round(2000 * perPoint), (value) => {
       if (!value) return;
-      d.size = value;
+      const points = value / perPoint;
+      d.size = points;
       keepTextTool();
-      applyTextPatch({ size: value }, null, "size");
+      applyTextPatch({ size: points }, null, "size");
     });
-    size.title = T("Size");
+    size.title = `${T("Size")} (${typeUnitName()})`;
     const color = document.createElement("input");
     color.type = "color";
     color.title = T("Text colour");
@@ -7007,15 +7237,15 @@
       if (TextMask && (tool === "rectangle" || tool === "ellipse")) bar.appendChild(selectTextButton());
     }
     if (tool === "wand") {
-      bar.appendChild(scrubbed(T("Tolerance"), numberInput(app.tolerance, 0, 255, (value) => { app.tolerance = Math.max(0, Math.min(255, value)); })));
-      bar.appendChild(checkbox(T("Contiguous"), app.contiguous !== false, (on) => { app.contiguous = on; }));
-      bar.appendChild(checkbox(T("Sample all layers"), app.sampleAll, (on) => { app.sampleAll = on; }));
+      bar.appendChild(scrubbed(T("Tolerance"), numberInput(app.tolerance, 0, 255, (value) => { app.tolerance = Math.max(0, Math.min(255, value)); keepWand(); })));
+      bar.appendChild(checkbox(T("Contiguous"), app.contiguous !== false, (on) => { app.contiguous = on; keepWand(); }));
+      bar.appendChild(checkbox(T("Sample all layers"), app.sampleAll, (on) => { app.sampleAll = on; keepWand(); }));
     }
     if (tool === "magicEraser") {
-      bar.appendChild(scrubbed(T("Tolerance"), numberInput(app.magicTolerance, 0, 255, (value) => { app.magicTolerance = Math.max(0, Math.min(255, value)); })));
-      bar.appendChild(checkbox(T("Anti-alias"), app.magicAntiAlias !== false, (on) => { app.magicAntiAlias = on; }));
-      bar.appendChild(checkbox(T("Contiguous"), app.magicContiguous !== false, (on) => { app.magicContiguous = on; }));
-      bar.appendChild(checkbox(T("Sample all layers"), app.magicSampleAll, (on) => { app.magicSampleAll = on; }));
+      bar.appendChild(scrubbed(T("Tolerance"), numberInput(app.magicTolerance, 0, 255, (value) => { app.magicTolerance = Math.max(0, Math.min(255, value)); keepWand(); })));
+      bar.appendChild(checkbox(T("Anti-alias"), app.magicAntiAlias !== false, (on) => { app.magicAntiAlias = on; keepWand(); }));
+      bar.appendChild(checkbox(T("Contiguous"), app.magicContiguous !== false, (on) => { app.magicContiguous = on; keepWand(); }));
+      bar.appendChild(checkbox(T("Sample all layers"), app.magicSampleAll, (on) => { app.magicSampleAll = on; keepWand(); }));
     }
     if (tool === "clean") {
       const shapes = document.createElement("span");
@@ -8759,10 +8989,27 @@
   // costs a layout each time. Measured a few times a second, and again when its size changes.
   let wheelRect = null;
   let wheelRectAt = 0;
+  // Navigation like Photoshop's: Ctrl + wheel scrolls sideways, and Shift + wheel goes up or down
+  // a tile at a time, as Shift does on the scroll bars. A notch is a tile; a trackpad's small
+  // steps add up to one first, and a burst of them moves one tile, not a dozen.
+  const tileWheel = { sum: 0, at: -Infinity };
+  const wheelByTiles = (event) => {
+    if (settings.wheel !== "pan" || !event.shiftKey || event.ctrlKey || event.metaKey || event.altKey || Shell.touch) return false;
+    // Windows gives a wheel turned with Shift as a sideways turn
+    const delta = (event.deltaY || event.deltaX) * WHEEL_PIXELS[event.deltaMode];
+    if (event.timeStamp - tileWheel.at > 400) tileWheel.sum = 0;
+    tileWheel.sum += delta;
+    if (Math.abs(tileWheel.sum) < 40 || event.timeStamp - tileWheel.at < 180) return true;
+    stepTile("v", tileWheel.sum > 0);
+    tileWheel.sum = 0;
+    tileWheel.at = event.timeStamp;
+    return true;
+  };
   ui.stage.addEventListener("wheel", (event) => {
     if (!app.doc) return;
     event.preventDefault();
     movingQuickly();
+    if (wheelByTiles(event)) return;
     if (!wheelRect || event.timeStamp - wheelRectAt > 250 || event.timeStamp < wheelRectAt) {
       wheelRect = ui.stage.getBoundingClientRect();
       wheelRectAt = event.timeStamp;
@@ -11169,10 +11416,12 @@
   window.addEventListener("resize", () => closeLeadingMenu());
   const leadingField = (layer, style) => {
     const manual = style.autoLeading === false && style.leading > 0;
+    // Shown and typed in the unit of Settings > Type units, kept in points
+    const perPoint = typePixelsPerPoint();
     const shown = (value) => String(Math.round(value * 100) / 100);
     const autoValue = () => {
       const paragraph = layer.params.layerText.paragraphStyleRange[0].paragraphStyle || {};
-      return (style.impliedFontSize || style.size || 12) * (paragraph.autoLeadingPercentage || 1.2);
+      return (style.impliedFontSize || style.size || 12) * (paragraph.autoLeadingPercentage || 1.2) * perPoint;
     };
     const box = document.createElement("span");
     box.className = "combo";
@@ -11180,7 +11429,7 @@
     input.type = "text";
     input.title = T("Leading");
     input.setAttribute("aria-label", T("Leading"));
-    input.value = manual ? shown(style.leading) : T("Auto");
+    input.value = manual ? shown(style.leading * perPoint) : T("Auto");
     // Dragged on its name, it goes from these limits, and from what Auto gives
     input.min = "0.1";
     input.max = "5000";
@@ -11191,7 +11440,7 @@
         applyTextPatch({ autoLeading: true }, null, "leading");
       } else {
         input.value = shown(value);
-        applyTextPatch({ autoLeading: false, leading: value }, null, "leading");
+        applyTextPatch({ autoLeading: false, leading: value / perPoint }, null, "leading");
       }
       last = input.value;
     };
@@ -11367,10 +11616,10 @@
         host.appendChild(use);
       }
     }
-    host.append(scrubbed(T("Size"), c.size, withSteps(c.size)));
+    host.append(scrubbed(`${T("Size")} (${typeUnitName()})`, c.size, withSteps(c.size)));
     const leading = leadingField(layer, style);
     // Dragged on its name, as Size, from what Auto gives when it is on
-    host.append(scrubbed(T("Leading"), leading.input, leading.box, { from: leading.from, step: leading.step }));
+    host.append(scrubbed(`${T("Leading")} (${typeUnitName()})`, leading.input, leading.box, { from: leading.from, step: leading.step }));
     const aaRow = labelled("aa", c.antiAlias);
     aaRow.classList.add("wide");
     host.append(aaRow);
@@ -15627,8 +15876,10 @@
 
   // Photoshop's steps: 2 points, and 10 with Alt. The step can be changed in the settings.
   const stepTextSize = (direction, large) => {
-    const step = settings.sizeStep * (large ? 5 : 1);
-    applyTextPatch((style) => ({ size: Math.max(1, Math.round(((style.impliedFontSize || style.size || 12) + direction * step) * 100) / 100) }), null, "text-size");
+    // The step is in the unit the panels show (Settings > Type units); the text's size in points
+    const perPoint = typePixelsPerPoint();
+    const step = (settings.sizeStep * (large ? 5 : 1)) / perPoint;
+    applyTextPatch((style) => ({ size: Math.max(1 / perPoint, Math.round(((style.impliedFontSize || style.size || 12) + direction * step) * 10000) / 10000) }), null, "text-size");
     characterKey = "";
     renderCharacter();
     if (!ui.editor.hidden) placeEditor();
@@ -20329,6 +20580,29 @@
     ui.frame.src = "about:blank";
     setTimeout(done, 1500);
   });
+
+  // Settings > Type units changed: TypeR's styles take the new unit, their sizes converted at the
+  // page's resolution, so the panel shows them in it. The panel writes what it holds as it
+  // closes; only then can its files change. Every profile follows.
+  const convertStyleUnits = async () => {
+    const running = Boolean(ui.frame.src) && !/^about:blank/.test(ui.frame.src);
+    if (running) await closePanel();
+    const resolution = (app.doc && app.doc.resolution) || 72;
+    let changed = 0;
+    await Promise.all(Kit.storedPaths().filter((path) => /^\/typer\/storage(_profile_.+)?$/.test(path)).map((path) => {
+      try {
+        const storage = JSON.parse(Kit.read(path) || "null");
+        const count = storage ? Kit.convertTypeUnits(storage, app.textDefaults.typeUnit, resolution) : 0;
+        changed += count;
+        return count ? Kit.keep(path, JSON.stringify(storage)) : null;
+      } catch (error) {
+        console.warn("TypeR web: could not convert the styles' unit", error);
+        return null;
+      }
+    }));
+    if (running) startPanel();
+    if (changed) toast(fill(T("{count} style(s) now in {unit}."), { count: changed, unit: app.textDefaults.typeUnit === "pixels" ? T("Pixels") : T("Points") }));
+  };
 
   // A script sent by TypeR for Photoshop (Open in TypeR Studio): the tab that already holds it,
   // or a new one, becomes the panel's open tab, as TypeR does with one sent from here
