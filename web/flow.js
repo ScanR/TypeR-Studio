@@ -1125,6 +1125,13 @@
       fitAll,
       changed,
       tidy,
+      // Where every page is on screen, while Flow is on: [{ x, y, width, height }] (the scroll bars)
+      pages: () => {
+        if (!host.on() || !app.doc) return null;
+        ensure();
+        const w = world();
+        return w ? slots.map((slot) => boxOf(slot, w)) : null;
+      },
       // Whether a page was put somewhere by hand
       moved: () => slots.some((slot) => slot.place),
       // The pages picked, in the order of the pages, while Flow is on: [{ name, doc, page }]
