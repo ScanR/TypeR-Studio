@@ -2990,7 +2990,7 @@
       entry.paint = paint;
       if (paint.length % MARK_EVERY === 0) markRaster(entry, paint);
     } else if (entry) forgetRaster(layer.id, entry);
-    if (effectsOn(layer) && !rasterStrokeOf(layer)) settleEffects(doc, layer.id);
+    if (effectsOn(layer)) settleEffects(doc, layer.id);
     commitState(doc, name, { layers: replaceLayer(doc, layer, { paint }) }, undefined, strokeEnd(doc, layer, live));
   };
 
@@ -3280,7 +3280,7 @@
       entry.paint = paint;
       if (paint.length % MARK_EVERY === 0) markRaster(entry, paint);
     } else if (entry) forgetRaster(layer.id, entry);
-    if (effectsOn(layer) && !rasterStrokeOf(layer)) settleEffects(doc, layer.id);
+    if (effectsOn(layer)) settleEffects(doc, layer.id);
     commitState(doc, name, { layers: replaceLayer(doc, layer, { paint }) }, undefined, strokeEnd(doc, layer, live));
   };
 
@@ -4901,36 +4901,80 @@
   // them: what reads or changes the layer's pixels (visualOf) takes them without.
   // A pixel layer's stroke, a Photoshop shape's most often (the letters of an SFX made a shape,
   // Fill at 0% and two strokes around them): drawn around its pixels as a text's, the part
-  // outside under them, the part inside over them. Kept by picture.
+  // outside under them, the part inside over them. Kept by picture; while a brush paints on the
+  // layer, drawn again only around the paint, so that its effects can follow there too.
   const rasterStrokeOf = (layer) => (layer.kind === "raster" && !layer.adjustment && layer.stroke && layer.stroke.enabled && layer.stroke.size > 0 ? layer.stroke : null);
+  // The layers Layer Style edits: texts, pixel layers (an adjustment layer has none) and
+  // folders, whose style goes on all they hold at once (see groupVisual)
+  const styleable = (layer) => layer.kind === "text" || layer.kind === "group" || (layer.kind === "raster" && !layer.adjustment);
   const strokedRasters = new WeakMap();
+  let strokedVersion = 0;
+  // `bitmap` with its stroke, laid at `pad` in `canvas`
+  const drawStroked = (bitmap, pad, stroke, fill, canvas) => {
+    const ctx = canvas.getContext("2d");
+    const outside = strokeOutside(stroke);
+    if (stroke.outer && stroke.outer.size > 0) ringOf(bitmap, pad, strokeReach(stroke), stroke.outer.color, canvas, strokeAlpha(stroke.outer));
+    if (outside > 0) ringOf(bitmap, pad, outside, strokePaint(stroke), canvas, strokeAlpha(stroke));
+    if (fill < 1) {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.drawImage(bitmap, pad, pad);
+      ctx.globalCompositeOperation = "source-over";
+    }
+    if (fill > 0) {
+      ctx.globalAlpha = fill;
+      ctx.drawImage(bitmap, pad, pad);
+      ctx.globalAlpha = 1;
+    }
+    if (stroke.size > outside) innerRingOf(bitmap, pad, stroke.size - outside, strokePaint(stroke), canvas, strokeAlpha(stroke));
+  };
+  // The stroked picture made again only around what was painted since: what changed, grown by
+  // the stroke's reach, from the pixels around it. False when it can't be done (a gradient's
+  // stroke spans the whole shape).
+  const patchStroked = (kept, bitmap, stroke, fill, version) => {
+    if (strokeIsGradient(stroke)) return false;
+    const since = touchedSince(bitmap, kept.version, version);
+    if (!since) return false;
+    const pad = kept.pad;
+    // How far paint changes the picture around it: the stroke's reach outside, or its part
+    // inside the shape (an Inside stroke reaches nowhere outside, and all its size inside)
+    const far = Math.max(pad, Math.ceil(stroke.size - strokeOutside(stroke)) + 2);
+    const out = emptyRect(since) ? since : withinCanvas({ left: since.left + pad - far, top: since.top + pad - far, right: since.right + pad + far, bottom: since.bottom + pad + far }, kept.canvas);
+    if (!emptyRect(out)) {
+      // The pixels the changed part depends on, in the layer's pixels
+      // (twice as far: the cut's own edges would pass for the shape's, and draw a stroke there)
+      const from = withinCanvas({ left: since.left - far * 2, top: since.top - far * 2, right: since.right + far * 2, bottom: since.bottom + far * 2 }, bitmap);
+      const w = from.right - from.left;
+      const h = from.bottom - from.top;
+      const part = canvasLike(bitmap, w, h);
+      part.getContext("2d").drawImage(bitmap, from.left, from.top, w, h, 0, 0, w, h);
+      const made = newCanvas(w + pad * 2, h + pad * 2);
+      drawStroked(part, pad, stroke, fill, made);
+      // A pixel of `made` is the stroked picture's at from.left, from.top further
+      const c = kept.canvas.getContext("2d");
+      c.clearRect(out.left, out.top, out.right - out.left, out.bottom - out.top);
+      c.drawImage(made, out.left - from.left, out.top - from.top, out.right - out.left, out.bottom - out.top, out.left, out.top, out.right - out.left, out.bottom - out.top);
+    }
+    const next = ++strokedVersion;
+    touched(kept.canvas, kept.changes, next, out);
+    Object.assign(kept, { version, changes: next });
+    return true;
+  };
   const strokedRaster = (shape, stroke, fill) => {
     if (!shape || !shape.canvas.width || !shape.canvas.height) return shape;
-    const key = [strokeKeyOf(stroke), fill, shape.version || 0].join("|");
-    let kept = strokedRasters.get(shape.canvas);
-    if (!kept || kept.key !== key) {
-      const bitmap = shape.canvas;
+    const fixed = [strokeKeyOf(stroke), fill].join("|");
+    const version = shape.version || 0;
+    const bitmap = shape.canvas;
+    let kept = strokedRasters.get(bitmap);
+    const same = kept && kept.fixed === fixed && kept.canvas.width === bitmap.width + kept.pad * 2 && kept.canvas.height === bitmap.height + kept.pad * 2;
+    if (!same || (kept.version !== version && !patchStroked(kept, bitmap, stroke, fill, version))) {
       const pad = Math.ceil(strokeReach(stroke)) + 2;
       const canvas = newCanvas(bitmap.width + pad * 2, bitmap.height + pad * 2);
-      const ctx = canvas.getContext("2d");
-      const outside = strokeOutside(stroke);
-      if (stroke.outer && stroke.outer.size > 0) ringOf(bitmap, pad, strokeReach(stroke), stroke.outer.color, canvas, strokeAlpha(stroke.outer));
-      if (outside > 0) ringOf(bitmap, pad, outside, strokePaint(stroke), canvas, strokeAlpha(stroke));
-      if (fill < 1) {
-        ctx.globalCompositeOperation = "destination-out";
-        ctx.drawImage(bitmap, pad, pad);
-        ctx.globalCompositeOperation = "source-over";
-      }
-      if (fill > 0) {
-        ctx.globalAlpha = fill;
-        ctx.drawImage(bitmap, pad, pad);
-        ctx.globalAlpha = 1;
-      }
-      if (stroke.size > outside) innerRingOf(bitmap, pad, stroke.size - outside, strokePaint(stroke), canvas, strokeAlpha(stroke));
-      kept = { key, canvas, pad };
-      strokedRasters.set(shape.canvas, kept);
+      drawStroked(bitmap, pad, stroke, fill, canvas);
+      kept = { fixed, version, canvas, pad, changes: ++strokedVersion };
+      strokedRasters.set(bitmap, kept);
     }
-    return { canvas: kept.canvas, x: shape.x - kept.pad, y: shape.y - kept.pad, version: shape.version };
+    // Its own version: the picture changes in place while a brush paints on the layer
+    return { canvas: kept.canvas, x: shape.x - kept.pad, y: shape.y - kept.pad, version: kept.changes };
   };
   // How far from a pixel of the letters their effects reach, and draw what they show from
   const fxReach = (effects) => {
@@ -5031,7 +5075,7 @@
     // frame: as they will be, but for a Gradient Overlay that spans the layer's bounds as they
     // were, and blurs added up in another order. The stroke ended, they are made whole again
     // (see settleEffects).
-    const painting = !stroke && ((doc.liveStroke && doc.liveStroke.layerId === layer.id && !doc.liveStroke.target) || (paintingScreen && settling.has(layer.id)));
+    const painting = ((doc.liveStroke && doc.liveStroke.layerId === layer.id && !doc.liveStroke.target) || (paintingScreen && settling.has(layer.id)));
     if (painting && entry && entry.key !== key && entry.fixed === fixed && entry.built && patchEffects(entry, effects, shape, fill, normal)) {
       entry.key = key;
       entry.rough = true;
@@ -11176,7 +11220,7 @@
       let any = false;
       for (let i = 3; i < alpha.length && !any; i += 4) any = alpha[i] > 0;
       if (!any) return "empty";
-      const copy = newRaster(name || layer.name + " copy", { bitmap, left, top, opacity: layer.opacity, blend: layer.blend, fill: layer.fill, knockout: layer.knockout, stroke: layer.stroke ? clone(layer.stroke) : undefined, group: layer.group || null, clipping: Boolean(layer.clipping) });
+      const copy = newRaster(name || layer.name + " copy", { bitmap, left, top, opacity: layer.opacity, blend: layer.blend, fill: layer.fill, knockout: layer.knockout, stroke: layer.stroke ? clone(layer.stroke) : undefined, effects: layer.effects ? clone(layer.effects) : undefined, group: layer.group || null, clipping: Boolean(layer.clipping) });
       const layers = doc.state.layers.slice();
       layers.splice(layers.indexOf(layer) + 1, 0, copy);
       commitState(doc, "Duplicate Layer", { layers, activeIds: [copy.id], selection: null });
@@ -11254,7 +11298,7 @@
       firePanelEvent(EVENT_SELECT);
       return copies.length;
     },
-    // A text's look without its words, from one layer to others
+    // A layer's look (a text's without its words), from one layer to others
     copyLayerStyle() {
       const doc = app.doc;
       const id = doc && doc.state.activeIds[doc.state.activeIds.length - 1];
@@ -11266,11 +11310,11 @@
         paragraph: lt ? clone(lt.paragraphStyleRange[0].paragraphStyle) : null,
         antiAlias: lt ? lt.antiAlias : null,
         stroke: layer.stroke ? clone(layer.stroke) : null,
-        effects: layer.kind === "text" && layer.effects ? clone(layer.effects) : null,
+        effects: styleable(layer) && layer.effects ? clone(layer.effects) : null,
         blend: layer.blend,
         opacity: layer.opacity,
         // Fill too, as Photoshop's blending options: a text's blur (see textBlurOf) goes with it
-        fill: layer.kind === "text" ? fillOf(layer) : 1,
+        fill: styleable(layer) ? fillOf(layer) : 1,
       };
       return true;
     },
@@ -11291,13 +11335,36 @@
         return false;
       };
       const layers = doc.state.layers.map((layer) => {
-        if (!chosen.has(layer.id) || layer.kind === "group") return layer;
+        if (!chosen.has(layer.id)) return layer;
+        // A folder takes the stroke, the effects and the Fill, as in Photoshop, and stays in its
+        // own blend mode. An SFX's stroke and Fill are its recipe's: only the effects.
+        if (layer.kind === "group") {
+          const styled = Object.assign({}, layer, { effects: held.effects ? clone(held.effects) : undefined });
+          if (!layer.sfx) {
+            styled.stroke = held.stroke ? clone(held.stroke) : undefined;
+            if (held.fill !== undefined) Object.assign(styled, { knockout: held.fill <= 0, fill: held.fill > 0 && held.fill < 1 ? held.fill : undefined });
+          }
+          return styled;
+        }
         const next = Object.assign({}, layer);
         if (layer.kind !== "text" || held.text) {
           next.blend = held.blend;
           next.opacity = held.opacity;
         }
-        if (layer.kind !== "text" || !held.text) return next;
+        // A pixel layer takes the stroke and the effects too, as in Photoshop (not the
+        // Background, which has none)
+        if (styleable(layer) && layer.kind === "raster" && !layer.isBackground) {
+          next.stroke = held.stroke ? clone(held.stroke) : undefined;
+          next.effects = held.effects ? clone(held.effects) : undefined;
+          if (held.fill !== undefined) Object.assign(next, { knockout: false, fill: held.fill < 1 ? held.fill : undefined });
+        }
+        if (layer.kind !== "text") return next;
+        // From a pixel layer or a folder, a text takes what they have in common: the stroke, the
+        // effects and the blending, its letters as they are (not an SFX's, drawn from its recipe)
+        if (!held.text) {
+          if (inSfx(layer)) return layer;
+          return Object.assign(next, { blend: held.blend, opacity: held.opacity, stroke: held.stroke ? clone(held.stroke) : null, effects: held.effects ? clone(held.effects) : undefined, knockout: held.fill <= 0, fill: held.fill > 0 && held.fill < 1 ? held.fill : undefined, raster: null });
+        }
         const box = boxOf(layer, doc);
         next.params = clone(layer.params);
         const lt = next.params.layerText;
@@ -11312,6 +11379,7 @@
         next.raster = null;
         return boxShape(lt) ? next : centredOn(next, doc, box.xMid, box.yMid);
       });
+      if (layers.every((layer, at) => layer === doc.state.layers[at])) return;
       commitState(doc, "Paste Layer Style", { layers });
       firePanelEvent(EVENT_HISTORY);
     },
@@ -12264,7 +12332,7 @@
         entry.paint = paint;
         if (paint.length % MARK_EVERY === 0) markRaster(entry, paint);
       }
-      if (effectsOn(layer) && !rasterStrokeOf(layer)) settleEffects(doc, layer.id);
+      if (effectsOn(layer)) settleEffects(doc, layer.id);
       commitState(doc, live.op.source ? "Clone Stamp" : live.op.erase ? "Eraser" : "Brush", { layers: replaceLayer(doc, layer, { paint }) }, undefined, strokeEnd(doc, layer, live));
     },
     // Alt+Backspace, Cmd+Backspace, Delete: fills or clears the selection on a pixel layer
@@ -13534,8 +13602,8 @@
       return (isSmart(layer) && layer.filters.find((item) => item.type === type)) || null;
     },
     // Layer > Layer Style > Clear Layer Style: no stroke, no effects, and the blending back to
-    // Normal at 100%, Fill 100%, as Photoshop clears it. On texts and folders (an SFX keeps its
-    // own). The number of layers cleared.
+    // Normal at 100%, Fill 100%, as Photoshop clears it. On texts, pixel layers and folders (an
+    // SFX keeps its own). The number of layers cleared.
     clearLayerStyle(ids) {
       const doc = app.doc;
       if (!doc) return 0;
@@ -13545,7 +13613,7 @@
       let count = 0;
       let refused = false;
       const layers = doc.state.layers.map((layer) => {
-        if (!chosen.has(layer.id) || !(layer.kind === "text" || layer.kind === "group") || layer.adjustment || inSfx(layer)) return layer;
+        if (!chosen.has(layer.id) || !(layer.kind === "text" || layer.kind === "group" || layer.kind === "raster") || layer.adjustment || layer.isBackground || inSfx(layer)) return layer;
         const plain = layer.kind === "group" ? "pass through" : "normal";
         const styled = Boolean(layer.stroke) || Boolean(layer.effects) || (layer.blend || plain) !== plain || (layer.opacity !== undefined && layer.opacity !== 1) || fillOf(layer) !== 1;
         if (!styled) return layer;
@@ -13554,7 +13622,7 @@
           return layer;
         }
         count++;
-        const next = Object.assign({}, layer, { stroke: null, effects: undefined, blend: plain, opacity: 1, knockout: false, fill: undefined });
+        const next = Object.assign({}, layer, { stroke: layer.kind === "raster" ? undefined : null, effects: undefined, blend: plain, opacity: 1, knockout: false, fill: undefined });
         if (layer.kind === "text") next.raster = null;
         return next;
       });
@@ -13760,14 +13828,16 @@
       const set = new Set(ids);
       const strokeOf = typeof stroke === "function" ? stroke : () => stroke;
       commitState(doc, "Stroke", { layers: doc.state.layers.map((layer) => {
-        if (!set.has(layer.id) || layer.kind !== "text") return layer;
+        if (!set.has(layer.id) || !styleable(layer)) return layer;
         const next = strokeOf(layer);
-        return next === layer.stroke ? layer : Object.assign({}, layer, { stroke: next, raster: null });
+        if (next === layer.stroke) return layer;
+        // A text's own pixels (Photoshop's) may hold its stroke: drawn again
+        return Object.assign({}, layer, layer.kind === "text" ? { stroke: next, raster: null } : { stroke: next || undefined });
       }) }, coalesce);
     },
-    // A text layer's effects (see FX_DEFAULTS): the whole `effects` object, or a function of
-    // each layer for a change made on each one's own. Null takes them all off. The letters
-    // stay as they are, Photoshop's own pixels included: only what is drawn around and on them
+    // A text's or a pixel layer's effects (see FX_DEFAULTS): the whole `effects` object, or a
+    // function of each layer for a change made on each one's own. Null takes them all off. The
+    // pixels stay as they are, Photoshop's own included: only what is drawn around and on them
     // changes.
     setLayerEffects(ids, effects, coalesce) {
       const doc = app.doc;
@@ -13775,7 +13845,7 @@
       const set = new Set(ids);
       const effectsOf = typeof effects === "function" ? effects : () => effects;
       commitState(doc, "Layer Style", { layers: doc.state.layers.map((layer) => {
-        if (!set.has(layer.id) || layer.kind !== "text") return layer;
+        if (!set.has(layer.id) || !styleable(layer)) return layer;
         const next = effectsOf(layer) || undefined;
         return next === layer.effects ? layer : Object.assign({}, layer, { effects: next });
       }) }, coalesce);

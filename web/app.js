@@ -9649,7 +9649,7 @@
     list.setAttribute("aria-label", T("Blend mode"));
     if (lang === "ar") list.dir = "rtl";
     const items = [];
-    (own ? BLEND_SECTIONS.slice(1) : blendChoices()).forEach((section, index) => {
+    (own ? BLEND_SECTIONS.slice(own.folders ? 0 : 1) : blendChoices()).forEach((section, index) => {
       if (index) {
         const sep = document.createElement("div");
         sep.className = "menu__sep";
@@ -9829,7 +9829,9 @@
     const value = Math.round(amount * 100) / 100;
     ops.setLayers(doc.state.layers.map((item) => {
       if (!chosen.has(item.id) || PS.fillOf(item) === value) return item;
-      const next = Object.assign({}, item, { knockout: value <= 0, fill: value > 0 && value < 1 ? value : undefined });
+      // A pixel layer's Fill is a number, 0 included, as its file has it; `knockout` is a hollow
+      // text's or folder's
+      const next = Object.assign({}, item, item.kind === "raster" ? { knockout: false, fill: value < 1 ? value : undefined } : { knockout: value <= 0, fill: value > 0 && value < 1 ? value : undefined });
       if (item.kind === "text" && item.raster) next.raster = null;
       return next;
     }), "Fill Opacity Change", { coalesce });
@@ -9851,19 +9853,20 @@
     const ids = new Set(chosen.map((layer) => layer.id));
     ops.setLayers(doc.state.layers.map((item) => (ids.has(item.id) ? Object.assign({}, item, { link }) : item)), "Link Layers");
   };
-  // The effects shown under a layer: its stroke (a text's or a folder's), then a text's Layer
-  // Style effects, each one it has, on or off
+  // The effects shown under a layer: its stroke (a text's, a pixel layer's or a folder's), then
+  // its Layer Style effects, each one it has, on or off
   const fxOpen = new Set();
   let fxDrag = null;
-  const hasStrokeFx = (layer) => (layer.kind === "text" || layer.kind === "group") && Boolean(layer.stroke) && layer.stroke.size > 0;
-  const fxNamesOf = (layer) => (layer.kind === "text" && layer.effects ? PS.FX_ORDER.filter((name) => layer.effects[name]) : []);
+  const isPixels = (layer) => layer.kind === "raster" && !layer.adjustment;
+  const hasStrokeFx = (layer) => (layer.kind === "text" || layer.kind === "group" || isPixels(layer)) && Boolean(layer.stroke) && layer.stroke.size > 0;
+  const fxNamesOf = (layer) => ((layer.kind === "text" || layer.kind === "group" || isPixels(layer)) && layer.effects ? PS.FX_ORDER.filter((name) => layer.effects[name]) : []);
   const hasFx = (layer) => hasStrokeFx(layer) || fxNamesOf(layer).length > 0;
   // What a drag of the effects carries: all of them (`only` null), the stroke, or one effect
   const fxParts = (layer, only) => {
     const names = fxNamesOf(layer);
     return { stroke: hasStrokeFx(layer) && (!only || only === "stroke"), effects: only ? names.filter((name) => name === only) : names };
   };
-  // A layer without what `parts` says. A folder only has a stroke.
+  // A layer without what `parts` says
   const withoutFx = (layer, parts) => {
     const next = Object.assign({}, layer);
     if (parts.stroke) {
@@ -9878,8 +9881,8 @@
     return next;
   };
   // Layer Style's items, in its dialog's order: the layer's own blending, then the effects
-  const FX_ITEMS = [["blending", "Blending"], ["stroke", "Stroke"], ["dropShadow", "Drop Shadow"], ["outerGlow", "Outer Glow"], ["innerShadow", "Inner Shadow"], ["innerGlow", "Inner Glow"], ["colorOverlay", "Colour Overlay"], ["gradientOverlay", "Gradient Overlay"]];
-  const fxLabel = (name) => T((FX_ITEMS.find(([id]) => id === name) || [name, name])[1]);
+  const FX_PANES = [["blending", "Blending"], ["stroke", "Stroke"], ["dropShadow", "Drop Shadow"], ["outerGlow", "Outer Glow"], ["innerShadow", "Inner Shadow"], ["innerGlow", "Inner Glow"], ["colorOverlay", "Colour Overlay"], ["gradientOverlay", "Gradient Overlay"]];
+  const fxLabel = (name) => T((FX_PANES.find(([id]) => id === name) || [name, name])[1]);
   // A gradient's stops as a CSS gradient, left to right
   const gradientCss = (stops, reverse) => {
     const list = (stops || []).map((item) => ({ at: reverse ? 1 - item.at : item.at, c: `rgba(${item.r}, ${item.g}, ${item.b}, ${item.a === undefined ? 1 : item.a})` })).sort((a, b) => a.at - b.at);
@@ -9900,25 +9903,37 @@
     return Boolean(parent && parent.sfx);
   };
   const styleTargets = () => activeTexts().filter((layer) => !inSfx(layer));
+  // The layers a Layer Style goes on, as in Photoshop: texts (not an SFX's letters), pixel
+  // layers, not the Background, and folders, whose style goes on all they hold at once
+  const takesFx = (layer) => (layer.kind === "text" && !inSfx(layer)) || (isPixels(layer) && !layer.isBackground) || layer.kind === "group";
+  const fxTargets = () => activeLayers().filter(takesFx);
   // Why the chosen layers can't take a Layer Style here, or null when they can: said rather
   // than greyed out
+  const fxRefusal = () => {
+    if (fxTargets().length) return null;
+    const layer = activeLayer();
+    if (!layer) return T("Select a text or pixel layer first.");
+    if (layer.kind === "text") return T("An SFX's letters take their look from the SFX: change it in the SFX panel.");
+    if (layer.isBackground) return T("The Background can't take a style: make it a normal layer first.");
+    return T("A style goes on text and pixel layers.");
+  };
+  // The same for what only a text takes (its blur kept editable)
   const styleRefusal = () => {
     if (styleTargets().length) return null;
     const layer = activeLayer();
-    if (!layer) return T("Select a text layer first.");
-    if (layer.kind === "text") return T("An SFX's letters take their look from the SFX: change it in the SFX panel.");
-    if (layer.kind === "group") return T("Layer Style works on text layers: a group keeps the stroke its file gave it.");
-    return T("Layer Style works on text layers: a pixel layer keeps the style its file gave it.");
+    if (layer && layer.kind === "text") return T("An SFX's letters take their look from the SFX: change it in the SFX panel.");
+    return T("Select a text layer first.");
   };
   // Layer > Layer Style and the fx button of the Layers panel: the dialog on that pane, the
   // effect turned on, as in Photoshop
   const styleFrom = (name) => {
-    const why = styleRefusal();
+    const why = fxRefusal();
     if (why) toast(why);
     else openLayerStyle(name, name !== "blending");
   };
-  // What Clear Layer Style would take off: a text's or a folder's stroke, effects, blending
-  const canClearStyle = () => activeLayers().some((layer) => (layer.kind === "text" || layer.kind === "group") && !layer.isBackground && (Boolean(layer.stroke) || Boolean(layer.effects) || (layer.blend || (layer.kind === "group" ? "pass through" : "normal")) !== (layer.kind === "group" ? "pass through" : "normal") || (layer.opacity !== undefined && layer.opacity !== 1) || PS.fillOf(layer) !== 1));
+  // What Clear Layer Style would take off: a text's, a pixel layer's or a folder's stroke,
+  // effects, blending
+  const canClearStyle = () => activeLayers().some((layer) => (layer.kind === "text" || layer.kind === "group" || isPixels(layer)) && !layer.isBackground && (Boolean(layer.stroke) || Boolean(layer.effects) || (layer.blend || (layer.kind === "group" ? "pass through" : "normal")) !== (layer.kind === "group" ? "pass through" : "normal") || (layer.opacity !== undefined && layer.opacity !== 1) || PS.fillOf(layer) !== 1));
   // The layers being dragged in the panel, and those that go with them
   let dragIds = null;
   let dragFamily = new Set();
@@ -10335,7 +10350,7 @@
       footButtons.copy.disabled = !active;
       footButtons.bin.disabled = !active;
       footButtons.fx.disabled = !active;
-      const why = active ? styleRefusal() : null;
+      const why = active ? fxRefusal() : null;
       footButtons.fx.title = why ? `${T("Add a layer style")}: ${why}` : T("Add a layer style");
       footButtons.fx.classList.toggle("is-refused", Boolean(why));
     }
@@ -10356,7 +10371,7 @@
       const shownName = ui.layers.querySelector(`#layer-row-${typed.id} .layer__name`);
       if (shownName && !shownName.firstElementChild && shownName.textContent !== typed.name) shownName.textContent = typed.name;
     }
-    const key = JSON.stringify([doc.id, doc.state.activeIds, doc.historyIndex, doc.state.layers.map((layer) => [layer.id, layer.visible, typed === layer ? "" : layer.name, layer.locked, layer.open, (layer.paint || []).length, Boolean(layer.clipping), layer.color || "", layer.locks || 0, PS.fillOf(layer), layer.link || 0, hasFx(layer) ? [layer.stroke || 0, layer.kind === "text" ? layer.effects || 0 : 0, fxOpen.has(layer.id)] : 0]), Fonts.generation, target ? [target.id, target.part] : null, doc.maskView ? doc.maskView.mode : null, thumbPixels(), layerFind.open, layerFind.words, Array.from(layerFind.kinds)]);
+    const key = JSON.stringify([doc.id, doc.state.activeIds, doc.historyIndex, doc.state.layers.map((layer) => [layer.id, layer.visible, typed === layer ? "" : layer.name, layer.locked, layer.open, (layer.paint || []).length, Boolean(layer.clipping), layer.color || "", layer.locks || 0, PS.fillOf(layer), layer.link || 0, hasFx(layer) ? [layer.stroke || 0, fxNamesOf(layer).length ? layer.effects : 0, fxOpen.has(layer.id)] : 0]), Fonts.generation, target ? [target.id, target.part] : null, doc.maskView ? doc.maskView.mode : null, thumbPixels(), layerFind.open, layerFind.words, Array.from(layerFind.kinds)]);
     if (key === layersKey) return;
     layersKey = key;
     const byId = new Map(doc.state.layers.map((layer) => [layer.id, layer]));
@@ -10664,14 +10679,15 @@
         } else ops.selectLayer(layer.id, event.metaKey || event.ctrlKey);
       });
       // On a text's thumbnail, its words to edit; on the Background, a normal layer; elsewhere on
-      // a text, its Blending Options, as in Photoshop (a click on the name renames it). The other
+      // a text, its Blending Options, as in Photoshop (a click on the name renames it); on a pixel
+      // layer or a folder, the same but on its name, which it renames, as Photoshop's. The other
       // layers have no Layer Style here: their name.
       row.addEventListener("dblclick", (event) => {
         cancelNameClick();
         if (event.target.closest(".layer__eye, .layer__twist, .layer__lock")) return;
         if (layer.isBackground) fromBackground(layer);
         else if (layer.kind === "text" && event.target.closest(".layer__thumb")) beginEdit(layer);
-        else if (layer.kind === "text" && !inSfx(layer, doc)) openStyleOf(layer, "blending");
+        else if (layer.kind === "text" ? takesFx(layer) : takesFx(layer) && !onNameText(event, name)) openStyleOf(layer, "blending");
         else renameRow(layer, name);
       });
       row.addEventListener("dragstart", (event) => {
@@ -10878,7 +10894,7 @@
         detail.textContent = `${Math.round(fx.size * 10) / 10} px`;
         sub.appendChild(detail);
       }
-      sub.title = layer.kind === "text" && !inSfx(layer) ? T("Double-click to change it. Drag onto another layer to move it there (Alt: a copy), or onto the bin to remove it.") : T("Drag onto another layer to move the stroke there (Alt: a copy), or onto the bin to remove it.");
+      sub.title = takesFx(layer) ? T("Double-click to change it. Drag onto another layer to move it there (Alt: a copy), or onto the bin to remove it.") : T("Drag onto another layer to move the stroke there (Alt: a copy), or onto the bin to remove it.");
       sub.addEventListener("click", () => {
         if (!(doc.state.activeIds.length === 1 && doc.state.activeIds[0] === layer.id)) ops.selectLayer(layer.id);
       });
@@ -10902,14 +10918,14 @@
     if (items.length === 1) return [line(items[0][0], items[0][1], false)];
     return [line(null, null, false), ...items.map(([name, fx]) => line(name, fx, true))];
   };
-  // Effects dragged from `from` onto `to`: a text takes them all, a folder only a stroke. The
+  // Effects dragged from `from` onto `to`: a text takes them all, and so does a folder. The
   // letters of an SFX would lose Layer Style effects when the SFX is laid out again.
   const fxTakes = (from, to, only) => {
     if (!from || !to || from.id === to.id) return false;
     const parts = fxParts(from, only);
     if (!parts.stroke && !parts.effects.length) return false;
-    if (to.kind === "group") return !parts.effects.length;
-    return to.kind === "text" && !(parts.effects.length && inSfx(to));
+    if (to.kind === "group") return true;
+    return (to.kind === "text" && !(parts.effects.length && inSfx(to))) || (isPixels(to) && !to.isBackground);
   };
   // What is dragged replaces the same effect on the layer it lands on; its other effects stay
   const moveEffects = (from, to, copy, only) => {
@@ -11539,7 +11555,7 @@
       const style = document.createElement("button");
       style.type = "button";
       style.className = "btn btn--small wide fx-open";
-      const on = FX_ITEMS.filter(([name]) => name !== "blending" && fxIsOn(layer, name));
+      const on = FX_PANES.filter(([name]) => name !== "blending" && fxIsOn(layer, name));
       const word = document.createElement("span");
       word.className = "fx-open__word";
       word.textContent = T("Layer Style…");
@@ -17197,7 +17213,7 @@
   // From a row of the Layers panel: that layer, on that effect
   const openStyleOf = (layer, item) => {
     const doc = app.doc;
-    if (!doc || layer.kind !== "text" || inSfx(layer)) return;
+    if (!doc || !takesFx(layer)) return;
     if (!doc.state.activeIds.includes(layer.id)) ops.selectLayer(layer.id);
     openLayerStyle(item);
   };
@@ -17208,9 +17224,14 @@
     if (!ui.editor.hidden) endEdit();
     commitTransform();
     closeContextMenu();
-    const targets = styleTargets();
+    const targets = fxTargets();
     if (!targets.length) return;
     const ids = targets.map((layer) => layer.id);
+    // An SFX's outline is its own (the SFX panel's Stroke): a stroke set here would go at its
+    // next change. Its shadows, glows and overlays stay.
+    const FX_ITEMS = FX_PANES.filter(([name]) => name !== "stroke" || !targets.some((layer) => layer.sfx));
+    if (start === "stroke" && !FX_ITEMS.some(([name]) => name === "stroke")) start = "blending";
+    const folders = targets.every((layer) => layer.kind === "group");
     const leadId = doc.state.activeIds.slice().reverse().find((id) => ids.includes(id)) || ids[ids.length - 1];
     const layersNow = () => ids.map((id) => doc.state.layers.find((item) => item.id === id)).filter(Boolean);
     const lead = () => doc.state.layers.find((item) => item.id === leadId) || layersNow()[0];
@@ -17531,7 +17552,7 @@
       control.appendChild(input);
       return row(parent, label, control);
     };
-    const blendRow = (parent, value, apply, preview) => {
+    const blendRow = (parent, value, apply, preview, folders) => {
       const button = make("button", "font-field blend-field fxdlg__blend");
       button.type = "button";
       button.setAttribute("aria-haspopup", "listbox");
@@ -17542,6 +17563,7 @@
       const open = () => openBlendMenu(button, {
         ids,
         host: dlg,
+        folders,
         preview,
         pick: (v) => {
           button.dataset.value = v;
@@ -17947,10 +17969,11 @@
       };
       if (name === "blending") {
         const layer = lead();
-        blendRow(fields, layer.blend || "normal", (v) => setBlending("blend", v), (v) => ops.previewBlend(ids, v));
+        // Pass Through is a folder's only, and what it is in until told otherwise
+        blendRow(fields, layer.blend || (layer.kind === "group" ? "pass through" : "normal"), (v) => setBlending("blend", v), (v) => ops.previewBlend(ids, v), folders);
         slider(fields, T("Opacity"), Math.round((layer.opacity === undefined ? 1 : layer.opacity) * 100), [0, 100, 100, "%"], (v) => setBlending("opacity", v));
         slider(more, TL("Fill (layers panel)", "Fill"), Math.round(PS.fillOf(layer) * 100), [0, 100, 100, "%"], (v) => setBlending("fill", v));
-        hint(more, T("Fill fades the letters, not their stroke or effects."));
+        hint(more, layer.kind === "text" ? T("Fill fades the letters, not their stroke or effects.") : T("Fill fades the layer's pixels, not their stroke or effects."));
       } else if (name === "stroke") {
         const stroke = shownOf("stroke");
         slider(fields, T("Size"), stroke.size, [1, 100, 30, "px"], (v) => setFx("stroke", { size: v }));
@@ -18464,7 +18487,7 @@
     { label: "Paste Layer Style", enabled: () => hasLayer() && Boolean(app.styleClipboard), action: () => ops.pasteLayerStyle() },
     { label: "Clear Layer Style", enabled: hasLayer, action: () => {
       if (canClearStyle()) ops.clearLayerStyle();
-      else toast(styleRefusal() || T("This layer has no style to clear."));
+      else toast(fxRefusal() || T("This layer has no style to clear."));
     } },
   ];
   // Photoshop has no key for it: Shift+W, as Shift+P is Perspective's

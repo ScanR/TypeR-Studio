@@ -1373,6 +1373,8 @@
       node.opened = layer.open !== false;
       // An SFX's outline goes around the whole folder, as Photoshop does since CS6
       strokesOut(node, layer);
+      // Its shadows, glows and overlays given or changed here, as a text's
+      effectsOut(node, layer, doc);
       // Fill at 0%: a hollow text (an SFX's), or one set to 0
       if (layer.knockout || PS().fillOf(layer) === 0) node.fillOpacity = 0;
       else if (node.fillOpacity === 0) node.fillOpacity = 1;
@@ -1411,7 +1413,8 @@
     }
     const painted = (layer.paint && layer.paint.length) || layer.dx || layer.dy;
     if (painted || !layer.raw) {
-      const clean = Object.assign({}, layer, { mask: null, vectorMask: null, fill: undefined, stroke: null, effects: undefined });
+      // Its pixels whole, even at Fill 0%: the file says the Fill beside them
+      const clean = Object.assign({}, layer, { mask: null, vectorMask: null, fill: undefined, knockout: false, stroke: null, effects: undefined });
       const visual = engine.visualOf(clean, doc);
       if (visual) place(node, visual.canvas, visual.x, visual.y);
       else delete node.canvas;
@@ -1421,6 +1424,8 @@
     if (!layer.adjustment) {
       strokesOut(node, layer);
       effectsOut(node, layer, doc);
+      // Fill back from the file's 0%: a hollow shape whose style was cleared here
+      if (node.fillOpacity === 0 && PS().fillOf(layer) > 0) node.fillOpacity = PS().fillOf(layer);
     }
     return node;
   };
