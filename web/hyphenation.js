@@ -8,7 +8,7 @@
 (function () {
   "use strict";
 
-  const PATTERNS = { de: "de", en: "enUs", es: "es", fr: "fr", it: "it", pt: "pt", ru: "ru", tr: "tr", uk: "uk" };
+  const PATTERNS = { de: "de", en: "enUs", es: "es", fr: "fr", it: "it", pl: "pl", pt: "pt", ru: "ru", tr: "tr", uk: "uk" };
   const LANGUAGES = Object.keys(PATTERNS);
 
   /* --------------------------- the language of a text --------------------------- */
@@ -23,6 +23,7 @@
     de: "ich du er sie wir ihr der die das den dem ein eine einen und ist bin bist sind war nicht ja nein was warum wie wer wo mit für auf aber auch noch schon hier jetzt danke mein dein sein",
     it: "io lei noi voi loro lo gli è sono sei siamo ho hai sì che per ma con senza molto più anche qui ora perché come grazie ciao mio tuo suo questo quello niente tutto",
     tr: "ben sen biz siz onlar bir ve bu şu için ama ile çok daha evet hayır ne neden nasıl kim var yok değil benim senin teşekkürler merhaba",
+    pl: "nie się jest że jestem jesteś jesteśmy są był była było byli mam masz może już tylko ale czy bo jak tak tutaj teraz dlaczego gdzie kto kiedy dobrze dziękuję cześć mój moja twój twoja mnie ciebie cię jej tego tej tym dla przez przed coś nic ktoś wszystko bardzo jeszcze zawsze nigdy",
   };
   const WORD_SETS = Object.keys(COMMON_WORDS).reduce((sets, language) => {
     sets[language] = new Set(COMMON_WORDS[language].split(" "));
@@ -35,6 +36,7 @@
     de: /[äöüß]/g,
     it: /[ìò]/g,
     tr: /[ğışİ]/g,
+    pl: /[ąćęłńśźż]/g,
   };
   const CYRILLIC = /[Ѐ-ӿ]/;
   const UKRAINIAN_LETTERS = /[іїєґ]/i;

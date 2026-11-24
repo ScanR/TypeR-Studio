@@ -271,7 +271,7 @@
     englishLanguage: "en", ukenglishLanguage: "en", standardFrenchLanguage: "fr", canadianFrenchLanguage: "fr",
     germanLanguageReformed1996: "de", standardGermanLanguage: "de", oldGermanLanguage: "de", swissGermanLanguage: "de", swissGermanLanguageOldRules: "de",
     spanishLanguage: "es", italianLanguage: "it", standardPortugueseLanguage: "pt", brazilianPortugueseLanguage: "pt",
-    russianLanguage: "ru", turkishLanguage: "tr", ukranianLanguage: "uk",
+    russianLanguage: "ru", turkishLanguage: "tr", ukranianLanguage: "uk", polishLanguage: "pl",
   };
   // Each language's patterns while they load, then true once they are there or can't be
   const hyphenLoads = new Map();

@@ -15,4 +15,4 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 The *Patterns.js files are the pattern files of the same library for en-US, fr,
-es, pt, it, tr, ru, uk and de-1996, converted to ES modules with no other change.
+es, pt, it, tr, ru, uk, pl and de-1996, converted to ES modules with no other change.
