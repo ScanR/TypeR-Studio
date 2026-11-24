@@ -587,10 +587,11 @@
         if (!slot.doc && !slot.page) return;
         const size = wanted(slot, w.zoom, moving);
         if (!size) return;
-        // Drawing a document takes the app a moment: not while something is being done
+        // Drawing a document takes the app a moment: not while something is being done, but for
+        // the page a text being typed goes on to, which shows its part of it
         if (slot.doc) {
           if (busy === null) busy = Boolean(host.busy());
-          if (busy) return;
+          if (busy && !(host.follows && host.follows(slot.doc))) return;
         }
         const box = slot.box;
         const rank = (slot.picture ? 1e7 : 0) + Math.hypot(box.x + box.width / 2 - stageW / 2, box.y + box.height / 2 - stageH / 2);

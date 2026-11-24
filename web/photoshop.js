@@ -8722,7 +8722,7 @@
       last.time = Date.now();
     } else pushHistory(doc, name, coalesce);
     emit("history");
-    emit("render", rect ? rect() : undefined);
+    if (rect !== false) emit("render", rect ? rect() : undefined);
   };
   // The part of the page a layer's picture covers
   const visualBounds = (layer, doc) => {
@@ -9402,6 +9402,16 @@
   };
 
   const TEXT_LENGTHS = ["size", "impliedFontSize", "leading", "impliedLeading", "baselineShift", "impliedBaselineShift"];
+  // What a text is made of, for the same text in another document: its anchor, in parts of the
+  // page, and its sizes in points, so that it is as large in pixels where the two documents
+  // don't have the same resolution
+  const textParamsIn = (layer, from, to) => {
+    const params = from.resolution === to.resolution ? clone(layer.params) : scaledText(layer, 1, 1, from.resolution / to.resolution).params;
+    const point = params.layerText.textClickPoint;
+    point.horizontal = ((point.horizontal / 100) * from.width / to.width) * 100;
+    point.vertical = ((point.vertical / 100) * from.height / to.height) * 100;
+    return params;
+  };
 
   // points: what a size in points is multiplied by, the page's resolution being part of it
   const scaledText = (layer, sx, sy, points) => {
@@ -11572,12 +11582,7 @@
       const fresh = new Map(held.map((layer) => [layer.id, newId()]));
       let copies = held.map((layer) => {
         const copy = Object.assign({}, layer, { id: fresh.get(layer.id), group: fresh.get(layer.group) || null, isBackground: false, clean: false, link: undefined, raw: layer.raw ? Object.assign({}, layer.raw) : undefined });
-        if (layer.kind === "text") {
-          copy.params = clone(layer.params);
-          const point = copy.params.layerText.textClickPoint;
-          point.horizontal = ((point.horizontal / 100) * source.width / doc.width) * 100;
-          point.vertical = ((point.vertical / 100) * source.height / doc.height) * 100;
-        }
+        if (layer.kind === "text") copy.params = textParamsIn(layer, source, doc);
         return copy;
       });
       if (place) {
@@ -11602,6 +11607,46 @@
       commitState(doc, "Paste Layers", { layers, activeIds: heads });
       firePanelEvent(EVENT_SELECT);
       return copies.length;
+    },
+    /* ---- a text that goes on from a page to the next (across.js) ---- */
+    // A text of the page `from` as it is on the page `to`, whose corner is at (dx, dy) of
+    // `from`: the same text, placed so that each page shows its part of it. `fields`: what is
+    // its own there (its number, its folder).
+    textOn(layer, from, to, dx, dy, fields) {
+      const copy = Object.assign({}, layer, { params: textParamsIn(layer, from, to), clean: false, link: undefined, raw: layer.raw ? Object.assign({}, layer.raw) : undefined }, fields);
+      return shifted(copy, -dx, -dy, to);
+    },
+    // A change to a page that may not be the one in front. `amend` puts it in the step just
+    // made, as setLayers does.
+    changeDoc(doc, name, change, { coalesce, amend } = {}) {
+      if (!doc) return;
+      // The page in front is drawn again; another one only as Flow shows it, in its own time
+      const front = doc === app.doc;
+      if (!amend) {
+        commitState(doc, name, change, coalesce, front ? undefined : false);
+        return;
+      }
+      // A font only tried out is not part of the step
+      if (doc.stylePreview) endStylePreview(doc);
+      doc.state = Object.assign({}, doc.state, change);
+      doc.history[doc.historyIndex].state = doc.state;
+      emit("history");
+      if (front) emit("render");
+    },
+    // A page that may not be the one in front, at another step of its history, of the same size
+    stepDoc(doc, index) {
+      const entry = doc && doc.history[index];
+      if (!entry || index === doc.historyIndex) return false;
+      const now = sizeOf(doc);
+      if (entry.size && (entry.size.width !== now.width || entry.size.height !== now.height || entry.size.resolution !== now.resolution)) return false;
+      doc.historyIndex = index;
+      doc.state = entry.state;
+      emit("history");
+      if (doc !== app.doc) return true;
+      emit("selection", doc.state.selection);
+      emit("render");
+      firePanelEvent(EVENT_HISTORY);
+      return true;
     },
     // Cmd + click on the New Layer button: under the active layer, as in Photoshop. Under a
     // clipped layer, it joins the clipping mask.

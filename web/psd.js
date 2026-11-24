@@ -586,6 +586,28 @@
       taken.add(layer);
     });
   };
+  // A text that goes on from a page to the next (across.js): the same layer in both files, and
+  // here what says that the two are one text. Found again by its name and its letters, and by
+  // where it is when two are alike. `rev` counts its changes: the page saved last has the most.
+  const acrossForSave = (doc) => doc.state.layers.filter((layer) => layer.kind === "text" && layer.across).map((layer) => {
+    const point = layer.params.layerText.textClickPoint;
+    return { name: layer.name, text: layer.params.layerText.textKey, key: layer.across.key, part: layer.across.part, rev: window.TypeRAcross ? window.TypeRAcross.revOf(doc, layer) : layer.across.rev || 0, at: [point.horizontal, point.vertical] };
+  });
+  const attachAcross = (layers, xmp) => {
+    const taken = new Set();
+    listOfXmp(xmp, "across").forEach((entry) => {
+      if (!entry || typeof entry.key !== "string" || (entry.part !== "top" && entry.part !== "bottom")) return;
+      const alike = layers.filter((item) => item.kind === "text" && !taken.has(item) && item.name === entry.name && item.params.layerText.textKey === entry.text);
+      if (!alike.length) return;
+      const far = (item) => {
+        const point = item.params.layerText.textClickPoint;
+        return Array.isArray(entry.at) ? Math.hypot(point.horizontal - entry.at[0], point.vertical - entry.at[1]) : 0;
+      };
+      const layer = alike.reduce((best, item) => (far(item) < far(best) ? item : best));
+      layer.across = { key: entry.key, part: entry.part, rev: entry.rev > 0 ? entry.rev : 0 };
+      taken.add(layer);
+    });
+  };
   const attachWarps = (layers, xmp) => {
     const list = listOfXmp(xmp, "warps");
     if (!list.length) return;
@@ -1005,6 +1027,7 @@
     walk(psd.children, null);
     attachWarps(layers, psd.imageResources && psd.imageResources.xmpMetadata);
     attachOffSurface(layers, psd.imageResources && psd.imageResources.xmpMetadata);
+    attachAcross(layers, psd.imageResources && psd.imageResources.xmpMetadata);
     // Photoshop's linked layers share a number; one shared by every layer is no link at all
     const shared = new Map();
     layers.forEach((layer) => {
@@ -1715,7 +1738,7 @@
     delete imageResources.thumbnail;
     delete imageResources.thumbnailRaw;
     const sfx = window.TypeRSFX ? window.TypeRSFX.recipesForSave(doc) : [];
-    const xmp = xmpWithList(xmpWithList(xmpWithList(xmpWithSfx(imageResources.xmpMetadata, sfx), "warps", warpsForSave(doc)), "surfaces", surfacesForSave(doc)), "offsurface", offSurfaceForSave(doc));
+    const xmp = xmpWithList(xmpWithList(xmpWithList(xmpWithList(xmpWithSfx(imageResources.xmpMetadata, sfx), "warps", warpsForSave(doc)), "surfaces", surfacesForSave(doc)), "offsurface", offSurfaceForSave(doc)), "across", acrossForSave(doc));
     if (xmp === undefined) delete imageResources.xmpMetadata;
     else imageResources.xmpMetadata = xmp;
     const root = Object.assign({}, source, { width: doc.width, height: doc.height, bitsPerChannel: 8, canvas: composite, children, imageResources });

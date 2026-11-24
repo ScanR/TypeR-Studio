@@ -679,6 +679,8 @@
   const view = () => (app.doc ? app.doc.view : { zoom: 1, x: 0, y: 0 });
   // Flow, every page on one surface (flow.js): made once the settings are read
   let Flow = null;
+  // The texts that go on from a page to the next (across.js)
+  let Across = null;
 
   // A browser only colours a slider up to its thumb on its own in Firefox
   const showSliderFill = (input) => {
@@ -3959,6 +3961,8 @@
       dpr,
       schedule: () => schedule(false),
       viewChanged: () => viewChanged(),
+      // The page a text being typed goes on to is drawn again while it is typed (across.js)
+      follows: (doc) => Boolean(Across && Across.follows(doc)),
       // Something is being done to the page in front: it stays in front
       busy: () => Boolean(gesture || pinch || pointers.size || polygon || scrubbing || ui.layerStyle || !ui.editor.hidden || (app.doc && app.doc.live) || transformOf() || (crop && crop.edited) || warpedLayer() || (window.TypeRReshapeTool && window.TypeRReshapeTool.busy()) || paging || openingFiles || !ui.busy.hidden || document.querySelector("dialog[open]")),
       activate: async ({ doc, page }) => {
@@ -3987,6 +3991,74 @@
         }
         return flowColors;
       },
+    });
+  }
+  // A text that goes on from a page to the next (across.js): the same text layer in both pages,
+  // kept alike. The page under a page is the next one of the chapter; a document that isn't a
+  // page of the chapter has the next document that isn't one either.
+  if (window.TypeRAcross) {
+    Across = window.TypeRAcross.create({
+      app,
+      PS,
+      ops,
+      T,
+      fill,
+      toast: (text, long) => toast(text, long),
+      // Text Across Pages' keys, as the menus show them
+      keys: () => keyLabel(setupKeysOf("Text Across Pages")),
+      typing: () => !ui.editor.hidden,
+      // Another page was changed: Flow draws it again, and its tab says it has changes to save
+      schedule: () => {
+        schedule(false);
+        renderTabs();
+      },
+      // The page after a document (`step` 1) or before it (-1): { doc, page, name }, `doc` null
+      // while that page is closed
+      neighbour: (doc, step) => {
+        const at = pageOf(doc);
+        if (at >= 0) {
+          const page = chapter.pages[at + step];
+          if (!page) return null;
+          const open = app.docs.find((one) => one.path === pageKey(page)) || null;
+          return { doc: open, page, name: open ? open.name : page.file.name };
+        }
+        const apart = app.docs.filter((one) => pageOf(one) < 0);
+        const found = apart[apart.indexOf(doc) + step];
+        return found && apart.includes(doc) ? { doc: found, page: null, name: found.name } : null;
+      },
+      // Whether Flow shows the two pages one against the other, top to bottom: a text put
+      // across the line where they meet then goes on by itself
+      stacked: (doc, entry, step) => {
+        const found = Flow && flowOn() ? Flow.stackedOn(doc, step) : null;
+        return Boolean(found) && (entry.doc ? found.doc === entry.doc : Boolean(entry.page) && found.page === entry.page);
+      },
+      // A closed page of the chapter, opened in a tab behind the page in front
+      open: async (entry) => app.docs.find((one) => one.path === pageKey(entry.page)) || ops.openBehind(await chapterFile(entry.page), entry.page.file.name, entry.page.handle),
+    });
+    // A page saved takes along the page its text goes on to, when that one is a PSD with its
+    // own file and changes to save: the two files then hold the same text. No further: the
+    // pages that one shares other texts with wait for their own Save.
+    let savedAlong = false;
+    PS.on((type, saved) => {
+      if (type !== "saved" || savedAlong || !saved || !app.docs.includes(saved)) return;
+      const owed = (doc) => app.docs.includes(doc) && PS.isDirty(doc) && Boolean(doc.handle) && doc.handle.kind === "file" && /\.ps[db]$/i.test(doc.name) && !doc.home && !savingDocs.has(doc);
+      if (!Across.partners(saved).some(owed)) return;
+      setTimeout(async () => {
+        if (savedAlong) return;
+        savedAlong = true;
+        try {
+          // After the saves going on (Save All saves them itself)
+          for (let waited = 0; savingDocs.size && waited < 50; waited++) await new Promise((resolve) => setTimeout(resolve, 100));
+          for (const doc of Across.partners(saved).filter(owed)) {
+            // Only where Save asks nothing: nobody pressed a key for this page, and the browser
+            // lets a page ask for its file only then
+            if (!owed(doc) || (doc.handle.queryPermission && (await doc.handle.queryPermission({ mode: "readwrite" }).catch(() => "denied")) !== "granted")) continue;
+            await save(doc);
+          }
+        } finally {
+          savedAlong = false;
+        }
+      }, 0);
     });
   }
   // Flow offered once to whoever works in Solo without having chosen it: those who used TypeR
@@ -8951,7 +9023,7 @@
     const point = toDoc(event);
     const hit = ops.hitLayer(point[0], point[1]);
     if (hit && !app.doc.state.activeIds.includes(hit.id)) ops.selectLayer(hit.id);
-    openContextMenu(event.clientX, event.clientY, ["Deselect", "Reselect", "Inverse", null, "Cut", "Copy", "Fill with Foreground Colour", "Fill with Background Colour", "Content-Aware Fill…", "Generative Fill…", null, addMaskItem, addVectorMaskItem, "Create Clipping Mask", null, "Free Transform", null, "Blending Options…", null, "Duplicate Layer", "Group Layers", "Copy Layer", "Paste Layer", "Copy Layer Style", "Paste Layer Style", null, "Convert to Paragraph Text", "Convert to Point Text", "Rasterize Type", null, "Convert to SFX", "Separate SFX Letters", "Keep in the bank…", null, "Merge Down", "Merge Visible"]);
+    openContextMenu(event.clientX, event.clientY, ["Deselect", "Reselect", "Inverse", null, "Cut", "Copy", "Fill with Foreground Colour", "Fill with Background Colour", "Content-Aware Fill…", "Generative Fill…", null, addMaskItem, addVectorMaskItem, "Create Clipping Mask", null, "Free Transform", null, "Blending Options…", null, "Duplicate Layer", "Group Layers", "Copy Layer", "Paste Layer", "Copy Layer Style", "Paste Layer Style", null, "Convert to Paragraph Text", "Convert to Point Text", "Text Across Pages", "Rasterize Type", null, "Convert to SFX", "Separate SFX Letters", "Keep in the bank…", null, "Merge Down", "Merge Visible"]);
   });
   ui.stage.addEventListener("dblclick", (event) => {
     const turning = transformOf();
@@ -10877,7 +10949,7 @@
         event.preventDefault();
         if (Shell.touch) return;
         if (!doc.state.activeIds.includes(layer.id)) ops.selectLayer(layer.id);
-        openContextMenu(event.clientX, event.clientY, [{ label: "Rename", action: () => renameRow(layer, name) }, "Duplicate Layer", "Delete Layer", null, "Group Layers", "Ungroup Layers", null, addMaskItem, addVectorMaskItem, "Create Clipping Mask", null, "Blending Options…", null, "Copy Layer", "Paste Layer", "Copy Layer Style", "Paste Layer Style", null, "Convert to Paragraph Text", "Convert to Point Text", "Rasterize Type", null, "Convert to SFX", "Separate SFX Letters", "Keep in the bank…", null, "Merge Down", "Merge Visible", "Flatten Image", null, "Similar Layers", null, ...labelItems()]);
+        openContextMenu(event.clientX, event.clientY, [{ label: "Rename", action: () => renameRow(layer, name) }, "Duplicate Layer", "Delete Layer", null, "Group Layers", "Ungroup Layers", null, addMaskItem, addVectorMaskItem, "Create Clipping Mask", null, "Blending Options…", null, "Copy Layer", "Paste Layer", "Copy Layer Style", "Paste Layer Style", null, "Convert to Paragraph Text", "Convert to Point Text", "Text Across Pages", "Rasterize Type", null, "Convert to SFX", "Separate SFX Letters", "Keep in the bank…", null, "Merge Down", "Merge Visible", "Flatten Image", null, "Similar Layers", null, ...labelItems()]);
       });
       row.addEventListener("click", (event) => {
         // Cmd + click on a thumbnail: its pixels as a selection, and with Shift, added to it
@@ -14439,6 +14511,12 @@
     let saved = 0;
     for (const doc of list) {
       if (!app.docs.includes(doc)) continue;
+      // Saved meanwhile along with the page its text goes on to (Text Across Pages), or being so
+      if (savingDocs.has(doc)) await savingDocs.get(doc).catch(() => false);
+      if (!PS.isDirty(doc)) {
+        saved++;
+        continue;
+      }
       const home = homes.get(doc);
       if (home && !doc.home) {
         // The chapter's page it is: the PSD takes the image's place there, as opening the
@@ -18830,6 +18908,9 @@
       { label: "Hyphenate", keys: "Alt+Shift+Cmd+H", anywhere: true, check: hyphenateShown, enabled: hasDoc, action: () => setHyphenate(!hyphenateShown()) },
       warpTextItem,
       { label: "Perspective", keys: "Shift+P", enabled: () => activeTexts().length === 1 && !activeTexts()[0].rotated && !activeTexts()[0].envelope, action: () => enterSurface(activeTexts()[0]) },
+      // A text over the line where two pages meet goes on, on the page above or under: both
+      // pages then hold it (across.js). In Flow, top to bottom, it does so by itself.
+      { label: "Text Across Pages", keys: "Shift+T", check: () => Boolean(Across && Across.on()), enabled: () => Boolean(Across && Across.can()), action: () => Across.toggle() },
       { label: "Rasterize Type", enabled: () => activeTexts().length > 0, action: () => activeTexts().forEach((layer) => ops.rasterizeText(layer.id)) },
       null,
       { label: "New SFX", enabled: hasDoc, action: () => { setTool("sfx"); window.TypeRSFX.newSfx({}); } },
@@ -21483,6 +21564,8 @@
     setWorkspace,
     setFlowLayout,
     flow: () => (Flow && flowOn() ? Flow : null),
+    // The texts that go on from a page to the next (across.js)
+    across: () => Across,
     openDialog,
     openFiles,
     setPages,

@@ -1628,5 +1628,13 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Bring in your Clip Studio Paint brushes (.sut), alone or in a .zip: they paint with the Brush (B).": "Importez vos pinceaux Clip Studio Paint (.sut), seuls ou dans un .zip : ils s’utilisent avec le Pinceau (B).",
     "Bring in Clip Studio Paint materials (.clip), alone or in a .zip: bubbles, pictures and screentones to place on the page.": "Importez des matériaux Clip Studio Paint (.clip), seuls ou dans un .zip : bulles, images et trames à placer sur la page.",
     "This script's pages are no longer open. Open the chapter again to go on from page to page.": "Les pages de ce script ne sont plus ouvertes. Rouvrez le chapitre pour continuer de page en page.",
+    "Text Across Pages": "Texte sur deux pages",
+    "This text continues on {name}: both pages hold it, and changing it on one changes the other.": "Ce texte continue sur {name} : les deux pages le contiennent, et le modifier sur l’une le modifie sur l’autre.",
+    "{keys}: keep it on this page only.": "{keys} : le garder sur cette page seulement.",
+    "The text is now on {name}.": "Le texte est maintenant sur {name}.",
+    "This text stays on this page only.": "Ce texte reste sur cette page seulement.",
+    "These texts stay on this page only.": "Ces textes restent sur cette page seulement.",
+    "Put the text over the top or the bottom edge of its page first: it then continues on the page above or below.": "Placez d’abord le texte à cheval sur le haut ou le bas de sa page : il continue alors sur la page du dessus ou du dessous.",
+    "{name} can't be opened: the text that continues on it only changed on this page.": "{name} ne peut pas être ouverte : le texte qui continue dessus n’a changé que sur cette page.",
   },
 });
