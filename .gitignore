@@ -8,3 +8,6 @@ playwright-report/
 # Commercial lettering fonts, unused by TypeR Studio and the site: their web licences aren't covered
 assets/fonts/wild-words-*.woff2
 assets/fonts/fight-to-the-finish-*.woff2
+
+# Wrangler's local cache
+stats-worker/.wrangler/
