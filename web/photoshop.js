@@ -14269,6 +14269,25 @@
     return language && !Hyphenation.isLoaded(language) ? loadHyphenation(language) : null;
   };
 
+  // The fonts of the text the panel pastes, loaded before its lines are measured: a font of
+  // the computer is only listed until a text uses it, and lines measured in the stand-in
+  // font would break too early
+  const fontsPending = (styles, runs) => {
+    const names = [];
+    styles.forEach((style) => {
+      const lt = style && style.textProps && style.textProps.layerText;
+      ((lt && lt.textStyleRange) || []).forEach((range) => names.push(range.textStyle && range.textStyle.fontPostScriptName));
+    });
+    (runs || []).forEach((run) => names.push(run && run.textStyle && run.textStyle.fontPostScriptName));
+    const wanted = names.filter(Boolean);
+    return wanted.every((name) => (Fonts.get(name) && Fonts.get(name).ready) || Fonts.isMissing(name)) ? null : Fonts.ready(wanted);
+  };
+  // What a paste waits for, or null: hyphenation patterns and fonts
+  const pasteWaits = (styles, runs) => {
+    const waits = [hyphenationPending(), fontsPending(styles, runs)].filter(Boolean);
+    return waits.length ? Promise.all(waits).catch(() => null) : null;
+  };
+
   // The lines of a text the panel fits in a balloon. With hyphenRules (Hyphenate on), a word
   // that doesn't fit at the end of a line is cut at a syllable, with a hyphen, as in
   // paragraph text, rather than going whole to the next line or leaving a line too wide.
@@ -14697,9 +14716,9 @@
       commitState(doc, "TyperTools Change", { layers });
       return "";
     },
-    createTextLayerInSelection(data, point) {
-      const pending = hyphenationPending();
-      if (pending) return pending.then(() => host.createTextLayerInSelection(data, point));
+    createTextLayerInSelection(data, point, loaded) {
+      const pending = !loaded && pasteWaits([data && data.style], data && data.richTextRuns);
+      if (pending) return pending.then(() => host.createTextLayerInSelection(data, point, true));
       const doc = app.doc;
       if (!doc) return "doc";
       const selection = doc.state.selection;
@@ -14718,9 +14737,9 @@
       emit("paste", { classic: true, layers: [layer] });
       return "";
     },
-    createTextLayersInStoredSelections(data, point) {
-      const pending = hyphenationPending();
-      if (pending) return pending.then(() => host.createTextLayersInStoredSelections(data, point));
+    createTextLayersInStoredSelections(data, point, loaded) {
+      const pending = !loaded && pasteWaits((data && data.styles) || [], ((data && data.richTextRuns) || []).flat());
+      if (pending) return pending.then(() => host.createTextLayersInStoredSelections(data, point, true));
       const doc = app.doc;
       if (!doc) return "doc";
       const created = [];
