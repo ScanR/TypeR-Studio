@@ -135,6 +135,8 @@
     swap: SVG('<path d="m3 16 4 4 4-4"/> <path d="M7 20V4"/> <path d="m21 8-4-4-4 4"/> <path d="M17 4v16"/>'),
     fullScreen: SVG('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
     fullScreenExit: SVG('<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>'),
+    pageSolo: SVG('<rect x="6.500" y="3.500" width="11" height="17" rx="1"/>'),
+    pageFlow: SVG('<rect x="2.500" y="5.500" width="8" height="13" rx="1"/><rect x="13.500" y="5.500" width="8" height="13" rx="1"/>'),
     alignMiddle: SVG('<rect x="4" y="4" width="16" height="16"/><path d="M8 10h8M8 14h8"/>'),
     warp: SVG('<path d="M7.500 5h9L21 19H3Z"/><path d="M12 5v14M5.200 12h13.600"/>'),
     warpText: SVG('<path d="M7 4h10M12 4v9"/><path d="M3 20c3.500-5 14.500-5 18 0"/>'),
@@ -4592,8 +4594,164 @@
     quickSettings.blur();
     showSettings();
   });
+  // The menu open from a right click or a button (tabs, pages, Page Display), closed by
+  // closeContextMenu
+  let contextMenu = null;
+  // Page Display, left of Settings: Solo or Flow, and how Flow lays the pages out, in one
+  // click from every tool. It stays open while its choices are made; its icon says the mode.
+  const pageDisplay = iconButton(flowOn() ? "pageFlow" : "pageSolo", T("Page display"), false, () => {});
+  pageDisplay.dataset.icon = flowOn() ? "pageFlow" : "pageSolo";
+  pageDisplay.setAttribute("aria-haspopup", "menu");
+  pageDisplay.setAttribute("aria-expanded", "false");
+  const renderPageDisplay = () => {
+    const icon = flowOn() ? "pageFlow" : "pageSolo";
+    if (pageDisplay.dataset.icon !== icon) {
+      pageDisplay.dataset.icon = icon;
+      pageDisplay.innerHTML = ICON[icon];
+    }
+    // Not while a number is being typed in it: it would be written again under the keys
+    const typing = pageDisplayOpen() && contextMenu.contains(document.activeElement) && document.activeElement.tagName === "INPUT";
+    if (pageDisplayOpen() && !typing) fillPageDisplay(contextMenu);
+  };
+  // Its title, with the mode and the key that switches it, written when it's about to be read:
+  // the keys are only known once the menus are
+  const titlePageDisplay = () => {
+    const keys = keyLabel(setupKeysOf("Flow Mode"));
+    const title = `${T("Page display")}: ${T(flowOn() ? "Flow mode" : "Solo mode")}${keys ? ` (${keys})` : ""}`;
+    pageDisplay.title = title;
+    pageDisplay.setAttribute("aria-label", title);
+  };
+  pageDisplay.addEventListener("pointerenter", titlePageDisplay);
+  pageDisplay.addEventListener("focus", titlePageDisplay);
+  const pageDisplayOpen = () => Boolean(contextMenu && contextMenu.classList.contains("layout-menu"));
+  const fillPageDisplay = (list) => {
+    const focused = document.activeElement && list.contains(document.activeElement) ? document.activeElement.dataset.row : null;
+    list.textContent = "";
+    const flow = flowOn();
+    const keysOf = (label) => keyLabel(setupKeysOf(label));
+    // A row that is picked (radio) or ticked (check), or a command; `stay`: the menu stays open
+    const row = (id, label, { checked, radio, keys, enabled = true, stay = true }, action) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "menu__item" + (checked ? " is-on" : "");
+      item.dataset.row = id;
+      item.setAttribute("role", checked === undefined ? "menuitem" : radio ? "menuitemradio" : "menuitemcheckbox");
+      if (checked !== undefined) item.setAttribute("aria-checked", String(Boolean(checked)));
+      item.disabled = !enabled;
+      const check = document.createElement("span");
+      check.className = "tabs-menu__check";
+      if (checked) check.innerHTML = SVG('<path d="m5 12.500 4.500 4.500L19 7.500"/>');
+      const name = document.createElement("span");
+      name.textContent = T(label);
+      item.append(check, name);
+      if (keys) {
+        const kbd = document.createElement("kbd");
+        kbd.textContent = keys;
+        item.appendChild(kbd);
+      }
+      item.addEventListener("click", () => {
+        if (!stay) closeContextMenu();
+        action();
+        if (stay && pageDisplayOpen()) fillPageDisplay(list);
+      });
+      list.appendChild(item);
+      return item;
+    };
+    const line = () => {
+      const sep = document.createElement("div");
+      sep.className = "menu__sep";
+      list.appendChild(sep);
+    };
+    const heading = (text) => {
+      const head = document.createElement("div");
+      head.className = "menu__heading";
+      head.textContent = T(text);
+      list.appendChild(head);
+    };
+    // A number, kept when it's left or with Enter
+    const number = (id, label, value, min, max, step, keep) => {
+      const field = document.createElement("label");
+      field.className = "layout-menu__field";
+      const name = document.createElement("span");
+      name.textContent = T(label);
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = String(min);
+      input.max = String(max);
+      input.step = String(step);
+      input.value = String(value);
+      input.dataset.row = id;
+      const apply = () => {
+        const next = parseFloat(String(input.value).replace(",", "."));
+        if (Number.isFinite(next)) keep(next);
+      };
+      input.addEventListener("change", apply);
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        apply();
+        input.select();
+      });
+      field.append(name, input);
+      list.appendChild(field);
+    };
+    row("solo", "Solo mode", { checked: !flow, radio: true, keys: flow ? keysOf("Flow Mode") : "" }, () => setWorkspace("solo"));
+    row("flow", "Flow mode", { checked: flow, radio: true, keys: flow ? "" : keysOf("Flow Mode") }, () => setWorkspace("flow"));
+    line();
+    heading("Pages in Flow");
+    // A way picked in Solo goes to Flow: that's what it was picked for
+    FLOW_DIRECTIONS.forEach(([id, name]) => row(`dir-${id}`, name, { checked: settings.flowDirection === id, radio: true }, () => {
+      setFlowLayout({ direction: id });
+      setWorkspace("flow");
+    }));
+    line();
+    row("pairs", "Pages Two by Two", { checked: flowPairsOn(), keys: keysOf("Pages Two by Two"), enabled: settings.flowDirection !== "down" }, () => setFlowLayout({ pairs: !settings.flowPairs }));
+    row("shift", "Shift Pairs by One Page", { keys: keysOf("Shift Pairs by One Page"), enabled: Boolean(app.doc) && flow && flowPairsOn() }, shiftFlowPairs);
+    number("gap", "Space between pages in Flow", flowGapOf(settings.flowDirection), 0, FLOW_GAP_MAX, 10, (gap) => setFlowLayout({ gap }));
+    number("perRow", "Pages per row in Flow", settings.flowPerRow, 0, 500, 1, (perRow) => setFlowLayout({ perRow }));
+    line();
+    row("fit", "Fit All Pages", { keys: keysOf("Fit All Pages"), enabled: Boolean(app.doc) && flow, stay: false }, () => Flow.fitAll());
+    row("tidy", "Tidy Up Pages", { enabled: Boolean(app.doc) && flow && Flow.moved(), stay: false }, () => Flow.tidy());
+    row("all", "Select All Pages", { keys: keysOf("Select All Pages"), enabled: Boolean(app.doc) && flow, stay: false }, () => Flow.pickAll());
+    const again = focused && list.querySelector(`[data-row="${focused}"]`);
+    if (again && !again.disabled) again.focus({ preventScroll: true });
+  };
+  const openPageDisplay = (byKeyboard) => {
+    closeContextMenu();
+    closeMenus();
+    const list = document.createElement("div");
+    list.className = "menu__list menu__list--context tabs-menu layout-menu";
+    if (lang === "ar") list.dir = "rtl";
+    list.setAttribute("role", "menu");
+    list.setAttribute("aria-label", T("Page display"));
+    fillPageDisplay(list);
+    document.body.appendChild(list);
+    contextMenu = list;
+    pageDisplay.setAttribute("aria-expanded", "true");
+    const box = pageDisplay.getBoundingClientRect();
+    list.style.maxHeight = `${Math.max(120, window.innerHeight - box.bottom - 10)}px`;
+    list.style.left = `${Math.max(8, Math.min(box.right - list.offsetWidth, window.innerWidth - list.offsetWidth - 8))}px`;
+    list.style.top = `${box.bottom + 2}px`;
+    if (byKeyboard) {
+      const current = list.querySelector(".menu__item.is-on");
+      if (current) current.focus();
+    }
+  };
+  let pageDisplayWasOpen = false;
+  pageDisplay.addEventListener("pointerdown", () => {
+    pageDisplayWasOpen = pageDisplayOpen();
+  });
+  pageDisplay.addEventListener("click", (event) => {
+    // A second press closes it: the pointer has already closed it by then
+    const wasOpen = pageDisplayWasOpen || (event.detail === 0 && pageDisplayOpen());
+    pageDisplayWasOpen = false;
+    if (wasOpen) closeContextMenu();
+    else openPageDisplay(event.detail === 0);
+    if (event.detail !== 0) pageDisplay.blur();
+  });
   const barEnd = document.createElement("span");
   barEnd.className = "obar__end";
+  if (Flow && !Shell.touch) barEnd.appendChild(pageDisplay);
   barEnd.appendChild(quickSettings);
   if (document.fullscreenEnabled) barEnd.appendChild(fullScreen);
   document.addEventListener("fullscreenchange", () => {
@@ -19693,6 +19851,7 @@
   let menuItems = null;
   const allMenuItems = () => menuItems || (menuItems = MENUS.flatMap(([, list]) => list).flatMap((item) => (item && item.submenu ? [item, ...item.submenu] : [item])).filter(Boolean));
   const renderMenusState = () => {
+    renderPageDisplay();
     allMenuItems().forEach((item) => {
       if (!item.row) return;
       if (item.submenu) {
@@ -19728,12 +19887,12 @@
   };
 
   // A right click: the commands of the menus that can act here and now, and only those
-  let contextMenu = null;
   const closeContextMenu = () => {
     if (contextMenu) contextMenu.remove();
     contextMenu = null;
     tabsMore.setAttribute("aria-expanded", "false");
     $("pager-at").setAttribute("aria-expanded", "false");
+    pageDisplay.setAttribute("aria-expanded", "false");
   };
   const openContextMenu = (x, y, wanted) => {
     closeContextMenu();
@@ -19804,7 +19963,8 @@
       event.preventDefault();
       closeContextMenu();
     }
-    else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    // A number in the menu (Page Display) keeps its arrows
+    else if ((event.key === "ArrowDown" || event.key === "ArrowUp") && !(contextMenu.contains(event.target) && event.target.tagName === "INPUT")) {
       event.preventDefault();
       event.stopPropagation();
       const rows = Array.from(contextMenu.querySelectorAll(".menu__item"));

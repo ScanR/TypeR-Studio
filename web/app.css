@@ -173,7 +173,16 @@ input[type="range"]:disabled::-moz-range-thumb { background: var(--muted); }
 .search__item.is-active kbd, .search__item.is-active .search__place { color: var(--strong); }
 .search__item.is-off kbd, .search__item.is-off .search__place { color: var(--disabled); }
 .obar__gap { margin-left: 6px; }
-.obar__end { flex: none; display: inline-flex; gap: 1px; position: sticky; right: 0; margin-left: auto; background: var(--ui); box-shadow: -8px 0 6px var(--ui); }
+.obar__end { flex: none; display: inline-flex; align-items: center; gap: 5px; position: sticky; right: 0; margin-left: auto; background: var(--ui); box-shadow: -8px 0 6px var(--ui); }
+/* A little larger than the bar's other icons, in the same height of bar */
+.obar__end .icon-btn { width: 28px; height: 26px; }
+.obar__end .icon-btn svg { width: 19px; height: 19px; }
+.obar__end .icon-btn[aria-expanded="true"] { background: var(--ui-3); }
+/* Page Display: Solo or Flow, and Flow's layout */
+.layout-menu { min-width: 260px; }
+.layout-menu .menu__item kbd { margin-left: auto; padding-left: 20px; }
+.layout-menu__field { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 28px; padding: 0 14px 0 30px; white-space: nowrap; }
+.layout-menu__field input { width: 64px; }
 .obar__wide { min-width: 170px; }
 .obar__hint { color: var(--muted); }
 
