@@ -3973,7 +3973,7 @@
       fileOf: (page) => chapterFile(page),
       // Two pages dragged side to side become one, a spread (joinPages)
       join: (ask) => joinPages(ask),
-      joinHint: () => T("Release to join as a spread"),
+      joinHint: (join) => (join && (join.side === "top" || join.side === "bottom") ? T("Release to join into one long page") : T("Release to join as a spread")),
       opening: (name) => fill(T("Opening {name}…"), { name }),
       // Over the name of a page, which it is moved by, and while it is held
       cursor: (kind) => {
@@ -13683,7 +13683,7 @@
     }
     return null;
   };
-  const joinPages = async ({ moved, onto, side }) => {
+  const joinPages = async ({ moved, onto, side, dx = 0 }) => {
     if (!ui.editor.hidden) endEdit();
     if (!settleTransform()) return null;
     const sources = [onto, moved];
@@ -13702,11 +13702,18 @@
           docs.push(doc);
         }
       }
-      // `side`: where the page moved was put, left or right of the other
-      const left = side === "left" ? docs[1] : docs[0];
-      const right = side === "left" ? docs[0] : docs[1];
-      const width = left.width + right.width;
-      const height = Math.max(left.height, right.height);
+      // `side`: where the page moved was put, left or right of the other, or above or below it
+      // (`dx`: how far right of the other it stands, the two in line as they were in Flow)
+      const stacked = side === "top" || side === "bottom";
+      const left = side === "left" || side === "top" ? docs[1] : docs[0];
+      const right = left === docs[1] ? docs[0] : docs[1];
+      const shift = stacked ? Math.round(dx) : 0;
+      const ontoX = Math.max(0, -shift);
+      const movedX = Math.max(0, shift);
+      const width = stacked ? Math.max(ontoX + docs[0].width, movedX + docs[1].width) : left.width + right.width;
+      const height = stacked ? left.height + right.height : Math.max(left.height, right.height);
+      // Where each page goes in the new one: side by side, or one under the other
+      const places = stacked ? [[left, left === docs[0] ? ontoX : movedX, 0], [right, right === docs[0] ? ontoX : movedX, left.height]] : [[left, 0, 0], [right, left.width, 0]];
       if (!PS.canvasFits(width, height)) {
         toast(T("These two pages are too large to make one page."), true);
         return null;
@@ -13729,15 +13736,29 @@
       const first = spread.history[0].id;
       const blank = spread.state.layers[0].id;
       let top = null;
-      [[left, 0], [right, left.width]].forEach(([source, dx]) => {
+      places.forEach(([source, x, y]) => {
         const ids = source.state.layers.filter((layer) => !layer.group).map((layer) => layer.id);
-        if (!ops.pasteLayersFrom(source, ids, undefined, undefined, { dx, dy: 0 })) return;
+        if (!ops.pasteLayersFrom(source, ids, undefined, undefined, { dx: x, dy: y })) return;
         const group = ops.groupLayers(bareName(source.name));
         if (!group) return;
         // A folder that isn't Pass Through keeps a page's adjustment layers to that page
         ops.setLayerProps(group.id, { blend: "normal" });
         top = group.id;
       });
+      // A text that goes on to a page outside these two (across.js) still does where it is a
+      // page away from it as before: one above the other, its page centred in the long one and
+      // at the end that page is on. Elsewhere, as in a spread, it is a text of this page alone.
+      // Both parts here: one text again, which across.js makes of them.
+      const partsOf = (key) => places.filter(([source]) => source.state.layers.some((layer) => layer.across && layer.across.key === key)).length;
+      const stays = new Set();
+      places.forEach(([source, x, y]) => source.state.layers.forEach((layer) => {
+        if (!layer.across) return;
+        const { key, part } = layer.across;
+        const inPlace = stacked && x === Math.round(width / 2) - Math.round(source.width / 2) && (part === "bottom" ? y === 0 : y + source.height === height);
+        if (inPlace || partsOf(key) > 1) stays.add(key);
+      }));
+      const alone = (layer) => Boolean(layer.across) && !stays.has(layer.across.key);
+      if (spread.state.layers.some(alone)) ops.changeDoc(spread, null, { layers: spread.state.layers.map((layer) => (alone(layer) ? Object.assign({}, layer, { across: undefined }) : layer)) }, { amend: true });
       ops.selectLayer(blank);
       ops.deleteLayers();
       if (top) ops.selectLayer(top);
@@ -13747,9 +13768,11 @@
       spread.stamp = null;
       // Save offers the folder of the pages
       spread.beside = (onto.page && onto.page.handle) || (onto.doc && onto.doc.handle) || (moved.page && moved.page.handle) || (moved.doc && moved.doc.handle) || null;
-      // Saved, it takes the place of the two pages' files (saveHome); `seam`: where the right one starts
+      // Saved, it takes the place of the two pages' files (saveHome); `seam`: where the right
+      // one starts, or the one below (`stacked`)
       spread.home = home && { folder: home.folder, dir: home.dir, replaces: () => home.files };
-      spread.seam = left.width;
+      spread.seam = stacked ? left.height : left.width;
+      spread.stacked = stacked;
 
       // What brings the two pages back: their places in the chapter, and the documents that
       // hold what no file does (changes not saved, a page that was never a file)
@@ -13778,7 +13801,7 @@
       renderStatus();
       renderMenusState();
       linkPages();
-      toast(fill(T("{name}: the two pages are now one spread. Undo brings them back."), { name }), true);
+      toast(fill(stacked ? T("{name}: the two pages are now one long page. Undo brings them back.") : T("{name}: the two pages are now one spread. Undo brings them back."), { name }), true);
       return page ? pageKey(page) : `doc:${spread.id}`;
     } catch (error) {
       console.error(error);
@@ -13885,7 +13908,7 @@
     const family = familyIds(doc.state.layers, layer.id);
     const boxes = doc.state.layers.filter((one) => family.has(one.id) && one.kind !== "group").map((one) => ops.pixelBox(one, doc)).filter((box) => box && box.right > box.left);
     if (!boxes.length) return null;
-    return { left: Math.min(...boxes.map((box) => box.left)), right: Math.max(...boxes.map((box) => box.right)) };
+    return { left: Math.min(...boxes.map((box) => box.left)), right: Math.max(...boxes.map((box) => box.right)), top: Math.min(...boxes.map((box) => box.top)), bottom: Math.max(...boxes.map((box) => box.bottom)) };
   };
   // The two folders of a spread, named after its pages ("04" and "05" in 04-05.psd), or null
   const spreadFolders = (doc) => {
@@ -13897,16 +13920,21 @@
   // Whether a page in Flow, open or not, may be a spread: the menu offers to separate it
   const maybeSpread = ({ doc, page }) => (doc ? spreads.has(doc) || Boolean(spreadFolders(doc)) : Boolean(page && /^[^-].*-.*[^-]$/.test(bareName(page.file.name))));
   // The two pages of a spread: their folders in reading order, which one is on the left, and the
-  // column where the right one starts (the first pixels of its folder)
+  // column where the right one starts (the first pixels of its folder). Two pages joined one
+  // above the other (`stacked`): `left` is the one on top, and `seam` the row where the other
+  // starts; `boxes`, where each folder's pixels are.
   const spreadParts = (doc) => {
     const folders = spreadFolders(doc);
     if (!folders) return null;
     const boxes = folders.map((folder) => shownBox(doc, folder));
     if (boxes.some((box) => !box)) return null;
-    const left = boxes[0].left <= boxes[1].left ? folders[0] : folders[1];
+    const apart = (a, b, from, to) => a[to] <= b[from] + 1 || b[to] <= a[from] + 1;
+    const stacked = doc.stacked !== undefined ? doc.stacked : apart(boxes[0], boxes[1], "top", "bottom") && !apart(boxes[0], boxes[1], "left", "right");
+    const from = stacked ? "top" : "left";
+    const left = boxes[0][from] <= boxes[1][from] ? folders[0] : folders[1];
     const right = left === folders[0] ? folders[1] : folders[0];
-    const seam = doc.seam || Math.round(boxes[folders.indexOf(right)].left);
-    return seam > 0 && seam < doc.width ? { folders, left, right, seam } : null;
+    const seam = doc.seam || Math.round(boxes[folders.indexOf(right)][from]);
+    return seam > 0 && seam < (stacked ? doc.height : doc.width) ? { folders, left, right, seam, stacked, boxes } : null;
   };
   const separatePages = async ({ doc, page }) => {
     if (!ui.editor.hidden) endEdit();
@@ -13962,14 +13990,17 @@
       const height = source.height;
       const made = halves.map((half) => {
         const isLeft = half.folder === parts.left;
-        const [from, to] = isLeft ? [0, parts.seam] : [parts.seam, width];
+        const [from, to] = isLeft ? [0, parts.seam] : [parts.seam, parts.stacked ? height : width];
         const other = isLeft ? parts.right : parts.left;
         // What sits on top of both pages goes with the one it is on
         const kept = source.state.layers.filter((layer) => {
           if (layer.group || layer.id === other.id) return false;
           if (layer.id === half.folder.id) return true;
           const box = shownBox(source, layer);
-          return !box || (box.right > from && box.left < to);
+          // A text across the line where the two pages meet goes with the upper one, and from
+          // there on to the other (Across.check): on both, it would be two texts on each
+          if (box && parts.stacked && !isLeft && Across && parts.folders[0] === parts.left && layer.kind === "text" && !layer.warp && !layer.sfx && box.top < from) return false;
+          return !box || (parts.stacked ? box.bottom > from && box.top < to : box.right > from && box.left < to);
         }).map((layer) => layer.id);
         const one = ops.newDocument({ name: half.name, width, height, resolution: source.resolution });
         const first = one.history[0].id;
@@ -13985,7 +14016,11 @@
           ops.selectLayer(folder.id);
           ops.ungroupLayers();
         }
-        ops.crop(from, 0, to, height, undefined, false);
+        // One above the other, each page as wide as it was: its own pixels say where it is
+        if (parts.stacked) {
+          const own = parts.boxes[parts.folders.indexOf(half.folder)];
+          ops.crop(Math.max(0, Math.floor(own.left)), from, Math.min(width, Math.ceil(own.right)), to, undefined, false);
+        } else ops.crop(from, 0, to, height, undefined, false);
         const top = one.state.layers[one.state.layers.length - 1];
         if (top) ops.selectLayer(top.id);
         ops.groupHistory(one, first, "Separate Pages");
@@ -14022,6 +14057,8 @@
       if (doc && app.docs.includes(doc)) ops.closeDoc(doc);
       PS.setActiveDoc(made[0]);
       if (Flow) Flow.pagesChanged();
+      // A text that was across the seam of a long page goes on again from one page to the other
+      if (parts.stacked && Across) made.forEach((one) => Across.check(one));
       renderTabs();
       renderStatus();
       renderMenusState();

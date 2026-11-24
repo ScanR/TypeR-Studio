@@ -11,6 +11,11 @@
 // The pages lay themselves out (right to left, left to right or top to bottom), and a page
 // dragged by its name goes wherever it is put, until the pages are tidied up. Put against the
 // side of another page, level with it, it becomes one page with it: a spread (the app's part).
+// Against its top or its bottom, in line with it, the two become one long page, as the strips
+// of a manhwa are put together.
+//
+// Side by side, the pages may also go two by two, as a printed manga's: which pages face each
+// other is read from their white margins, on the side of the binding, or else shifted by hand.
 //
 // Pages are picked as files in a folder (a click on a name, Cmd or Shift with it, or the Move
 // tool drawn between the pages): they move together, and the app saves or closes them together.
@@ -805,7 +810,7 @@
         ctx.strokeStyle = colors.accent;
         ctx.lineWidth = 3;
         ctx.strokeRect(left - 2.5, top - 2.5, right - left + 5, bottom - top + 5);
-        const text = host.joinHint();
+        const text = host.joinHint(drag.join);
         ctx.font = `600 12px ${colors.font}`;
         const width = Math.ceil(ctx.measureText(text).width) + 20;
         const x = Math.round((left + right - width) / 2);
@@ -994,6 +999,11 @@
         if (x < other.x + other.w && x + slot.w > other.x) {
           tryY(other.y + other.h + gap, null);
           tryY(other.y - gap - slot.h, null);
+          // Against its top or its bottom: the two become one long page
+          if (apart.size === 1 && joinable(slot) && joinable(other)) {
+            tryY(other.y + other.h, null);
+            tryY(other.y - slot.h, null);
+          }
         }
       });
       const at = [bestX ? bestX.to : x, bestY ? bestY.to : y];
@@ -1002,6 +1012,13 @@
       const beside = joinable(slot) && apart.size === 1 ? slots.find((other) => other !== slot && other.shown && joinable(other) && at[1] === other.y && (at[0] === other.x + other.w || at[0] + slot.w === other.x)) : null;
       const over = beside && slots.some((other) => other !== slot && other !== beside && other.shown && other.x < at[0] + slot.w && other.x + other.w > at[0] && other.y < at[1] + slot.h && other.y + other.h > at[1]);
       if (beside && !over) return { at, guides: [], join: { other: beside, side: at[0] < beside.x ? "left" : "right" } };
+      // Against the top or the bottom of a page, in line with it (its left side, its middle or
+      // its right side): the two become one page, one above the other. `dx`: how far right of
+      // the other page it stands.
+      const inLine = (other) => [other.x, other.x + (other.w - slot.w) / 2, other.x + other.w - slot.w].some((to) => Math.abs(at[0] - to) < 1);
+      const stacked = !beside && joinable(slot) && apart.size === 1 ? slots.find((other) => other !== slot && other.shown && joinable(other) && inLine(other) && (at[1] === other.y + other.h || at[1] + slot.h === other.y)) : null;
+      const across = stacked && slots.some((other) => other !== slot && other !== stacked && other.shown && other.x < at[0] + slot.w && other.x + other.w > at[0] && other.y < at[1] + slot.h && other.y + other.h > at[1]);
+      if (stacked && !across) return { at, guides: [], join: { other: stacked, side: at[1] < stacked.y ? "top" : "bottom", dx: Math.round(at[0] - stacked.x) } };
       const guides = [];
       if (bestX && bestX.line !== null) guides.push([bestX.line, Math.min(at[1], bestX.other.y), bestX.line, Math.max(at[1] + slot.h, bestX.other.y + bestX.other.h)]);
       if (bestY && bestY.line !== null) guides.push([Math.min(at[0], bestY.other.x), bestY.line, Math.max(at[0] + slot.w, bestY.other.x + bestY.other.w), bestY.line]);
@@ -1045,6 +1062,10 @@
         held.join = null;
         // Ctrl, as for the layers: the page goes exactly where the pointer takes it
         if (!e.ctrlKey) ({ at, guides: held.guides, join: held.join = null } = cling(slot, at[0], at[1], now.zoom, new Set(group)));
+        // Only a page brought against another joins it: one that already touched it (pages of a
+        // manhwa, one under the other) is taken away first, so that a page nudged stays a page
+        if (!held.join) held.away = true;
+        else if (!held.away) held.join = null;
         const dx = Math.round(at[0]) - held.from[0];
         const dy = Math.round(at[1]) - held.from[1];
         group.forEach((one) => {
@@ -1098,15 +1119,15 @@
     // they stood. If it can't, the page goes back where it came from.
     const join = (held) => {
       const { slot } = held;
-      const { other, side } = held.join;
+      const { other, side, dx } = held.join;
       const w = world();
       if (!w || pending) return;
-      const corner = [Math.min(slot.x, other.x), other.y];
+      const corner = [Math.min(slot.x, other.x), Math.min(slot.y, other.y)];
       const onScreen = [w.x + corner[0] * w.zoom, w.y + corner[1] * w.zoom, w.zoom];
       const placed = Boolean(other.place);
       const entry = (one) => ({ key: one.key, name: one.name, doc: one.doc, page: one.page });
       pending = "join";
-      Promise.resolve().then(() => host.join({ moved: entry(slot), onto: entry(other), side })).catch((error) => {
+      Promise.resolve().then(() => host.join({ moved: entry(slot), onto: entry(other), side, dx })).catch((error) => {
         console.warn("TypeR web: two pages of Flow couldn't be joined", error);
         return null;
       }).then((key) => {
