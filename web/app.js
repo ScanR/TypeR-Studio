@@ -56,6 +56,7 @@
     box: $("layer-box"),
     handles: $("handles"),
     brushRing: $("brush-ring"),
+    brushRingShade: $("brush-ring-shade"),
     spreads: { left: $("spread-left"), right: $("spread-right") },
     brushPreview: $("brush-preview"),
     editor: $("editor"),
@@ -2518,6 +2519,21 @@
     settleShapeHold();
   };
 
+  // The brush's outline: a white line with a dark one around it, so that it shows on a white
+  // page as on a black one, and on the greys where a line in difference would vanish
+  const showBrushRing = (x, y, radius) => {
+    [[ui.brushRing, radius], [ui.brushRingShade, radius + 1]].forEach(([ring, r]) => {
+      ring.setAttribute("cx", x);
+      ring.setAttribute("cy", y);
+      ring.setAttribute("r", r);
+      ring.removeAttribute("hidden");
+    });
+  };
+  const hideBrushRing = () => {
+    ui.brushRing.setAttribute("hidden", "");
+    ui.brushRingShade.setAttribute("hidden", "");
+  };
+
   const setTool = (tool) => {
     if (!ui.editor.hidden && tool !== "text") endEdit();
     // A frame worked on is cropped on the way out. One that only opened on a selection isn't.
@@ -2544,7 +2560,7 @@
       button.classList.toggle("is-on", on);
       button.setAttribute("aria-pressed", String(on));
     });
-    ui.brushRing.setAttribute("hidden", "");
+    hideBrushRing();
     if (window.TypeRSFX) window.TypeRSFX.toolChosen(tool);
     if (window.TypeRReshapeTool) window.TypeRReshapeTool.toolChosen(tool);
     if (window.TypeRPerspectiveTool) window.TypeRPerspectiveTool.toolChosen(tool);
@@ -7279,10 +7295,7 @@
       background: `radial-gradient(circle closest-side, rgba(255, 0, 0, 0.8) ${hardness}%, rgba(255, 0, 0, 0) 100%)`,
     });
     ui.brushPreview.hidden = false;
-    ui.brushRing.setAttribute("cx", x);
-    ui.brushRing.setAttribute("cy", y);
-    ui.brushRing.setAttribute("r", diameter / 2);
-    ui.brushRing.removeAttribute("hidden");
+    showBrushRing(x, y, diameter / 2);
     hud(`${T("Diameter")}: ${size} px\n${T("Hardness")}: ${hardness}%`, event);
   };
   // The options bar's size and hardness show the brush the same way, in the middle of the
@@ -7293,7 +7306,7 @@
   const hideBrushPreview = () => {
     if (gesture) return;
     ui.brushPreview.hidden = true;
-    ui.brushRing.setAttribute("hidden", "");
+    hideBrushRing();
     hud(null);
   };
   const previewBrush = () => {
@@ -7449,7 +7462,9 @@
     const source = stampSourceAt();
     if (!source) return;
     const [x, y] = toScreen(source[0], source[1]).map((value) => Math.round(value) + 0.5);
-    svgEl("path", { class: "stamp-mark", d: `M${x - 7} ${y}H${x + 7}M${x} ${y - 7}V${y + 7}` }, ui.handles);
+    const d = `M${x - 7} ${y}H${x + 7}M${x} ${y - 7}V${y + 7}`;
+    svgEl("path", { class: "stamp-mark stamp-mark--shade", d }, ui.handles);
+    svgEl("path", { class: "stamp-mark", d }, ui.handles);
   };
 
   // What the brushes paint on when it isn't pixels: the Quick Mask, or the mask targeted in the
@@ -8212,10 +8227,7 @@
     }
     if ((tool === "brush" || tool === "eraser" || tool === "stamp" || tool === "heal" || RETOUCH_BRUSHES.has(tool)) && !(event.pointerType === "touch" && !gesture) && !(gesture && gesture.kind === "brushAdjust")) {
       const rect = stageRectOf(event);
-      ui.brushRing.setAttribute("cx", event.clientX - rect.left);
-      ui.brushRing.setAttribute("cy", event.clientY - rect.top);
-      ui.brushRing.setAttribute("r", Math.max(1, (app.brush.size / 2) * view().zoom));
-      ui.brushRing.removeAttribute("hidden");
+      showBrushRing(event.clientX - rect.left, event.clientY - rect.top, Math.max(1, (app.brush.size / 2) * view().zoom));
     }
     if ((tool === "move" || !ui.editor.hidden) && !gesture && app.doc) {
       const over = hitHandle(event);
@@ -8511,7 +8523,7 @@
     setDrag("");
     hud(null);
     ui.stage.classList.remove("is-panning", "is-marquee");
-    if (event.pointerType === "touch") ui.brushRing.setAttribute("hidden", "");
+    if (event.pointerType === "touch") hideBrushRing();
     const cancelled = event.type === "pointercancel";
     const point = cancelled ? current.last : carried(current, toDoc(event));
     const { kind, mode } = current;
@@ -8623,7 +8635,7 @@
   ["pointerup", "pointercancel"].forEach((type) => ui.stage.addEventListener(type, settleSpring));
   ["pointerup", "pointercancel"].forEach((type) => ui.stage.addEventListener(type, settleShapeHold));
   ui.stage.addEventListener("pointerleave", () => {
-    ui.brushRing.setAttribute("hidden", "");
+    hideBrushRing();
     hideStampPreview();
     hoverTextArea(null);
   });
