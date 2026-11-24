@@ -14331,15 +14331,45 @@
     params.layerText.textClickPoint.vertical += ((y - box.yMid) / doc.height) * 100;
   };
 
-  const classicParams = (doc, data, bounds) => {
+  // A text Smart Paste set, made paragraph text as the panel's setting asks: its lines stay
+  // as they were fitted to the balloon, in a box a little wider than the longest, so that none
+  // wraps again; its ink stays where it was
+  const asParagraph = (layer, doc) => {
+    const ink = boxOf(layer, doc);
+    const f = frameOf(layer, doc);
+    const params = clone(layer.params);
+    const lt = params.layerText;
+    const lines = relativeLayout(lt, doc.resolution).lines.length;
+    const size = sizePxOf(lt.textStyleRange[0].textStyle, doc.resolution);
+    lt.textClickPoint = { horizontal: (f.left / doc.width) * 100, vertical: (f.top / doc.height) * 100 };
+    let width = f.width + size + 2;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      lt.textShape = [{ textType: "box", orientation: "horizontal", box: { width, height: Math.max(1, f.height), autoHeight: true, verticalAlign: app.textDefaults.verticalAlign } }];
+      if (relativeLayout(lt, doc.resolution).lines.length <= lines) break;
+      width += size * 2;
+    }
+    return centredOn(Object.assign({}, layer, { params, raster: null }), doc, ink.xMid, ink.yMid);
+  };
+
+  // `point`: the panel's setting for pasted text (Point text, or Paragraph text), the style's
+  // own when it has one. As in Photoshop, a paragraph is the whole text in a box as wide as
+  // the balloon allows, as tall as its lines.
+  const classicParams = (doc, data, bounds, point) => {
     const padding = Number(data.padding) || 0;
     const params = followTextDefaults(paramsFromStyle(scaleForPunctuation(data.style, data.text), data.text, data.richTextRuns, data.textSizeOverride, doc.resolution));
     const base = params.layerText.textStyleRange[0].textStyle;
     // The enlarged text must not wrap in a box sized for the selection
     const enlarged = !data.textSizeOverride && data.style && isPunctuationOnly(data.text) ? Math.max(1, parseFloat(data.style.punctuationOnlyScale) || 1) : 1;
+    const width = Math.max(24, bounds.width * 0.9 - padding * 2) * enlarged;
+    if (!point) {
+      params.layerText.textShape = [{ textType: "box", orientation: "horizontal", box: { width, height: 1, autoHeight: true, verticalAlign: app.textDefaults.verticalAlign } }];
+      params.layerText.textClickPoint = { horizontal: ((bounds.xMid - width / 2) / doc.width) * 100, vertical: (bounds.top / doc.height) * 100 };
+      centreLayer(doc, params, null, bounds.xMid, bounds.yMid);
+      return params;
+    }
     // Text with styled parts keeps its own lines (see below): it isn't cut either
     const hyphenRules = data.richTextRuns ? null : hyphenRulesOf(params.layerText.paragraphStyleRange[0].paragraphStyle);
-    const lines = wrapWords(data.text, base, Math.max(24, bounds.width * 0.9 - padding * 2) * enlarged, doc.resolution, hyphenRules);
+    const lines = wrapWords(data.text, base, width, doc.resolution, hyphenRules);
     if (!data.richTextRuns) {
       params.layerText.textKey = lines.join("\r");
       params.layerText.textStyleRange = [{ from: 0, to: params.layerText.textKey.length, textStyle: base }];
@@ -14667,9 +14697,9 @@
       commitState(doc, "TyperTools Change", { layers });
       return "";
     },
-    createTextLayerInSelection(data) {
+    createTextLayerInSelection(data, point) {
       const pending = hyphenationPending();
-      if (pending) return pending.then(() => host.createTextLayerInSelection(data));
+      if (pending) return pending.then(() => host.createTextLayerInSelection(data, point));
       const doc = app.doc;
       if (!doc) return "doc";
       const selection = doc.state.selection;
@@ -14681,25 +14711,26 @@
         if (!layer) return "sizeSource";
         size = layer.params.layerText.textStyleRange[0].textStyle.size;
       }
-      const params = classicParams(doc, Object.assign({}, data, { textSizeOverride: size }), selection.bounds);
+      const params = classicParams(doc, Object.assign({}, data, { textSizeOverride: size }), selection.bounds, point !== false);
       const layer = newTextLayer(doc, params, data.style && data.style.stroke, data.text);
       layer.source = String(data.text || "");
       commitState(doc, "TyperTools Paste", { layers: addNewTexts(doc.state.layers, [layer], textSpotOf(doc)), activeIds: [layer.id] });
       emit("paste", { classic: true, layers: [layer] });
       return "";
     },
-    createTextLayersInStoredSelections(data) {
+    createTextLayersInStoredSelections(data, point) {
       const pending = hyphenationPending();
-      if (pending) return pending.then(() => host.createTextLayersInStoredSelections(data));
+      if (pending) return pending.then(() => host.createTextLayersInStoredSelections(data, point));
       const doc = app.doc;
       if (!doc) return "doc";
       const created = [];
       const texts = (data && data.texts) || [];
       const selections = (data && data.selections) || [];
       const styles = (data && data.styles) || [];
+      const modes = (data && data.pointModes) || [];
       selections.forEach((bounds, i) => {
         if (texts[i] == null) return;
-        const params = classicParams(doc, { text: texts[i], style: styles[i] || styles[0], padding: data.padding }, rectFrom(bounds.left, bounds.top, bounds.right, bounds.bottom));
+        const params = classicParams(doc, { text: texts[i], style: styles[i] || styles[0], padding: data.padding }, rectFrom(bounds.left, bounds.top, bounds.right, bounds.bottom), modes[i] === undefined ? point !== false : Boolean(modes[i]));
         created.push(newTextLayer(doc, params, styles[i] && styles[i].stroke, texts[i]));
       });
       commitState(doc, "TyperTools Paste", { layers: addNewTexts(doc.state.layers, created, textSpotOf(doc)), activeIds: created.map((layer) => layer.id), selection: selectionAfterPaste(doc) });
@@ -15008,6 +15039,7 @@
           layers = paintOnCleanLayer(layers, () => op);
         }
         let layer = newTextLayer(doc, followTextDefaults(paramsInPoints(session.text.params, doc.resolution)), session.text.stroke, session.layerName);
+        if (data.pointText === false) layer = asParagraph(layer, doc);
         // As TypeR's hosts settle a pasted text (_smartSettleInk): the middle of its ink box on
         // the bubble's centre, where the engine laid it out and where Align puts it. Photoshop
         // reads whole pixels and moves when half a pixel off; Studio's ink and moves are exact,
