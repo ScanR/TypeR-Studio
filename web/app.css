@@ -905,6 +905,13 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .work .is-floating { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); outline: 1px solid var(--line); border-radius: 3px; }
 .work .is-moving { opacity: 0.85; }
 .work:not(.is-custom) .dock__actions, .work:not(.is-custom) .ws-grip, .work:not(.is-custom) .tools__grip { display: none; }
+.unit-field { position: relative; display: inline-flex; align-items: center; }
+.unit-field > input[type="number"] { padding-right: 19px; }
+.unit-field__unit { position: absolute; right: 5px; color: var(--muted); pointer-events: none; }
+.ctxbar .unit-field > input[type="number"] { width: 58px; }
+.obar .unit-field > input[type="number"] { width: 64px; }
+.character label .unit-field { flex: 1; min-width: 0; }
+.character label .unit-field > input[type="number"] { flex: 1; min-width: 0; width: 100%; color: var(--text); }
 .steps { display: contents; }
 .steps__button { display: none; }
 .dock__actions { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; font-weight: 400; }

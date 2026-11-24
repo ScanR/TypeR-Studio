@@ -3440,7 +3440,7 @@
     return input;
   };
   // − and + around a number, for screens that have no arrow keys
-  const withSteps = (input, step = 1) => {
+  const withSteps = (input, step = 1, control = input) => {
     const box = document.createElement("span");
     box.className = "steps";
     const button = (label, sign) => {
@@ -3456,7 +3456,18 @@
       });
       return press;
     };
-    box.append(button("−", -1), input, button("+", 1));
+    box.append(button("−", -1), control, button("+", 1));
+    return box;
+  };
+  // The unit written in the field, after the number, as Photoshop shows "12 pt"
+  const withUnit = (input, unit) => {
+    const box = document.createElement("span");
+    box.className = "unit-field";
+    const name = document.createElement("span");
+    name.className = "unit-field__unit";
+    name.textContent = unit;
+    name.setAttribute("aria-hidden", "true");
+    box.append(input, name);
     return box;
   };
   const checkbox = (text, checked, onChange) => {
@@ -4670,7 +4681,7 @@
   };
   const buildTaskBar = () => {
     const c = textControls(taskBar, true);
-    const sizeIcon = scrubbed("", c.size);
+    const sizeIcon = scrubbed("", c.size, withUnit(c.size, "pt"));
     sizeIcon.firstChild.classList.add("ctxbar__size");
     sizeIcon.firstChild.innerHTML = ICON.textSize;
     sizeIcon.firstChild.setAttribute("aria-label", T("Size"));
@@ -7076,7 +7087,7 @@
       }
       if (activeTexts().length) {
         const c = textControls(bar, true);
-        bar.append(c.family, c.faces, scrubbed(T("Size"), c.size), labelled("aa", c.antiAlias), c.color, c.aligns, hiddenCharsButton());
+        bar.append(c.family, c.faces, scrubbed(T("Size"), c.size, withUnit(c.size, "pt")), labelled("aa", c.antiAlias), c.color, c.aligns, hiddenCharsButton());
       }
     }
     if (tool === "brush" || tool === "eraser" || tool === "stamp" || tool === "heal" || RETOUCH_BRUSHES.has(tool)) {
@@ -7144,7 +7155,7 @@
     if (tool === "brush" && window.TypeRLibrary) window.TypeRLibrary.options(bar);
     if (tool === "text") {
       const c = textControls(bar, true);
-      bar.append(c.family, c.faces, scrubbed(T("Size"), c.size), labelled("aa", c.antiAlias), c.color, c.aligns, hiddenCharsButton());
+      bar.append(c.family, c.faces, scrubbed(T("Size"), c.size, withUnit(c.size, "pt")), labelled("aa", c.antiAlias), c.color, c.aligns, hiddenCharsButton());
     }
     if (tool === "crop") cropOptions(bar);
     if (tool === "zoom" || tool === "hand") {
@@ -11395,7 +11406,7 @@
         host.appendChild(use);
       }
     }
-    host.append(scrubbed(T("Size"), c.size, withSteps(c.size)));
+    host.append(scrubbed(T("Size"), c.size, withSteps(c.size, 1, withUnit(c.size, "pt"))));
     const leading = leadingField(layer, style);
     // Dragged on its name, as Size, from what Auto gives when it is on
     host.append(scrubbed(T("Leading"), leading.input, leading.box, { from: leading.from, step: leading.step }));
