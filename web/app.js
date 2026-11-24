@@ -6985,6 +6985,7 @@
   };
   const renderOptions = () => {
     const bar = ui.options;
+    showSelectionMode();
     if (scrubbing) return;
     if (bar.contains(document.activeElement) && document.activeElement.tagName === "INPUT" && document.activeElement.type !== "checkbox") return;
     optionsShown = optionsSignature();
@@ -7264,8 +7265,23 @@
     const aside = hoverAt && wandSetAside(event);
     ui.stage.style.cursor = aside ? (textAt(toDoc(hoverAt)) ? "text" : "default") : "";
   };
+  // A selection tool's pointer says what its click will do, as Photoshop's does: a + when it
+  // adds, a − when it takes away, a × when it keeps what both hold. By the keys held, else by
+  // the mode chosen in the options bar.
+  let selectionKeys = {};
+  const showSelectionMode = (event) => {
+    // The options bar has no keys to tell: those last seen still hold
+    if (event) selectionKeys = { shiftKey: event.shiftKey, altKey: event.altKey };
+    const mode = SELECTION_TOOLS.has(app.tool) && app.doc ? selectionMode(selectionKeys) : "new";
+    if (mode === "new") delete ui.stage.dataset.sel;
+    else {
+      ui.stage.dataset.sel = mode;
+      ui.stage.classList.remove("is-over-selection");
+    }
+  };
   const showSampling = (event) => {
     showWandSetAside(event);
+    showSelectionMode(event);
     ui.stage.classList.toggle("is-move-lent", gesture ? Boolean(gesture.lent) : ui.editor.hidden && moveLent(event));
     ui.stage.classList.toggle("is-sampling", gesture ? gesture.kind === "pick" : isSampling(event));
     const cloning = !gesture && app.tool === "stamp" && event.altKey && !event.ctrlKey && !event.metaKey && !spacing;

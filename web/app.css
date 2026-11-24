@@ -254,6 +254,10 @@ input[type="range"]:disabled::-moz-range-thumb { background: var(--muted); }
 /* Two fingers zooming on a touch screen: the page alone, to see the text as it will be */
 .stage.is-pinching #over-screen { visibility: hidden; }
 .stage[data-tool="wand"], .stage[data-tool="magicEraser"], .stage[data-tool="clean"], .stage[data-tool="rectangle"], .stage[data-tool="ellipse"], .stage[data-tool="lasso"], .stage[data-tool="polygon"], .stage[data-tool="crop"] { cursor: crosshair; }
+/* A selection tool that adds, takes away or intersects says so beside its cross, as Photoshop does */
+.stage[data-sel="add"] { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Cpath stroke='%23fff' stroke-width='3' stroke-linecap='square' d='M12.5 3v6.500m0 6v6.500M3 12.500h6.500m6 0h6.500M18 23.500h7M21.500 20v7'/%3E%3Cpath stroke='%23000' stroke-width='1' d='M12.5 3v6.500m0 6v6.500M3 12.500h6.500m6 0h6.500M18 23.500h7M21.500 20v7'/%3E%3C/svg%3E") 12 12, crosshair; }
+.stage[data-sel="subtract"] { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Cpath stroke='%23fff' stroke-width='3' stroke-linecap='square' d='M12.5 3v6.500m0 6v6.500M3 12.500h6.500m6 0h6.500M18 23.500h7'/%3E%3Cpath stroke='%23000' stroke-width='1' d='M12.5 3v6.500m0 6v6.500M3 12.500h6.500m6 0h6.500M18 23.500h7'/%3E%3C/svg%3E") 12 12, crosshair; }
+.stage[data-sel="intersect"] { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Cpath stroke='%23fff' stroke-width='3' stroke-linecap='square' d='M12.5 3v6.500m0 6v6.500M3 12.500h6.500m6 0h6.500M18.500 20.500l6 6m0-6l-6 6'/%3E%3Cpath stroke='%23000' stroke-width='1' d='M12.5 3v6.500m0 6v6.500M3 12.500h6.500m6 0h6.500M18.500 20.500l6 6m0-6l-6 6'/%3E%3C/svg%3E") 12 12, crosshair; }
 .stage[data-tool="move"] { cursor: move; }
 .stage[data-tool="text"] { cursor: text; }
 .stage[data-tool="hand"], .stage.is-spacing { cursor: grab; }
