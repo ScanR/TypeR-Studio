@@ -38,6 +38,14 @@
   // How near, on screen, a page being moved clings to another
   const CLING = 6;
   const GUIDE = "#ff4bd8";
+  // A page this much wider than tall is two pages already, a spread: it goes alone
+  const WIDE = 1.1;
+  // Two by two, the white margin of a page says on which side its binding is when it is this
+  // much wider than the other side's, in parts of the page's width; it counts no more than
+  // CAPPED, and the pages go together the way at least SURE of what the margins say agrees with
+  const MARGIN = 0.01;
+  const CAPPED = 0.06;
+  const SURE = 0.75;
 
   const create = (host) => {
     const { app, PS, ops } = host;
@@ -85,6 +93,10 @@
     };
     // Cmd on a Mac, Ctrl elsewhere: on a Mac, Ctrl+click is the click of the menu
     const toggles = (event) => (host.mac ? event.metaKey : event.ctrlKey);
+    // The pages two by two: whether the first page goes alone (1) or with the next (0), as
+    // their margins say (`found`, null until they say it), or as shifted by hand for these pages
+    // (`chosen`). The app's own (`shift` of its options) when neither says.
+    let pairing = { pages: "", found: null, foundFor: null, chosen: null, reading: false, round: 0 };
 
     /* ---- the pages and where they are ---- */
 
@@ -97,9 +109,135 @@
       if (picture.close) picture.close();
       else picture.width = picture.height = 0;
     };
+    const pairsOn = () => {
+      const { pairs, direction } = host.options();
+      return Boolean(pairs) && direction !== "down";
+    };
+    // Two by two, the page a page faces, while they still touch: { side, facing }, the side of
+    // the page it is on. Null alone, apart or moved away. `on`: whether the pages go two by
+    // two, when it is already known (every page of a drawing).
+    const touching = (slot, on = pairsOn()) => {
+      const facing = on ? slot.facing : null;
+      if (!facing || facing.y !== slot.y) return null;
+      if (facing.x === slot.x + slot.w) return { side: "right", facing };
+      if (facing.x + facing.w === slot.x) return { side: "left", facing };
+      return null;
+    };
+    const shiftNow = () => {
+      if (pairing.chosen !== null) return pairing.chosen;
+      if (pairing.found !== null) return pairing.found;
+      return host.options().shift ? 1 : 0;
+    };
+    // The pages two by two, in their order: [first, second] for two pages that face each other,
+    // either missing at the start or the end of a run (its place is kept empty, as in a book),
+    // and [page] for a spread, which goes alone. `shift` 1: the first page goes alone. After a
+    // spread, the next page starts a pair again.
+    const pairsOf = (list, shift) => {
+      const units = [];
+      let first = null;
+      let second = shift === 1;
+      list.forEach((slot) => {
+        if (slot.w > slot.h * WIDE) {
+          if (first) units.push([first, null]);
+          units.push([slot]);
+          first = null;
+          second = false;
+          return;
+        }
+        if (!second) {
+          first = slot;
+          second = true;
+          return;
+        }
+        units.push([first, slot]);
+        first = null;
+        second = false;
+      });
+      if (first) units.push([first, null]);
+      return units;
+    };
+    // Which way of pairing the pages their margins agree with: 0, 1, or null when they don't
+    // say. A page put on the right of its pair has its binding on its left, so its white margin
+    // there; the one on the left the other way round.
+    const decide = (list, direction) => {
+      const said = list.filter((slot) => slot.margins && Math.abs(slot.margins[0] - slot.margins[1]) >= MARGIN);
+      if (said.length < 2) return null;
+      const scores = [0, 1].map((shift) => {
+        let agree = 0;
+        let disagree = 0;
+        pairsOf(list, shift).forEach((unit) => {
+          if (unit.length === 1) return;
+          unit.forEach((slot, at) => {
+            if (!slot || !slot.margins) return;
+            const lean = slot.margins[0] - slot.margins[1];
+            if (Math.abs(lean) < MARGIN) return;
+            // On the right of its pair: first from right to left, second from left to right
+            const onRight = (at === 0) === (direction === "rtl");
+            const weight = Math.min(Math.abs(lean), CAPPED);
+            if (lean > 0 === onRight) agree += weight;
+            else disagree += weight;
+          });
+        });
+        return { agree, disagree };
+      });
+      const best = scores[1].agree > scores[0].agree ? 1 : 0;
+      const { agree, disagree } = scores[best];
+      return agree >= MARGIN * 2 && agree >= (agree + disagree) * SURE ? best : null;
+    };
+    // The margins of every page, read once, one page after the other, behind the pictures on
+    // screen: then the pages go together as they say
+    const examine = () => {
+      const pages = slots.map((slot) => slot.key).join("\n");
+      if (pairing.reading || pairing.pages === pages) return;
+      pairing.pages = pages;
+      pairing.reading = true;
+      const { round } = pairing;
+      const list = slots.slice();
+      let stopped = false;
+      const read = async () => {
+        for (const slot of list) {
+          if (pairing.round !== round) return;
+          // No longer two by two: the pages left are read when they are again
+          if (!pairsOn()) {
+            stopped = true;
+            return;
+          }
+          if (slot.margins !== undefined || !slot.page || byKey.get(slot.key) !== slot) continue;
+          try {
+            const file = await host.fileOf(slot.page);
+            slot.margins = (await ask("margins", file)).margins || null;
+          } catch (error) {
+            slot.margins = null;
+          }
+        }
+      };
+      read().then(() => {
+        if (pairing.round !== round) return;
+        pairing.reading = false;
+        // Pages came or went meanwhile: they are read in turn
+        if (stopped || slots.map((slot) => slot.key).join("\n") !== pages) pairing.pages = "";
+        pairing.foundFor = null;
+        stale = true;
+        quiet = true;
+        host.schedule();
+      });
+    };
     // Where the pages go by themselves
     const arrange = () => {
       const { direction, gap, perRow } = host.options();
+      slots.forEach((slot) => {
+        slot.facing = null;
+      });
+      if (pairsOn()) {
+        examine();
+        // What the margins say depends on the way the pages go
+        if (!pairing.reading && pairing.foundFor !== direction) {
+          pairing.found = decide(slots, direction);
+          pairing.foundFor = direction;
+        }
+        arrangePairs(direction, gap, perRow);
+        return;
+      }
       if (direction === "down") {
         let y = 0;
         slots.forEach((slot) => {
@@ -126,6 +264,39 @@
           slot.y = y;
         });
         y += row.reduce((most, slot) => Math.max(most, slot.h), 0) + gap;
+      }
+    };
+    // Two by two, touching, each pair as a page of its own; a row of `perRow` pages holds half
+    // as many pairs
+    const arrangePairs = (direction, gap, perRow) => {
+      const units = pairsOf(slots, shiftNow());
+      const per = perRow > 0 ? Math.max(1, Math.ceil(perRow / 2)) : Math.max(1, units.length);
+      let y = 0;
+      for (let from = 0; from < units.length; from += per) {
+        const row = units.slice(from, from + per);
+        let x = 0;
+        let tallest = 0;
+        row.forEach((unit) => {
+          const [first, second] = unit;
+          const [left, right] = unit.length === 1 ? [first, null] : direction === "rtl" ? [second, first] : [first, second];
+          // A page missing from its pair leaves its place, as wide as the other
+          const leftW = left ? left.w : right.w;
+          const width = unit.length === 1 ? first.w : leftW + (right ? right.w : left.w);
+          const at = direction === "rtl" ? x - width : x;
+          if (left) left.x = at;
+          if (right) right.x = at + leftW;
+          if (left && right) {
+            left.facing = right;
+            right.facing = left;
+          }
+          unit.forEach((slot) => {
+            if (!slot) return;
+            slot.y = y;
+            tallest = Math.max(tallest, slot.h);
+          });
+          x = direction === "rtl" ? at - gap : at + width + gap;
+        });
+        y += tallest + gap;
       }
     };
     // A page put somewhere by hand stays there, and leaves its place among the others empty:
@@ -442,6 +613,32 @@
 
     /* ---- drawing ---- */
 
+    // The dark line around a page, but on the side it faces another page (`open`)
+    const frame = (ctx, x, y, width, height, open) => {
+      ctx.strokeStyle = "#111";
+      ctx.lineWidth = 1;
+      if (!open) {
+        ctx.strokeRect(x - 0.5, y - 0.5, width + 1, height + 1);
+        return;
+      }
+      const left = x - 0.5;
+      const top = y - 0.5;
+      const right = x + width + 0.5;
+      const bottom = y + height + 0.5;
+      ctx.beginPath();
+      if (open === "right") {
+        ctx.moveTo(right, top);
+        ctx.lineTo(left, top);
+        ctx.lineTo(left, bottom);
+        ctx.lineTo(right, bottom);
+      } else {
+        ctx.moveTo(left, top);
+        ctx.lineTo(right, top);
+        ctx.lineTo(right, bottom);
+        ctx.lineTo(left, bottom);
+      }
+      ctx.stroke();
+    };
     // Under the page in front: every other page on screen. False when Flow shows nothing.
     const drawUnder = (ctx) => {
       if (!host.on() || !app.doc) {
@@ -454,8 +651,11 @@
       const v = app.doc.view;
       last = { key: w.slot.key, doc: app.doc, zoom: v.zoom, x: v.x, y: v.y, wx: w.slot.x, wy: w.slot.y };
       const [stageW, stageH] = host.stage();
+      // What is drawn: the stage, and under the panels that float over it
+      const [areaL, areaT, areaR, areaB] = host.area ? host.area() : [0, 0, stageW, stageH];
       const colors = host.colors();
       const now = performance.now();
+      const pairs = pairsOn();
       // The surface moved since it was last drawn: the sharper pictures wait until it rests
       if (!drawn || Math.abs(drawn.x - w.x) > 0.01 || Math.abs(drawn.y - w.y) > 0.01 || Math.abs(drawn.zoom - w.zoom) > drawn.zoom * 1e-9) {
         if (drawn) {
@@ -470,18 +670,28 @@
         slot.box = box;
         slot.title = null;
         // The names above the pages are part of what is on screen
-        slot.shown = box.x < stageW && box.y - LABEL - 8 < stageH && box.x + box.width > 0 && box.y + box.height > 0;
+        slot.shown = box.x < areaR && box.y - LABEL - 8 < areaB && box.x + box.width > areaL && box.y + box.height > areaT;
         if (!slot.shown) return;
         slot.seenAt = now;
         if (slot === w.slot) return;
-        const x = Math.round(box.x);
+        let x = Math.round(box.x);
         const y = Math.round(box.y);
+        let { width } = box;
+        // Two pages facing each other meet on a whole pixel, without a line between them; the
+        // page in front, drawn by the app over this one, covers a pixel of it
+        const seam = touching(slot, pairs);
+        if (seam) {
+          let right = Math.round(box.x + box.width);
+          if (seam.facing === w.slot) {
+            if (seam.side === "left") x -= 1;
+            else right += 1;
+          }
+          width = right - x;
+        }
         ctx.fillStyle = slot.picture ? "#fff" : colors.blank;
-        ctx.fillRect(x, y, box.width, box.height);
-        if (slot.picture) ctx.drawImage(slot.picture, x, y, box.width, box.height);
-        ctx.strokeStyle = "#111";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x - 0.5, y - 0.5, box.width + 1, box.height + 1);
+        ctx.fillRect(x, y, width, box.height);
+        if (slot.picture) ctx.drawImage(slot.picture, x, y, width, box.height);
+        frame(ctx, x, y, width, box.height, seam && seam.side);
       });
       pump();
       return true;
@@ -527,7 +737,17 @@
           ctx.strokeStyle = colors.accent;
           ctx.lineWidth = front ? 2 : 1;
           const out = front ? 2 : 1;
-          ctx.strokeRect(x - out, y - out, box.width + out * 2, box.height + out * 2);
+          // Two by two, the line goes around the page in front and the one facing it, as one
+          // spread, while they still touch: no line between them
+          const seam = front ? touching(slot) : null;
+          if (seam) {
+            const other = boxOf(seam.facing, w);
+            const left = Math.round(Math.min(box.x, other.x));
+            const top = Math.round(Math.min(box.y, other.y));
+            const right = Math.round(Math.max(box.x + box.width, other.x + other.width));
+            const bottom = Math.round(Math.max(box.y + box.height, other.y + other.height));
+            ctx.strokeRect(left - out, top - out, right - left + out * 2, bottom - top + out * 2);
+          } else ctx.strokeRect(x - out, y - out, box.width + out * 2, box.height + out * 2);
         }
         if (box.width < 36) return;
         const unsaved = Boolean(slot.doc) && PS.isDirty(slot.doc);
@@ -1125,8 +1345,39 @@
       fitAll,
       changed,
       tidy,
+      // The line around the page in front, which the app draws: open on the side it faces
+      // another page, two by two
+      frameFront: (ctx, x, y, width, height) => {
+        const slot = host.on() && app.doc ? frontSlot() : null;
+        const seam = slot ? touching(slot) : null;
+        frame(ctx, x, y, width, height, seam && seam.side);
+      },
+      // The pages two by two shifted by one page: the first goes alone, or with the next. What
+      // they now are (0 or 1), kept for these pages until others are given.
+      shiftPairs: () => {
+        pairing.chosen = shiftNow() ? 0 : 1;
+        stale = true;
+        quiet = true;
+        host.schedule();
+        return pairing.chosen;
+      },
       // Whether a page was put somewhere by hand
       moved: () => slots.some((slot) => slot.place),
+      // The page lying right under an open page (`step` 1) or right above it (-1), against it
+      // and centred on it, as the pages go from top to bottom without a space: { doc, page }, or
+      // null. A text put across the line where they meet goes on from one to the other.
+      stackedOn: (doc, step) => {
+        if (!host.on() || !app.doc || !doc) return null;
+        ensure();
+        const slot = slots.find((one) => one.doc === doc);
+        if (!slot) return null;
+        const found = slots.find((one) => {
+          if (one === slot || !one.sized) return false;
+          const [top, bottom] = step > 0 ? [slot, one] : [one, slot];
+          return bottom.y === top.y + top.h && bottom.x - top.x === Math.round(top.w / 2) - Math.round(bottom.w / 2);
+        });
+        return found ? { doc: found.doc || null, page: found.page || null } : null;
+      },
       // The pages picked, in the order of the pages, while Flow is on: [{ name, doc, page }]
       // (no doc for a page that isn't open)
       picked: () => (host.on() && picked.size ? slots.filter((slot) => picked.has(slot.key)).map((slot) => ({ name: slot.name, doc: slot.doc || null, page: slot.page || null })) : []),
@@ -1148,12 +1399,13 @@
           byKey.clear();
           picked.clear();
           raises = 0;
+          pairing = { pages: "", found: null, foundFor: null, chosen: null, reading: false, round: pairing.round + 1 };
         }
         stale = true;
         host.schedule();
       },
       // For tests and the demos: what Flow holds
-      state: () => ({ pending, centre, picked: Array.from(picked), pages: slots.map((slot) => ({ key: slot.key, name: slot.name, open: Boolean(slot.doc), front: slot.doc === app.doc, x: slot.x, y: slot.y, width: slot.w, height: slot.h, shown: slot.shown, placed: Boolean(slot.place), title: slot.title, picture: slot.picture ? [slot.picture.width, slot.picture.height] : null })) }),
+      state: () => ({ pending, centre, picked: Array.from(picked), pairs: pairsOn() ? { shift: shiftNow(), found: pairing.found, chosen: pairing.chosen, reading: pairing.reading } : null, pages: slots.map((slot) => ({ key: slot.key, name: slot.name, open: Boolean(slot.doc), front: slot.doc === app.doc, x: slot.x, y: slot.y, width: slot.w, height: slot.h, shown: slot.shown, placed: Boolean(slot.place), title: slot.title, picture: slot.picture ? [slot.picture.width, slot.picture.height] : null, margins: slot.margins || null })) }),
     };
   };
 

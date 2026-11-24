@@ -902,9 +902,13 @@
     if (!part) onScreen = null;
     if (!part) ctx.drawImage(docCanvas, x, y, dw, dh);
     else if (part.width && part.height) ctx.drawImage(part.canvas, 0, 0, part.width, part.height, x + part.left * v.zoom, y + part.top * v.zoom, part.width * v.zoom, part.height * v.zoom);
-    ctx.strokeStyle = "#111";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x - 0.5, y - 0.5, dw + 1, dh + 1);
+    // In Flow, open on the side of the page it faces, two by two
+    if (flowing) Flow.frameFront(ctx, x, y, dw, dh);
+    else {
+      ctx.strokeStyle = "#111";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - 0.5, y - 0.5, dw + 1, dh + 1);
+    }
     if (flowing) Flow.drawOver(ctx);
   };
 
@@ -3839,13 +3843,16 @@
   const STORE_SETTINGS = "typer.web.settings";
   // How far the pointer goes, dragged sideways with Ctrl + Space or the Zoom tool, to zoom twice as close
   const ZOOM_SPEEDS = { normal: 150, fast: 90, veryFast: 55 };
-  const settings = { wheel: "pan", zoomSpeed: "normal", smartGuides: true, snapText: false, transformControls: true, bubbleRoom: true, spellcheck: true, taskBar: true, taskBarPlace: null, hiddenChars: false, discord: "page", sizeStep: 2, workspace: "solo", flowDirection: "rtl", flowGap: 80, flowGapDown: 0, flowPerRow: 0 };
+  const settings = { wheel: "pan", zoomSpeed: "normal", smartGuides: true, snapText: false, transformControls: true, bubbleRoom: true, spellcheck: true, taskBar: true, taskBarPlace: null, hiddenChars: false, discord: "page", sizeStep: 2, workspace: "solo", flowDirection: "rtl", flowGap: 80, flowGapDown: 0, flowPerRow: 0, flowPairs: false, flowPairsShift: 0 };
   // Flow's ways of laying the pages out, and the space between two pages, in the pages' pixels:
   // one for the pages side by side, one for the pages one under the other, which a manhwa's
   // strips are read without (flowGapDown)
   const FLOW_DIRECTIONS = [["rtl", "Right to left (manga)"], ["ltr", "Left to right (comics)"], ["down", "Top to bottom (manhwa)"]];
   const flowGapOf = (direction) => (direction === "down" ? settings.flowGapDown : settings.flowGap);
   const FLOW_GAP_MAX = 2000;
+  // The pages two by two, as a printed manga's, side by side only (flowPairs); the first page
+  // alone or with the next when their margins don't say (flowPairsShift, the last one chosen)
+  const flowPairsOn = () => settings.flowPairs && settings.flowDirection !== "down";
   try {
     const saved = JSON.parse(window.localStorage.getItem(STORE_SETTINGS)) || {};
     // On a Mac a mouse can't be told from a trackpad, so "auto" isn't offered there
@@ -3877,6 +3884,8 @@
     if (number(saved.flowGap) && saved.flowGap >= 0 && saved.flowGap <= FLOW_GAP_MAX) settings.flowGap = Math.round(saved.flowGap);
     if (number(saved.flowGapDown) && saved.flowGapDown >= 0 && saved.flowGapDown <= FLOW_GAP_MAX) settings.flowGapDown = Math.round(saved.flowGapDown);
     if (Number.isInteger(saved.flowPerRow) && saved.flowPerRow > 0 && saved.flowPerRow <= 500) settings.flowPerRow = saved.flowPerRow;
+    if (saved.flowPairs === true) settings.flowPairs = true;
+    if (saved.flowPairsShift === 1) settings.flowPairsShift = 1;
   } catch (error) {
     console.warn("TypeR web: could not read the settings", error);
   }
@@ -3884,7 +3893,7 @@
     const d = app.textDefaults;
     try {
       // A language nobody chose keeps following the interface
-      window.localStorage.setItem(STORE_SETTINGS, JSON.stringify({ spellcheck: settings.spellcheck ? undefined : false, wheel: settings.wheel, zoomSpeed: settings.zoomSpeed === "normal" ? undefined : settings.zoomSpeed, smartGuides: settings.smartGuides, snapText: settings.snapText || undefined, transformControls: settings.transformControls ? undefined : false, bubbleRoom: settings.bubbleRoom ? undefined : false, taskBar: settings.taskBar ? undefined : false, taskBarPlace: settings.taskBarPlace || undefined, hiddenChars: settings.hiddenChars || undefined, discord: settings.discord === "page" ? undefined : settings.discord, sizeStep: settings.sizeStep === 2 ? undefined : settings.sizeStep, workspace: settings.workspace === "flow" ? "flow" : undefined, flowDirection: settings.flowDirection === "rtl" ? undefined : settings.flowDirection, flowGap: settings.flowGap === 80 ? undefined : settings.flowGap, flowGapDown: settings.flowGapDown || undefined, flowPerRow: settings.flowPerRow || undefined, ligature: d.ligature, hyphenate: d.hyphenate || undefined, autoKern: d.autoKern === "manual" ? "manual" : undefined, textOnTop: d.textOnTop || undefined, language: d.language === PS.DEFAULT_TEXT_LANGUAGE ? undefined : d.language }));
+      window.localStorage.setItem(STORE_SETTINGS, JSON.stringify({ spellcheck: settings.spellcheck ? undefined : false, wheel: settings.wheel, zoomSpeed: settings.zoomSpeed === "normal" ? undefined : settings.zoomSpeed, smartGuides: settings.smartGuides, snapText: settings.snapText || undefined, transformControls: settings.transformControls ? undefined : false, bubbleRoom: settings.bubbleRoom ? undefined : false, taskBar: settings.taskBar ? undefined : false, taskBarPlace: settings.taskBarPlace || undefined, hiddenChars: settings.hiddenChars || undefined, discord: settings.discord === "page" ? undefined : settings.discord, sizeStep: settings.sizeStep === 2 ? undefined : settings.sizeStep, workspace: settings.workspace === "flow" ? "flow" : undefined, flowDirection: settings.flowDirection === "rtl" ? undefined : settings.flowDirection, flowGap: settings.flowGap === 80 ? undefined : settings.flowGap, flowGapDown: settings.flowGapDown || undefined, flowPerRow: settings.flowPerRow || undefined, flowPairs: settings.flowPairs || undefined, flowPairsShift: settings.flowPairsShift || undefined, ligature: d.ligature, hyphenate: d.hyphenate || undefined, autoKern: d.autoKern === "manual" ? "manual" : undefined, textOnTop: d.textOnTop || undefined, language: d.language === PS.DEFAULT_TEXT_LANGUAGE ? undefined : d.language }));
     } catch (error) {
       console.warn("TypeR web: could not keep the settings", error);
     }
@@ -3901,7 +3910,7 @@
       PS,
       ops,
       on: flowOn,
-      options: () => ({ direction: settings.flowDirection, gap: flowGapOf(settings.flowDirection), perRow: settings.flowPerRow }),
+      options: () => ({ direction: settings.flowDirection, gap: flowGapOf(settings.flowDirection), perRow: settings.flowPerRow, pairs: settings.flowPairs, shift: settings.flowPairsShift }),
       // The chapter's pages in their order, open or not, then the documents that aren't its pages
       entries: () => {
         const list = [];
@@ -3923,6 +3932,8 @@
         return list;
       },
       stage: () => [stageW, stageH],
+      // What is drawn, on the stage and beyond it under the panels floating over it
+      area: () => [-under.l, -under.t, stageW + under.r, stageH + under.b],
       // Where a press is on the stage, or null when it isn't on the stage
       at: (event) => {
         if (!(event.target instanceof Node) || !ui.stage.contains(event.target)) return null;
@@ -4072,16 +4083,25 @@
   };
   // Flow laid out another way: the page in front stays where it is, the others move around it.
   // The pages moved by hand are laid out again with the others.
-  const setFlowLayout = ({ direction, gap, perRow }) => {
-    const before = [settings.flowDirection, settings.flowGap, settings.flowGapDown, settings.flowPerRow].join();
+  const setFlowLayout = ({ direction, gap, perRow, pairs }) => {
+    const before = [settings.flowDirection, settings.flowGap, settings.flowGapDown, settings.flowPerRow, settings.flowPairs].join();
     if (FLOW_DIRECTIONS.some(([id]) => id === direction)) settings.flowDirection = direction;
     // The space is the one of the way the pages go
     if (Number.isFinite(gap)) settings[settings.flowDirection === "down" ? "flowGapDown" : "flowGap"] = Math.max(0, Math.min(FLOW_GAP_MAX, Math.round(gap)));
     if (Number.isFinite(perRow)) settings.flowPerRow = Math.max(0, Math.min(500, Math.round(perRow)));
+    if (typeof pairs === "boolean") settings.flowPairs = pairs;
     keepSettings();
     if (!Flow) return;
-    if (before !== [settings.flowDirection, settings.flowGap, settings.flowGapDown, settings.flowPerRow].join()) Flow.tidy();
+    if (before !== [settings.flowDirection, settings.flowGap, settings.flowGapDown, settings.flowPerRow, settings.flowPairs].join()) Flow.tidy();
     Flow.changed();
+  };
+  // Flow's pages two by two shifted by one page, when their margins paired them wrong or didn't
+  // say: kept for this chapter, and for the next one whose margins don't say either
+  const shiftFlowPairs = () => {
+    if (!Flow || !flowOn() || !flowPairsOn()) return;
+    settings.flowPairsShift = Flow.shiftPairs();
+    keepSettings();
+    toast(T(settings.flowPairsShift ? "The first page now stands alone." : "The first page now faces the second."));
   };
   // The page in front changed: in Flow, the one left keeps a picture of itself and the one
   // that comes is placed on the surface. False when it is to be shown as in Solo.
@@ -4230,10 +4250,35 @@
             inputs.flowGap.value = gaps[kind];
           });
         }
+        // Two by two only side by side: a manhwa's strips go one under the other
+        const pairsRow = () => {
+          const line = row("flowPairs");
+          if (!inputs.flowDirection) return line;
+          const show = () => {
+            line.hidden = inputs.flowDirection.value === "down";
+          };
+          show();
+          inputs.flowDirection.addEventListener("change", show);
+          return line;
+        };
+        // Two pages per row, two by two: one double page per row, the double pages one under the
+        // other. The hint says so while the pages go two by two.
+        const perRowRow = () => {
+          const line = row("flowPerRow");
+          const hint = line.querySelector(".modal__hint");
+          if (!hint || !inputs.flowPairs || !inputs.flowDirection) return line;
+          const show = () => {
+            hint.textContent = inputs.flowPairs.checked && inputs.flowDirection.value !== "down" ? T("2: one double page per row, the double pages from top to bottom. 0: every page on one row.") : T("0: every page on one row.");
+          };
+          show();
+          inputs.flowPairs.addEventListener("change", show);
+          inputs.flowDirection.addEventListener("change", show);
+          return line;
+        };
         const card = (...ids) => {
           const box = document.createElement("div");
           box.className = "set__card";
-          box.append(...ids.map((id) => (id === "workspace" ? workspaceRow() : row(id))));
+          box.append(...ids.map((id) => (id === "workspace" ? workspaceRow() : id === "flowPairs" ? pairsRow() : id === "flowPerRow" ? perRowRow() : row(id))));
           return box;
         };
         const heading = (text) => {
@@ -4244,8 +4289,10 @@
         };
         const general = document.createElement("div");
         general.className = "settings__pane";
-        general.append(heading(T("General")), card("lang", ...(Shell.touch ? [] : ["wheel", "zoomSpeed"]), ...(discord ? ["discord"] : []), ...(Stats ? ["stats"] : [])), ...(Flow && !Shell.touch ? [card("workspace", "flowDirection", "flowGap", "flowPerRow")] : []), card("language", "ligature", "hyphenate", "textOnTop", ...(Shell.touch ? [] : ["sizeStep"])));
+        general.append(heading(T("General")), card("lang", ...(Shell.touch ? [] : ["wheel", "zoomSpeed"]), ...(discord ? ["discord"] : [])), ...(Flow && !Shell.touch ? [card("workspace", "flowDirection", "flowPairs", "flowGap", "flowPerRow")] : []), card("language", "ligature", "hyphenate", "textOnTop", ...(Shell.touch ? [] : ["sizeStep"])));
         if (canChooseFolder) general.appendChild(folderCard());
+        // The statistics last, on their own: a choice made once, not a setting of the work
+        if (Stats) general.appendChild(card("stats"));
         middle.textContent = "";
         const panes = { general, appearance: appearance.pane };
         if (generative) panes.generative = generative.pane;
@@ -4322,6 +4369,7 @@
           { id: "flowDirection", label: T("Pages in Flow"), value: settings.flowDirection, options: FLOW_DIRECTIONS.map(([id, name]) => [id, T(name)]) },
           { id: "flowGap", label: T("Space between pages in Flow"), value: flowGapOf(settings.flowDirection), type: "number", min: 0, max: FLOW_GAP_MAX, step: 10, hint: () => T("In pixels of the pages.") },
           { id: "flowPerRow", label: T("Pages per row in Flow"), value: settings.flowPerRow, type: "number", min: 0, max: 500, step: 1, hint: () => T("0: every page on one row.") },
+          { id: "flowPairs", label: T("Pages two by two"), type: "checkbox", checked: settings.flowPairs, hint: () => fill(T("Side by side, as in a printed manga. TypeR finds which pages face each other from their white margins; if it gets them wrong, {keys} shifts them by one page."), { keys: keyLabel(setupKeysOf("Shift Pairs by One Page")) || `${T("View")} → ${T("Shift Pairs by One Page")}` }) },
         ] : []),
         { id: "zoomSpeed", label: T("Zoom speed"), value: settings.zoomSpeed, options: [["normal", T("Normal")], ["fast", T("Fast")], ["veryFast", T("Very fast")]], hint: () => T("When dragging sideways with Ctrl + Space or the Zoom tool.") },
         ...(Stats ? [{ id: "stats", label: T("Anonymous usage statistics"), type: "checkbox", checked: Stats.enabled(), hint: () => (IN_APP ? T("Once a day, TypeR Studio tells its team it was opened, so they know how many people use it and what to improve: a random number, the app and its system, the language, how often each tool and command was used and the errors the app ran into. Nothing about you or your files.") : T("Once a day, TypeR Studio tells its team it was opened, so they know how many people use it and what to improve: a random number, web or desktop app, the system, the language, how often each tool and command was used and the errors the app ran into. Nothing about you or your files.")) }] : []),
@@ -4339,7 +4387,7 @@
     settings.zoomSpeed = answer.zoomSpeed;
     if (answer.workspace) {
       const whole = (value, fallback) => (Number.isFinite(parseFloat(value)) ? parseFloat(value) : fallback);
-      setFlowLayout({ direction: answer.flowDirection, gap: whole(answer.flowGap, flowGapOf(answer.flowDirection)), perRow: whole(answer.flowPerRow, settings.flowPerRow) });
+      setFlowLayout({ direction: answer.flowDirection, gap: whole(answer.flowGap, flowGapOf(answer.flowDirection)), perRow: whole(answer.flowPerRow, settings.flowPerRow), pairs: Boolean(answer.flowPairs) });
       setWorkspace(answer.workspace, true);
     }
     if (discord) settings.discord = answer.discord;
@@ -18705,6 +18753,10 @@
         null,
         { label: "Flow Mode", keys: "Shift+F", check: flowOn, action: () => setWorkspace(flowOn() ? "solo" : "flow") },
         { label: "Fit All Pages", keys: "Shift+Cmd+0", enabled: () => hasDoc() && flowOn(), action: () => Flow.fitAll() },
+        // The pages two by two as a printed manga's (D: double), and shifted by one page when
+        // their margins paired them wrong (O: offset)
+        { label: "Pages Two by Two", keys: "Shift+D", check: () => flowPairsOn(), enabled: () => flowOn() && settings.flowDirection !== "down", action: () => setFlowLayout({ pairs: !settings.flowPairs }) },
+        { label: "Shift Pairs by One Page", keys: "Shift+O", enabled: () => hasDoc() && flowOn() && flowPairsOn(), action: shiftFlowPairs },
         // The pages moved by hand (dragged by their name) go back in line
         { label: "Tidy Up Pages", enabled: () => hasDoc() && flowOn() && Flow.moved(), action: () => Flow.tidy() },
         // Every page picked, to move, save or close them together

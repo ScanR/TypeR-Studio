@@ -6,6 +6,8 @@
 // is read, and it is made smaller while it is read. A file without one (saved without Maximize
 // Compatibility), or in a mode this doesn't read, answers `whole`: the app then reads the file
 // as it would to open it.
+//
+// For the pages shown two by two, how far the drawing stands from each side of a page.
 
 "use strict";
 
@@ -274,10 +276,54 @@ const picture = async (file, longest) => {
   return bitmap ? { width, height, bitmap } : { width, height, whole: true };
 };
 
+// How far the drawing stands from each side of a page, left and right, in parts of its width:
+// a printed manga's page has a white margin on the side of the binding, where the drawing of
+// the outer side runs to the edge, so the pages that face each other can be told (flow.js).
+// Null when the page's picture can't be read here.
+const INK = 160;
+const marginsOf = async (file) => {
+  const made = await picture(file, 512);
+  const { bitmap } = made;
+  if (!bitmap || typeof OffscreenCanvas !== "function") {
+    if (bitmap) bitmap.close();
+    return null;
+  }
+  const w = bitmap.width;
+  const h = bitmap.height;
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return null;
+  }
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  const { data } = ctx.getImageData(0, 0, w, h);
+  // The top and the bottom left out: a page number or a line of the magazine there says nothing
+  const top = Math.floor(h * 0.04);
+  const bottom = Math.ceil(h * 0.96);
+  const ink = new Uint32Array(w);
+  for (let y = top; y < bottom; y++) {
+    for (let x = 0, p = y * w * 4; x < w; x++, p += 4) {
+      if (data[p] * 0.299 + data[p + 1] * 0.587 + data[p + 2] * 0.114 < INK) ink[x]++;
+    }
+  }
+  // A column is drawn on when ink covers a little of it, more than a speck or a page number
+  const drawn = (bottom - top) * 0.02;
+  let left = 0;
+  while (left < w && ink[left] <= drawn) left++;
+  let right = 0;
+  while (right < w && ink[w - 1 - right] <= drawn) right++;
+  return left >= w ? null : [left / w, right / w];
+};
+
 self.onmessage = async ({ data }) => {
   const { id, ask, file, longest } = data;
   try {
     if (ask === "size") self.postMessage({ id, size: await sizeOf(file) });
+    else if (ask === "margins") self.postMessage({ id, margins: await marginsOf(file) });
     else {
       const made = await picture(file, longest);
       self.postMessage(Object.assign({ id }, made), made.bitmap ? [made.bitmap] : []);
