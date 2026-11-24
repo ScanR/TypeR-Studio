@@ -3612,16 +3612,42 @@
     list.setAttribute("aria-label", T("Font"));
     menu.append(head, list);
 
+    // The font under the pointer, or reached with the arrows, shows on the selected texts at
+    // once, as in Photoshop: only shown, until it is picked. Not for a list with a use of its
+    // own (`chosen`), which has no text to show it on.
+    const shownOn = chosen ? null : { doc: app.doc, range: editRange(), ids: (editRange() ? [editing] : activeTexts()).map((layer) => layer.id), family: current, asked: 0 };
+    const tryFont = (family) => {
+      if (!shownOn || !shownOn.ids.length || shownOn.family === family) return;
+      shownOn.family = family;
+      const asked = ++shownOn.asked;
+      const show = (patch) => {
+        if (asked === shownOn.asked && app.doc === shownOn.doc) ops.previewTextStyle(shownOn.ids, patch, shownOn.range);
+      };
+      // Back on the texts' own font: as they were, each with its own face
+      const face = family === current ? null : mainFace(facesOf(family));
+      if (!face) show(null);
+      else Fonts.ensure(face.postScriptName).then((ready) => show(ready === false ? null : { fontPostScriptName: face.postScriptName, fontName: face.family, fontStyleName: face.style }));
+    };
+    const untryFont = () => {
+      if (!shownOn) return;
+      shownOn.asked++;
+      shownOn.family = current;
+      // On the page it was shown on, should another have come in front meanwhile
+      ops.previewTextStyle(shownOn.ids, null, null, shownOn.doc);
+    };
+
     let rows = [];
     let active = -1;
-    const setActive = (index, reveal) => {
+    const setActive = (index, reveal, tried) => {
       if (rows[active]) rows[active].classList.remove("is-active");
       active = index;
       if (!rows[active]) return;
       rows[active].classList.add("is-active");
       if (reveal) rows[active].scrollIntoView({ block: "nearest" });
+      if (tried) tryFont(rows[active].dataset.family);
     };
-    const draw = () => {
+    // `typed`: drawn again for what was typed in the search, whose first font shows on the texts
+    const draw = (typed) => {
       const query = folded(search.value);
       const startsWith = (family) => (folded(family).startsWith(query) ? 0 : 1);
       const families = new Map();
@@ -3675,11 +3701,13 @@
         list.appendChild(empty);
       }
       active = -1;
-      setActive(Math.max(0, found.indexOf(current)), true);
+      setActive(Math.max(0, found.indexOf(current)), true, typed === true && Boolean(query));
+      if (typed === true && !(query && rows.length)) untryFont();
     };
 
     const close = (giveFocusBack) => {
       closeFontMenu = null;
+      untryFont();
       keptFonts.disconnect();
       menu.remove();
       anchor.setAttribute("aria-expanded", "false");
@@ -3705,13 +3733,15 @@
       renderCharacter();
     };
 
-    search.addEventListener("input", draw);
+    search.addEventListener("input", () => draw(true));
     filter.addEventListener("mousedown", (event) => event.preventDefault());
     filter.addEventListener("click", () => {
       favoriteFonts.only = !favoriteFonts.only;
       keepFavoriteFonts();
       showFilter();
       draw();
+      // Another list: the font tried out is no longer the row lit, which Enter picks
+      untryFont();
       if (!Shell.touch) search.focus();
     });
     search.addEventListener("keydown", (event) => {
@@ -3719,7 +3749,7 @@
       const steps = { ArrowDown: 1, ArrowUp: -1, PageDown: 8, PageUp: -8 }[event.key];
       if (steps) {
         event.preventDefault();
-        if (rows.length) setActive(Math.max(0, Math.min(rows.length - 1, active + steps)), true);
+        if (rows.length) setActive(Math.max(0, Math.min(rows.length - 1, active + steps)), true, true);
       } else if (event.key === "Enter") {
         event.preventDefault();
         if (rows[active]) choose(rows[active].dataset.family);
@@ -3730,7 +3760,8 @@
     });
     list.addEventListener("pointermove", (event) => {
       const row = event.target.closest(".font-menu__item");
-      if (row) setActive(rows.indexOf(row), false);
+      // A finger on the list scrolls it: nothing to show until a font is tapped
+      if (row && rows[active] !== row) setActive(rows.indexOf(row), false, event.pointerType !== "touch");
     });
     // The search keeps the focus, and the star doesn't pick the font
     list.addEventListener("mousedown", (event) => {

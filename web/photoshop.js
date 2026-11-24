@@ -6067,7 +6067,12 @@
     return typedTexts.get(layer);
   };
   // What the page shows in a layer's place
-  const onPage = (layer, doc) => (doc.preview && doc.preview.id === layer.id ? doc.preview : asTyped(layer, doc));
+  const onPage = (layer, doc) => {
+    if (doc.preview && doc.preview.id === layer.id) return doc.preview;
+    // A font only tried out (ops.previewTextStyle): shown, never part of the page's state
+    const tried = doc.stylePreview;
+    return (tried && tried.state === doc.state && tried.layers.get(layer.id)) || asTyped(layer, doc);
+  };
   const groupVisuals = new Map();
   // `still`: the folder moves as a whole, so its picture is the one it has at rest
   // `skip`: layers to leave out (the Magic Wand reads the page without its text)
@@ -8698,8 +8703,11 @@
   };
 
   // Gestures that repeat (arrow keys, a slider) make one step of history
-  // `rect`, if given, says the part of the page the step changed, once the state is in place
+  // `rect`, if given, says the part of the page the step changed, once the state is in place;
+  // false, that nothing on screen did (a page that isn't in front)
   const commitState = (doc, name, change, coalesce, rect) => {
+    // A font only tried out is not part of what is done
+    if (doc.stylePreview) endStylePreview(doc);
     const before = doc.state;
     doc.state = Object.assign({}, doc.state, change);
     // The texts of a perspective zone follow it, and what changed of them
@@ -8722,6 +8730,55 @@
     return visual && visual.canvas && visual.canvas.width ? visualRect(visual) : null;
   };
   const unionRect = (doc, before, after) => (before && after ? pageRect(doc, Math.min(before.left, after.left), Math.min(before.top, after.top), Math.max(before.right, after.right), Math.max(before.bottom, after.bottom)) : undefined);
+
+  // The layers once `ids`' texts have a style changed: see ops.setTextStyle
+  const styledTexts = (doc, ids, patch, paragraphPatch, range) => {
+    const set = new Set(ids);
+    return doc.state.layers.map((layer) => {
+      if (!set.has(layer.id) || layer.kind !== "text") return layer;
+      const box = boxOf(layer, doc);
+      const params = clone(layer.params);
+      const lt = params.layerText;
+      const patched = (style) => {
+        const change = typeof patch === "function" ? patch(style) : patch;
+        Object.assign(style, change);
+        // Extra Bold goes with Faux Bold
+        if (!extraBoldOf(style)) delete style.extraBold;
+        // No kerning set by hand: none kept, so the letter joins the style around it
+        if (change.kerning === 0) delete style.kerning;
+        if (change.size) style.impliedFontSize = change.size;
+        if (change.leading) style.impliedLeading = change.leading;
+        if (change.baselineShift !== undefined) style.impliedBaselineShift = change.baselineShift;
+        return style;
+      };
+      if (patch && range) {
+        const before = lt.textStyleRange;
+        const made = new Map();
+        const styles = [];
+        for (let at = 0; at < lt.textKey.length; at++) {
+          const source = (before.find((item) => at >= item.from && at < item.to) || before[before.length - 1]).textStyle;
+          if (at < range[0] || at >= range[1]) styles.push(source);
+          else {
+            if (!made.has(source)) made.set(source, patched(clone(source)));
+            styles.push(made.get(source));
+          }
+        }
+        lt.textStyleRange = rangesFromStyles(styles, before[0].textStyle);
+      } else if (patch) lt.textStyleRange.forEach((item) => patched(item.textStyle));
+      if (paragraphPatch) lt.paragraphStyleRange.forEach((range) => Object.assign(range.paragraphStyle, paragraphPatch));
+      const next = Object.assign({}, layer, { params, raster: null });
+      if ((paragraphPatch && paragraphPatch.alignment) || boxShape(lt)) return next;
+      return centredOn(next, doc, box.xMid, box.yMid);
+    });
+  };
+  // A font only tried out (ops.previewTextStyle) is only drawn (see onPage): the page's state
+  // never holds it, so nothing done, kept or saved meanwhile can take it along. Whether there
+  // was one on screen.
+  const endStylePreview = (doc) => {
+    const preview = doc.stylePreview;
+    doc.stylePreview = null;
+    return Boolean(preview) && preview.state === doc.state;
+  };
 
   const activeTextLayer = (doc = app.doc) => {
     if (!doc) return null;
@@ -13174,45 +13231,26 @@
     setTextStyle(ids, patch, paragraphPatch, coalesce, range) {
       const doc = app.doc;
       if (!doc) return;
-      const set = new Set(ids);
-      const layers = doc.state.layers.map((layer) => {
-        if (!set.has(layer.id) || layer.kind !== "text") return layer;
-        const box = boxOf(layer, doc);
-        const params = clone(layer.params);
-        const lt = params.layerText;
-        const patched = (style) => {
-          const change = typeof patch === "function" ? patch(style) : patch;
-          Object.assign(style, change);
-          // Extra Bold goes with Faux Bold
-          if (!extraBoldOf(style)) delete style.extraBold;
-          // No kerning set by hand: none kept, so the letter joins the style around it
-          if (change.kerning === 0) delete style.kerning;
-          if (change.size) style.impliedFontSize = change.size;
-          if (change.leading) style.impliedLeading = change.leading;
-          if (change.baselineShift !== undefined) style.impliedBaselineShift = change.baselineShift;
-          return style;
-        };
-        if (patch && range) {
-          const before = lt.textStyleRange;
-          const made = new Map();
-          const styles = [];
-          for (let at = 0; at < lt.textKey.length; at++) {
-            const source = (before.find((item) => at >= item.from && at < item.to) || before[before.length - 1]).textStyle;
-            if (at < range[0] || at >= range[1]) styles.push(source);
-            else {
-              if (!made.has(source)) made.set(source, patched(clone(source)));
-              styles.push(made.get(source));
-            }
-          }
-          lt.textStyleRange = rangesFromStyles(styles, before[0].textStyle);
-        } else if (patch) lt.textStyleRange.forEach((item) => patched(item.textStyle));
-        if (paragraphPatch) lt.paragraphStyleRange.forEach((range) => Object.assign(range.paragraphStyle, paragraphPatch));
-        const next = Object.assign({}, layer, { params, raster: null });
-        if ((paragraphPatch && paragraphPatch.alignment) || boxShape(lt)) return next;
-        return centredOn(next, doc, box.xMid, box.yMid);
-      });
-      commitState(doc, "Character", { layers }, coalesce);
+      endStylePreview(doc);
+      commitState(doc, "Character", { layers: styledTexts(doc, ids, patch, paragraphPatch, range) }, coalesce);
       firePanelEvent(EVENT_HISTORY);
+    },
+    // The same, only shown: what a font would look like while the pointer is on it in the font
+    // list, as in Photoshop. No step of history, and nothing kept: `patch` null takes it back.
+    // `doc`: the page it was tried on, which may no longer be the one in front.
+    previewTextStyle(ids, patch, range, doc = app.doc) {
+      if (!doc) return;
+      const had = endStylePreview(doc);
+      if (patch) {
+        const layers = new Map();
+        styledTexts(doc, ids, patch, null, range).forEach((layer, at) => {
+          if (layer !== doc.state.layers[at]) layers.set(layer.id, layer);
+        });
+        // Shown in the texts' place for as long as the page is in this state
+        if (layers.size) doc.stylePreview = { state: doc.state, layers };
+      }
+      if (!had && !doc.stylePreview) return;
+      if (doc === app.doc) emit("render");
     },
     // The side handles: the box changes and the text flows again. A base layer in, so
     // a whole gesture starts from the same text.
