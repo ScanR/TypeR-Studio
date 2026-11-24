@@ -14742,15 +14742,26 @@
       if (pending) return pending.then(() => host.createTextLayersInStoredSelections(data, point, true));
       const doc = app.doc;
       if (!doc) return "doc";
+      // As one paste: the size of the active text if asked, each text's bold and italic parts
+      let size = null;
+      if (data && data.preserveActiveTextSize) {
+        const layer = activeTextLayer(doc);
+        if (!layer) return "sizeSource";
+        size = layer.params.layerText.textStyleRange[0].textStyle.size;
+      }
       const created = [];
       const texts = (data && data.texts) || [];
       const selections = (data && data.selections) || [];
       const styles = (data && data.styles) || [];
+      const runs = (data && data.richTextRuns) || [];
       const modes = (data && data.pointModes) || [];
       selections.forEach((bounds, i) => {
         if (texts[i] == null) return;
-        const params = classicParams(doc, { text: texts[i], style: styles[i] || styles[0], padding: data.padding }, rectFrom(bounds.left, bounds.top, bounds.right, bounds.bottom), modes[i] === undefined ? point !== false : Boolean(modes[i]));
-        created.push(newTextLayer(doc, params, styles[i] && styles[i].stroke, texts[i]));
+        const style = styles[i] || styles[0];
+        const params = classicParams(doc, { text: texts[i], style, richTextRuns: runs[i] || null, textSizeOverride: size, padding: data.padding }, rectFrom(bounds.left, bounds.top, bounds.right, bounds.bottom), modes[i] === undefined ? point !== false : Boolean(modes[i]));
+        const layer = newTextLayer(doc, params, style && style.stroke, texts[i]);
+        layer.source = String(texts[i]);
+        created.push(layer);
       });
       commitState(doc, "TyperTools Paste", { layers: addNewTexts(doc.state.layers, created, textSpotOf(doc)), activeIds: created.map((layer) => layer.id), selection: selectionAfterPaste(doc) });
       emit("paste", { classic: true, layers: created });
