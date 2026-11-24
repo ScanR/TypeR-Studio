@@ -3356,14 +3356,22 @@
   const scrubbed = (text, input, control = input, { from, step } = {}) => {
     const label = labelled(text, control);
     wheelChanges(label, input, step);
-    const name = label.firstChild;
+    // A plain click puts the caret in the field. Left to the label, it would press the − of withSteps.
+    scrubs(label.firstChild, input, { from, click: (event) => {
+      event.preventDefault();
+      input.select();
+    } });
+    return label;
+  };
+  // The same drag on any name beside a number: a checkbox's own (Stroke) stays a click away,
+  // `click` being what a press without a drag does (nothing said: what the name does anyway)
+  const scrubs = (name, input, { from, click } = {}) => {
     name.classList.add("scrub");
     name.title = T("Drag to change the value. Hold Shift to go faster.");
     let dragged = false;
-    // A plain click puts the caret in the field. Left to the label, it would press the − of withSteps.
     name.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (!dragged) input.select();
+      if (dragged) event.preventDefault();
+      else if (click) click(event);
       dragged = false;
     });
     name.addEventListener("pointerdown", (event) => {
@@ -3381,7 +3389,8 @@
         input.dispatchEvent(new Event("change"));
       };
       const move = (moved) => {
-        if (!scrubbing && Math.abs(moved.clientX - start) < 3) return;
+        // A finger slides a little as it taps: further before it counts as a drag
+        if (!scrubbing && Math.abs(moved.clientX - start) < (moved.pointerType === "touch" ? 8 : 3)) return;
         scrubbing = true;
         dragged = true;
         value = withinLimits(input, value + (moved.clientX - last) * (moved.shiftKey ? 10 : 1));
@@ -3409,7 +3418,6 @@
       name.addEventListener("pointerup", end);
       name.addEventListener("pointercancel", end);
     });
-    return label;
   };
   const numberInput = (value, min, max, onChange, step) => {
     const input = document.createElement("input");
@@ -11475,6 +11483,8 @@
     if (stroke) {
       const strokeSize = numberInput(stroke.size, 1, 100, (value) => changeStrokes((own) => Object.assign({}, own, { size: value }), "stroke"));
       wheelChanges(strokeSize, strokeSize);
+      // Its name is dragged as Size's is; a click on it still turns the stroke off
+      scrubs(strokeOn.lastChild, strokeSize);
       strokeRow.appendChild(strokeSize);
       const color = document.createElement("input");
       color.type = "color";
@@ -11504,6 +11514,7 @@
       outerRow.appendChild(label);
       const outerSize = numberInput(outer.size, 1, 100, (value) => changeStrokes((own) => Object.assign({}, own, { outer: Object.assign({}, own.outer || outer, { size: value }) }), "stroke"));
       wheelChanges(outerSize, outerSize);
+      scrubs(label, outerSize, { click: () => outerSize.select() });
       outerRow.appendChild(outerSize);
       const outerColor = document.createElement("input");
       outerColor.type = "color";
@@ -21258,6 +21269,7 @@
     applyTextPatch,
     openFontMenu,
     scrubbed,
+    scrubs,
     numberInput,
     checkbox,
     facesOf,

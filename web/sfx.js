@@ -3218,6 +3218,8 @@
     const width = A.numberInput(recipe.stroke.size, 1, 40, (value) => edit((r) => { r.stroke.size = value; r.stroke.enabled = true; }, `sfx-bar-stroke-${gid}`, "SFX"), 0.5);
     width.title = T("Width");
     width.disabled = !recipe.stroke.enabled;
+    // The stroke's name is dragged for its width, as Chaos's is
+    if (recipe.stroke.enabled) A.scrubs(outline.firstChild.lastChild, width);
     outline.appendChild(width);
     el("span", "sfx__unit", outline, "px");
     presetSelect(bar);
