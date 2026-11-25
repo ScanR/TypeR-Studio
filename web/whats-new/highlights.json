@@ -177,6 +177,51 @@
   ],
   "notes": [
     {
+      "id": "x-type-units",
+      "at": "2026-11-25T11:00:00+01:00",
+      "kind": "feat",
+      "text": "Show text sizes, leading and baseline shift in pixels instead of points with Settings > Type units",
+      "lang": {
+        "fr": "Affichez la taille du texte, l'interligne et le décalage de la ligne de base en pixels plutôt qu'en points avec Paramètres > Unités du texte"
+      }
+    },
+    {
+      "id": "x-scroll-bars",
+      "at": "2026-11-25T11:00:00+01:00",
+      "kind": "feat",
+      "text": "Scroll bars along the edges of the page, to see where you are and move over it, in Flow too",
+      "lang": {
+        "fr": "Des barres de défilement au bord de la page, pour voir où vous êtes et vous déplacer, dans Flow aussi"
+      }
+    },
+    {
+      "id": "x-picker-eyedropper",
+      "at": "2026-11-25T11:00:00+01:00",
+      "kind": "feat",
+      "text": "With the Color Picker open, click the page to take its colour",
+      "lang": {
+        "fr": "Sélecteur de couleurs ouvert, cliquez sur la page pour prendre sa couleur"
+      }
+    },
+    {
+      "id": "x-dark-bubble-paste",
+      "at": "2026-11-25T11:00:00+01:00",
+      "kind": "feat",
+      "text": "Smart Paste writes in white on any dark bubble, not only on black ones",
+      "lang": {
+        "fr": "Le Collage intelligent écrit en blanc sur toute bulle sombre, pas seulement sur les noires"
+      }
+    },
+    {
+      "id": "x-wand-options",
+      "at": "2026-11-25T11:00:00+01:00",
+      "kind": "fix",
+      "text": "The Magic Wand's and the Magic Eraser's options are kept after a restart",
+      "lang": {
+        "fr": "Les options de la Baguette magique et de la Gomme magique restent après un redémarrage"
+      }
+    },
+    {
       "id": "x-flow-spreads",
       "at": "2026-11-18T12:58:21+01:00",
       "kind": "feat",
