@@ -111,6 +111,13 @@ html.touch .pane--sfx { display: none; }
 .sfxg__bubble { fill: #fff; stroke: #111; stroke-width: 1.2; }
 .sfxg__ptr { fill: #111; stroke: #fff; stroke-width: 0.9; stroke-linejoin: round; }
 .sfxg__press { fill: rgba(240, 160, 32, 0.45); }
+/* Auto Perspective's drawings: a board seen from the side, its zone, the word on it */
+.pgd__board { fill: #f3efe4; stroke: #6b5138; stroke-width: 1.6; }
+.pgd__rule { stroke: rgba(60, 60, 60, 0.3); stroke-width: 0.6; }
+.pgd__grid { fill: none; stroke: var(--blue); stroke-width: 0.5; opacity: 0.55; }
+.pgd__zone { fill: none; stroke: var(--blue); stroke-width: 1; }
+.pgd__letter { font-family: "Bangers", Impact, sans-serif; fill: #1c1c1c; text-anchor: middle; dominant-baseline: central; }
+.pgd__key { font-size: 9px; font-weight: 700; fill: var(--blue); text-anchor: middle; }
 
 /* The card of every shortcut */
 .modal--sfxguide { width: min(940px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }

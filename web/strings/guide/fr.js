@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.fr = Object.assign(window.TYPER_WEB_STRINGS.fr || {}, {
   "Page Down": "Page suiv.",
@@ -130,4 +130,40 @@ window.TYPER_WEB_STRINGS.fr = Object.assign(window.TYPER_WEB_STRINGS.fr || {}, {
   "First turn off Click paste, at the bottom of the panel: on, every selection pastes a line.": "Désactivez d’abord Coller au clic, en bas du panneau : activé, chaque sélection colle une ligne.",
   "Take the Gradient tool ({G}) and, in the options bar, pick the last swatch, Match the page: the gradient takes its colours from the page itself.": "Prenez l’outil Dégradé ({G}) et, dans la barre d’options, choisissez la dernière vignette, Assorti à la page : le dégradé prend ses couleurs dans la page elle-même.",
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Avec l’outil Dégradé ({G}), faites glisser du haut du ciel jusqu’en bas, à travers le texte : le dégradé du ciel est redessiné dessous.",
+
+  // Auto Perspective's guide (perspective-guide.js)
+  "Make a zone": "Créer une zone",
+  "With Auto Perspective (P), on the page": "Avec la Perspective automatique (P), sur la page",
+  "The zone": "La zone",
+  "Once its handles show": "Une fois ses poignées affichées",
+  "A text on the zone": "Un texte sur la zone",
+  "Typed, pasted or moved into it, a text lies on the surface": "Tapé, collé ou déplacé dedans, un texte se pose sur la surface",
+  "Over a board, a wall, a sign: TypeR finds its perspective": "Sur un tableau, un mur, une enseigne : TypeR trouve sa perspective",
+  "On a zone: its corners and sides show": "Sur une zone : ses coins et ses côtés s’affichent",
+  "On a text: picks it": "Sur un texte : le sélectionne",
+  "A corner: the perspective by hand, where TypeR finds too little (Shift: straight)": "Un coin : la perspective à la main, là où TypeR trouve trop peu (Maj : en ligne droite)",
+  "The ● of a side: the zone goes further, in the same perspective": "Le ● d’un côté : la zone va plus loin, dans la même perspective",
+  "Removes the zone: its texts are flat again": "Retire la zone : ses textes redeviennent plats",
+  "Lets the zone go": "Relâche la zone",
+  "Into the zone: the text lies on it": "Dans la zone : le texte s’y pose",
+  "Slides it on the surface: smaller as it goes away": "Le fait glisser sur la surface : plus petit à mesure qu’il s’éloigne",
+  "Along the lines of the zone, or straight across them": "Le long des lignes de la zone, ou droit en travers",
+  "A corner of its frame: bigger or smaller (Alt: from its middle)": "Un coin de son cadre : plus grand ou plus petit (Alt : depuis son centre)",
+  "A side of its frame: wider or taller": "Un côté de son cadre : plus large ou plus haut",
+  "Off the zone: the text stays as typed. Again: back on it": "Hors de la zone : le texte reste tel qu’il a été tapé. Encore : il y revient",
+  "Drag over the board, from one corner of its frame to the other: TypeR finds its perspective, and the word on it lies on the board.": "Glissez sur le tableau, d’un coin de son cadre à l’autre : TypeR trouve sa perspective, et le mot qui s’y trouve se pose sur le tableau.",
+  "Click the word to pick it, then drag it: it slides on the board, smaller as it goes away. With {Shift}, along the board's lines.": "Cliquez sur le mot pour le sélectionner, puis faites-le glisser : il se déplace sur le tableau, plus petit à mesure qu’il s’éloigne. Avec {Shift}, le long des lignes du tableau.",
+  "Drag a corner of its frame: the word gets bigger or smaller, on the board. With {Alt}, from its middle.": "Faites glisser un coin de son cadre : le mot grandit ou rapetisse, sur le tableau. Avec {Alt}, depuis son centre.",
+  "Press {Enter}: the word leaves the board and stays as it was typed.": "Appuyez sur {Enter} : le mot quitte le tableau et reste tel qu’il a été tapé.",
+  "Press {Enter} again, or {Alt} + click on the word: back on the board.": "Appuyez de nouveau sur {Enter}, ou {Alt} + clic sur le mot : il revient sur le tableau.",
+  "Click the board away from the word: the corners of the zone show. Drag one: the perspective changes, and the word follows. That's how to set it by hand where TypeR finds too little.": "Cliquez sur le tableau, à l’écart du mot : les coins de la zone s’affichent. Faites-en glisser un : la perspective change, et le mot suit. C’est ainsi qu’on la règle à la main là où TypeR trouve trop peu.",
+  "Drag the ● in the middle of a side: the zone goes further, in the same perspective.": "Faites glisser le ● au milieu d’un côté : la zone va plus loin, dans la même perspective.",
+  "Last one: take the Type tool ({T}), click on the board and type a word, then {Esc}. It lies on the board as you type.": "Dernière étape : prenez l’outil Texte ({T}), cliquez sur le tableau et tapez un mot, puis {Esc}. Il se pose sur le tableau pendant que vous tapez.",
+  "Auto Perspective Guide": "Guide Perspective automatique",
+  "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Vous maîtrisez la Perspective automatique. Tous les raccourcis restent dans Aide → Guide Perspective automatique, et derrière le ? de la barre d’options.",
+  "New: Auto Perspective": "Nouveau : la Perspective automatique",
+  "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "L’apprendre en 2 minutes, sur une page à part ? Huit courtes étapes, chacune validée en la faisant.",
+  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Tous les raccourcis de la Perspective automatique (P). Sa barre d’options a aussi Largeur %, pour des lettres plus larges ou plus étroites, Détecter à nouveau et Réinitialiser. Pour annuler, comme partout : Cmd + Z.",
+  "Perspective practice": "Entraînement perspective",
+  "Auto Perspective guide: every shortcut, and a 2-minute practice": "Guide Perspective automatique : tous les raccourcis, et un entraînement de 2 minutes",
 });

@@ -19,6 +19,20 @@
   const touch = () => Boolean(window.TypeRShell && window.TypeRShell.touch);
   const toast = (text, bad) => { if (App()) App().toast(T(text), bad); };
 
+  // What was just done, for the tool's guide (perspective-guide.js): { mode, … }
+  const listeners = new Set();
+  const tell = (detail) => listeners.forEach((listener) => {
+    try {
+      listener(detail);
+    } catch (error) {
+      console.warn("TypeR Perspective: a listener failed", error);
+    }
+  });
+  const onGesture = (listener) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  };
+
   /* ------------------------------ the zones ------------------------------ */
 
   // The zone whose handles show: { doc, id }
@@ -151,6 +165,7 @@
     // The zone is what is selected now: its handles show
     if (doc.state.activeIds.length) ops.clearActiveLayers();
     if (!found.across && !found.down) toast(NOTHING);
+    tell({ mode: "zone", found });
     return id;
   };
   // The page read again where the zone is: what dragging its corners made of it is undone
@@ -185,7 +200,12 @@
       toast("This text is in no perspective zone: drag over the surface it sits on.");
       return;
     }
-    ops.setSurfaceFollow(texts.map((layer) => layer.id), on);
+    if (ops.setSurfaceFollow(texts.map((layer) => layer.id), on)) tell({ mode: "follow", on });
+  };
+  const removeZone = (zone) => {
+    ops.removeSurface(zone.id);
+    chosen = null;
+    tell({ mode: "remove" });
   };
 
   /* ------------------------------ what shows ------------------------------ */
@@ -224,9 +244,40 @@
   const ZONE_CORNERS = [[0, 0], [1, 0], [1, 1], [0, 1]];
   const ZONE_SIDES = [["n", 0.5, 0], ["e", 1, 0.5], ["s", 0.5, 1], ["w", 0, 0.5]];
   let handles = [];
+  // What the guide points at, a ring around it: { kind, id, at }. "points": the points `at` of
+  // the page; "text": the text `id`; "textCorner": a corner of its frame; "corner", "side": a
+  // handle of the zone, or the points `at` while its handles don't show
+  let mark = null;
+  const setMark = (value) => {
+    mark = value || null;
+    drawOverlay();
+  };
+  const drawMark = (g) => {
+    if (!mark || !app.doc || app.tool !== "perspective" || !App()) return;
+    const doc = app.doc;
+    const layer = mark.id && doc.state.layers.find((item) => item.id === mark.id);
+    const textMiddle = () => (layer ? [App().toScreen(...PS.placeOnSurface(layer, doc))] : []);
+    const points = () => (mark.at || []).map(([x, y]) => App().toScreen(x, y));
+    const handle = (test) => handles.find(test);
+    let spots = [];
+    if (mark.kind === "points") spots = points();
+    else if (mark.kind === "text") spots = textMiddle();
+    else if (mark.kind === "textCorner") {
+      const corner = layer && framed() === layer && handle((item) => item.mode === "se");
+      spots = corner ? [[corner.x, corner.y]] : textMiddle();
+    } else if (mark.kind === "corner" || mark.kind === "side") {
+      const found = mark.kind === "corner" ? handle((item) => item.mode === "corner" && item.index === 2) : handle((item) => item.mode === "side" && item.side === "e");
+      spots = found ? [[found.x, found.y]] : points();
+    }
+    spots.forEach(([x, y]) => svg("circle", { cx: x, cy: y, r: 14, class: "sfx-mark" }, g));
+  };
   const drawOverlay = () => {
     const g = overlay();
     if (!g) return;
+    drawZones(g);
+    drawMark(g);
+  };
+  const drawZones = (g) => {
     g.textContent = "";
     handles = [];
     const doc = app.doc;
@@ -471,14 +522,19 @@
         if (layer) {
           if (!(doc.state.activeIds.length === 1 && doc.state.activeIds[0] === layer.id)) ops.selectLayer(layer.id);
           if (event.altKey) toggleFollow([layer]);
+          tell({ mode: "pick", id: layer.id });
         } else {
           choose(PS.surfaceAt(doc, point));
           if (doc.state.activeIds.length) ops.clearActiveLayers();
+          tell({ mode: "choose", zone: Boolean(chosenZone()) });
         }
       }
     } else if (current.mode === "text" && !current.moved && !cancelled && event.altKey) {
       const layer = doc.state.layers.find((item) => item.id === current.layerId);
       if (layer) toggleFollow([layer]);
+    } else if (current.moved && !cancelled) {
+      // A text slid on its zone, a corner or a side of the zone, a handle of the text's frame
+      tell(current.mode === "text" || current.mode === "corner" || current.mode === "side" ? { mode: current.mode, shift: event.shiftKey } : { mode: "frame", handle: current.mode, alt: event.altKey });
     }
     drawOverlay();
     if (App()) App().renderOptions();
@@ -500,7 +556,25 @@
     hint.textContent = text;
     bar.appendChild(hint);
   };
+  const HELP = '<circle cx="8" cy="8" r="6.5"/><path d="M6.1 6.2a2 2 0 0 1 3.9.6c0 1.3-2 2-2 2"/><path d="M8 11.3h.01"/>';
+  // The ? at the end of the bar: the tool's guide
+  const helpButton = (bar) => {
+    const Guide = window.TypeRPerspectiveGuide;
+    if (!Guide || touch()) return;
+    const node = document.createElement("button");
+    node.type = "button";
+    node.className = "icon-btn";
+    node.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${HELP}</svg>`;
+    node.title = T("Auto Perspective guide: every shortcut, and a 2-minute practice");
+    node.setAttribute("aria-label", node.title);
+    node.addEventListener("click", () => Guide.show());
+    bar.appendChild(node);
+  };
   const options = (bar) => {
+    barOf(bar);
+    helpButton(bar);
+  };
+  const barOf = (bar) => {
     const texts = selectedTexts();
     const zone = chosenZone();
     if (texts.length) {
@@ -566,8 +640,7 @@
     group.appendChild(flatten);
     group.appendChild(button("Remove", () => {
       const current = chosenZone();
-      if (current) ops.removeSurface(current.id);
-      chosen = null;
+      if (current) removeZone(current);
       App().renderOptions();
     }));
     bar.appendChild(group);
@@ -582,6 +655,7 @@
     // The only zone of the page is the one to change
     if (tool === "perspective" && !chosenZone() && zones().length === 1 && !selectedTexts().length) choose(zones()[0]);
     drawOverlay();
+    if (tool === "perspective" && window.TypeRPerspectiveGuide) window.TypeRPerspectiveGuide.toolChosen();
   };
 
   PS.on((type) => {
@@ -597,10 +671,7 @@
     const texts = selectedTexts();
     const zone = chosenZone();
     if (event.key === "Enter" && texts.some(zoneOf)) toggleFollow(texts);
-    else if ((event.key === "Delete" || event.key === "Backspace") && zone && !app.doc.state.activeIds.length) {
-      ops.removeSurface(zone.id);
-      chosen = null;
-    } else if (event.key === "Escape" && (zone || drawing) && !texts.length) {
+    else if ((event.key === "Delete" || event.key === "Backspace") && zone && !app.doc.state.activeIds.length) removeZone(zone); else if (event.key === "Escape" && (zone || drawing) && !texts.length) {
       chosen = null;
       drawing = null;
     } else return;
@@ -618,6 +689,9 @@
     options,
     toolChosen,
     drawOverlay,
+    // For the guide (perspective-guide.js): what is done, and a ring around what to do
+    onGesture,
+    setMark,
     // For tests and the demos: the surface a rectangle shows, a zone drawn, the one chosen
     read,
     makeZone,

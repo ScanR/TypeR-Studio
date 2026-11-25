@@ -19089,7 +19089,10 @@
       { label: "Setup Assistant…", action: () => setupAgain() },
       { label: "What's New", action: () => window.TypeRWhatsNew && window.TypeRWhatsNew.show() },
       { label: "Keyboard Shortcuts", action: () => showShortcuts() },
-      ...(Shell.touch ? [] : [{ label: "SFX Guide", action: () => window.TypeRSFXGuide && window.TypeRSFXGuide.show() }]),
+      ...(Shell.touch ? [] : [
+        { label: "SFX Guide", action: () => window.TypeRSFXGuide && window.TypeRSFXGuide.show() },
+        { label: "Auto Perspective Guide", action: () => window.TypeRPerspectiveGuide && window.TypeRPerspectiveGuide.show() },
+      ]),
       null,
       // Nothing to download from the phone app: the computer's apps and the plugin are a computer's
       ...(IN_APP ? [] : [DESKTOP
@@ -19457,22 +19460,23 @@
           make("span", "", row);
         });
       }
-      // The SFX tool's, as they are: its guide shows each one
-      const sfxRows = window.TypeRSFXGuide ? window.TypeRSFXGuide.rows().filter(({ text, label }) => !words || label.toLowerCase().includes(words) || text.toLowerCase().includes(words)) : [];
-      if (sfxRows.length) {
-        make("div", "sk__group", placeOf(false), T("SFX tool"));
-        sfxRows.forEach(({ keys, label }) => {
+      // The SFX tool's and Auto Perspective's, as they are: their guides show each one
+      [[window.TypeRSFXGuide, "SFX tool"], [window.TypeRPerspectiveGuide, "Auto Perspective"]].forEach(([guide, name]) => {
+        const toolRows = guide ? guide.rows().filter(({ text, label }) => !words || label.toLowerCase().includes(words) || text.toLowerCase().includes(words)) : [];
+        if (!toolRows.length) return;
+        make("div", "sk__group", placeOf(false), T(name));
+        toolRows.forEach(({ keys, label }) => {
           shown++;
           const row = make("div", "sk__row", placeOf(false));
           make("span", "sk__name", row, label);
           const field = make("button", "sk__field", row);
           field.type = "button";
           field.disabled = true;
-          window.TypeRSFXGuide.capsInto(field, keys);
+          guide.capsInto(field, keys);
           make("span", "", row);
           make("span", "", row);
         });
-      }
+      });
       if (!shown) make("div", "sk__empty", list, T("Nothing found."));
       list.scrollTop = top;
     };
