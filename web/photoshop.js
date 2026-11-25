@@ -13240,7 +13240,7 @@
       const layer = doc && doc.state.layers.find((item) => item.id === id && item.kind === "text");
       if (!layer) return;
       const base = layer.params.layerText.textStyleRange[0].textStyle;
-      const params = paramsFromStyle({ textProps: layer.params }, value, null, base.size);
+      const params = paramsFromStyle({ textProps: layer.params }, value, null, shownSize(base));
       params.layerText.textClickPoint = clone(layer.params.layerText.textClickPoint);
       if (boxShape(layer.params.layerText)) params.layerText.textShape = clone(layer.params.layerText.textShape);
       // Typed in, a text from a PSD keeps breaking its lines as Photoshop did (see fitOf)
@@ -14233,17 +14233,40 @@
     });
     return textStyle;
   };
+  // A style copied from a layer holds its size twice (size, impliedFontSize), and the panel
+  // only ever changes the first: its size field, its Scale field, the size it keeps from the
+  // selected layer. The two also differ in a style copied in Photoshop from a text made larger
+  // or smaller with Free Transform (the size it had before, the size it showed). The first is
+  // the one the panel shows and fits texts with, and the one Photoshop writes: it is the style's
+  // size here too, with its leading and baseline shift. Kept apart, the text was drawn at the
+  // second and came back to the first as soon as it was typed in.
+  const WRITTEN_LENGTHS = [["size", "impliedFontSize"], ["leading", "impliedLeading"], ["baselineShift", "impliedBaselineShift"]];
+  const asWritten = (textStyle) => {
+    if (textStyle) WRITTEN_LENGTHS.forEach(([written, shown]) => {
+      if (typeof textStyle[written] === "number" && textStyle[shown] != null) textStyle[shown] = textStyle[written];
+    });
+    return textStyle;
+  };
+  // The size a layer's text shows: the one to keep when its text or its style is replaced
+  const shownSize = (textStyle) => textStyle.impliedFontSize || textStyle.size;
   const paramsInPoints = (params, resolution) => {
     const out = clone(params);
     const factor = pointsPerTypeUnit(out.typeUnit, resolution);
     delete out.typeUnit;
-    ((out.layerText && out.layerText.textStyleRange) || []).forEach((range) => lengthsInPoints(range.textStyle, factor));
+    ((out.layerText && out.layerText.textStyleRange) || []).forEach((range) => asWritten(lengthsInPoints(range.textStyle, factor)));
     return out;
   };
 
   // Photoshop always names the unit, and the style window can't open without one. It is
   // this model's unit, whatever the style the layer was made from said.
-  const textProps = (layer, doc) => Object.assign(clone(layer.params), { typeUnit: typeUnitAt(doc.resolution) });
+  // The panel reads `size`: it is given the size the text shows.
+  const textProps = (layer, doc) => {
+    const props = Object.assign(clone(layer.params), { typeUnit: typeUnitAt(doc.resolution) });
+    ((props.layerText && props.layerText.textStyleRange) || []).forEach((range) => {
+      if (range.textStyle && range.textStyle.impliedFontSize) range.textStyle.size = range.textStyle.impliedFontSize;
+    });
+    return props;
+  };
 
   // As Photoshop's host: a stroke switched off keeps its settings but isn't applied
   const strokeToApply = (stroke) => {
@@ -14376,7 +14399,7 @@
         const length = (run.text || "").length;
         if (!length) return;
         const style = clone(base);
-        if (run.textStyle) Object.assign(style, lengthsInPoints(clone(run.textStyle), toPoints));
+        if (run.textStyle) Object.assign(style, asWritten(lengthsInPoints(clone(run.textStyle), toPoints)));
         if (run.bold) style.syntheticBold = true;
         if (run.italic) style.syntheticItalic = true;
         ranges.push({ from: at, to: at + length, textStyle: style });
@@ -14787,7 +14810,7 @@
         // A style-only apply has no text of its own: each layer keeps its text
         const text = data.text || layer.params.layerText.textKey;
         const style = data.style ? scaleForPunctuation(data.style, text) : { textProps: layer.params };
-        const kept = data.preserveActiveTextSize ? layer.params.layerText.textStyleRange[0].textStyle.size : null;
+        const kept = data.preserveActiveTextSize ? shownSize(layer.params.layerText.textStyleRange[0].textStyle) : null;
         const params = paramsFromStyle(style, text, data.richTextRuns, kept, data.style ? doc.resolution : 0);
         if (data.style) followTextDefaults(params, layer);
         params.layerText.textClickPoint = clone(layer.params.layerText.textClickPoint);
@@ -14807,7 +14830,7 @@
       if (!doc || !layer) return "layer";
       const box = boxOf(layer, doc);
       const base = layer.params.layerText.textStyleRange[0].textStyle;
-      const params = paramsFromStyle({ textProps: layer.params }, data.text, data.richTextRuns, base.size);
+      const params = paramsFromStyle({ textProps: layer.params }, data.text, data.richTextRuns, shownSize(base));
       params.layerText.textClickPoint = clone(layer.params.layerText.textClickPoint);
       const kept = boxShape(layer.params.layerText);
       if (!kept || layer.rotated || layer.warp) {
@@ -14857,7 +14880,7 @@
         const box = boxOf(layer, doc);
         const text = item.text || layer.params.layerText.textKey;
         // As on one layer: the style's stroke, each layer's own size if asked, and its box
-        const kept = item.preserveActiveTextSize ? layer.params.layerText.textStyleRange[0].textStyle.size : null;
+        const kept = item.preserveActiveTextSize ? shownSize(layer.params.layerText.textStyleRange[0].textStyle) : null;
         const params = paramsFromStyle(item.style ? scaleForPunctuation(item.style, text) : { textProps: layer.params }, text, item.richTextRuns, kept, item.style ? doc.resolution : 0);
         if (item.style) followTextDefaults(params, layer);
         params.layerText.textClickPoint = clone(layer.params.layerText.textClickPoint);
@@ -14881,7 +14904,7 @@
       if (data.preserveActiveTextSize) {
         const layer = activeTextLayer(doc);
         if (!layer) return "sizeSource";
-        size = layer.params.layerText.textStyleRange[0].textStyle.size;
+        size = shownSize(layer.params.layerText.textStyleRange[0].textStyle);
       }
       const params = classicParams(doc, Object.assign({}, data, { textSizeOverride: size }), selection.bounds, point !== false);
       const layer = newTextLayer(doc, params, data.style && data.style.stroke, data.text);
@@ -14900,7 +14923,7 @@
       if (data && data.preserveActiveTextSize) {
         const layer = activeTextLayer(doc);
         if (!layer) return "sizeSource";
-        size = layer.params.layerText.textStyleRange[0].textStyle.size;
+        size = shownSize(layer.params.layerText.textStyleRange[0].textStyle);
       }
       const created = [];
       const texts = (data && data.texts) || [];
@@ -15180,7 +15203,7 @@
       if (data && data.keepSize) {
         const layer = activeTextLayer(doc);
         if (layer) {
-          result.activeTextSize = layer.params.layerText.textStyleRange[0].textStyle.size;
+          result.activeTextSize = shownSize(layer.params.layerText.textStyleRange[0].textStyle);
           result.activeTextUnit = typeUnitAt(doc.resolution);
         }
       }
