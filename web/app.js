@@ -11054,10 +11054,7 @@
   // The layers being dragged in the panel, and those that go with them
   let dragIds = null;
   let dragFamily = new Set();
-  const chooseLayers = (ids) => {
-    const doc = app.doc;
-    if (doc) doc.state = Object.assign({}, doc.state, { activeIds: ids.slice() });
-  };
+  const chooseLayers = (ids) => ops.chooseLayers(ids);
   const dropOnButton = (button, act, takesMask) => {
     const wanted = () => (Boolean(dragIds) && dragSource === app.doc) || (takesMask && (Boolean(maskDrag) || Boolean(fxDrag)));
     button.addEventListener("dragover", (event) => {
@@ -11788,9 +11785,9 @@
           const from = ids.indexOf(doc.state.activeIds[doc.state.activeIds.length - 1]);
           const to = ids.indexOf(layer.id);
           const range = ids.slice(Math.min(from, to), Math.max(from, to) + 1);
-          doc.state = Object.assign({}, doc.state, { activeIds: range });
+          ops.chooseLayers(range);
           ops.selectLayer(layer.id, false);
-          doc.state = Object.assign({}, doc.state, { activeIds: range });
+          ops.chooseLayers(range);
           schedule(false);
           renderAfterState();
         } else ops.selectLayer(layer.id, event.metaKey || event.ctrlKey);
@@ -18064,7 +18061,7 @@
     const doc = app.doc;
     if (!doc || !ids.length) return;
     ops.selectLayer(ids[ids.length - 1]);
-    doc.state = Object.assign({}, doc.state, { activeIds: ids });
+    ops.chooseLayers(ids);
     schedule(false);
     renderAfterState();
   };

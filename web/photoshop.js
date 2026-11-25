@@ -8941,6 +8941,17 @@
     // Texts moved by their perspective zone: all the page
     if (rect !== false) emit("render", rect ? rect() : settled ? undefined : changedRect(doc, before, doc.state));
   };
+  // Choosing the active layers is not a step of history: the step in place takes them, so an
+  // undo after a change keeps the layer the user chose, as in Photoshop, and the next change
+  // lands on it. A state still ahead of its step (a stroke under way) lends only its layers'
+  // choice, the step's name and saved mark stay.
+  const setActiveIds = (doc, ids) => {
+    const entry = doc.history[doc.historyIndex];
+    const before = doc.state;
+    doc.state = Object.assign({}, doc.state, { activeIds: ids });
+    if (!entry) return;
+    entry.state = entry.state === before ? doc.state : Object.assign({}, entry.state, { activeIds: ids });
+  };
   // The part of the page a layer's picture covers
   const visualBounds = (layer, doc) => {
     const visual = layer.kind === "group" ? null : visualOf(layer, doc);
@@ -11389,7 +11400,7 @@
       const doc = app.doc;
       if (!doc) return;
       const ids = additive ? (doc.state.activeIds.includes(id) ? doc.state.activeIds.filter((item) => item !== id) : doc.state.activeIds.concat([id])) : [id];
-      doc.state = Object.assign({}, doc.state, { activeIds: ids });
+      setActiveIds(doc, ids);
       emit("history");
       emit("active");
       firePanelEvent(EVENT_SELECT);
@@ -11398,10 +11409,16 @@
     clearActiveLayers() {
       const doc = app.doc;
       if (!doc || !doc.state.activeIds.length) return;
-      doc.state = Object.assign({}, doc.state, { activeIds: [] });
+      setActiveIds(doc, []);
       emit("history");
       emit("active");
       firePanelEvent(EVENT_SELECT);
+    },
+    // Several layers chosen at once (a Shift + click), without a word to anyone: the caller draws
+    // them. An undo keeps them chosen, as selectLayer's.
+    chooseLayers(ids) {
+      const doc = app.doc;
+      if (doc) setActiveIds(doc, ids.slice());
     },
     toggleLayer(id) {
       const doc = app.doc;
