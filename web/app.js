@@ -9737,6 +9737,20 @@
       showPolygon(polygonAim(point, event));
     }
   };
+  // Escape while a marquee, a lasso, a Bubble Cleaner's shape or a text box is being drawn gives
+  // it up, as in Photoshop: the selection there was stays, and letting go does nothing more
+  const DROPPED_BY_ESCAPE = new Set(["rectangle", "ellipse", "lasso", "clean", "textBox"]);
+  const dropDrawnShape = (event) => {
+    if (event.key !== "Escape" || !gesture || !DROPPED_BY_ESCAPE.has(gesture.kind)) return false;
+    event.preventDefault();
+    gesture = null;
+    setDrag("");
+    hud(null);
+    ui.stage.classList.remove("is-marquee");
+    hoverTextArea(null);
+    schedule(false);
+    return true;
+  };
   ui.stage.addEventListener("pointerup", finishGesture);
   ui.stage.addEventListener("pointercancel", finishGesture);
   ["pointerup", "pointercancel"].forEach((type) => ui.stage.addEventListener(type, settleSpring));
@@ -21274,6 +21288,8 @@
   const handleKey = (event, fromPanel) => {
     // Layer Style's own window keeps its keys: an Undo there would undo what it tries out
     if (ui.modal.open || ui.layerStyle) return;
+    // A shape being drawn: Escape gives it up, and does nothing else
+    if (dropDrawnShape(event)) return;
     const active = fromPanel ? event.target : document.activeElement;
     const command = isCommand(event);
     // In Flow, Delete after a click on pages' names closes those pages, as Close does: asked to
@@ -21446,6 +21462,8 @@
   document.addEventListener("keydown", (event) => {
     // Alone, it would send the focus to the browser's menu on Windows
     if (event.key === "Alt") event.preventDefault();
+    // Nor does TypeR's panel see it
+    if (dropDrawnShape(event)) return;
     handleKey(event, false);
     holdCleanShape(event);
     showSampling(event);
