@@ -9049,8 +9049,13 @@
         if (event.altKey) next.top = f.yMid - next.height / 2;
       }
       ops.setTextFrame(current.layer, next, current.token);
-      const shown = PS.frameOf(app.doc.state.layers.find((layer) => layer.id === current.layer.id), doc);
-      hud(`${Math.round(shown.width)} × ${Math.round(shown.height)} px`, event);
+      // The text may have left the page meanwhile: a text across two pages that no longer
+      // reaches this one (across.js)
+      const now = app.doc.state.layers.find((layer) => layer.id === current.layer.id);
+      if (now) {
+        const shown = PS.frameOf(now, doc);
+        hud(`${Math.round(shown.width)} × ${Math.round(shown.height)} px`, event);
+      }
       placeEditor();
     } else if (current.kind === "clean" && current.shape === "lasso") {
       current.points.push(point);
