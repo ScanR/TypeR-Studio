@@ -416,6 +416,29 @@
     }
   };
 
+  // The panel writes its script a moment after the last key, up to five seconds later while
+  // the typing goes on, and at once when its page closes. A page is also taken away without
+  // closing (a phone that puts the browser aside, a tab the browser puts to sleep) or left for
+  // another tab that keeps the same files. So the panel is told to write, as it is on closing,
+  // whenever the app goes out of sight or loses the keyboard.
+  const writeNow = () => window.dispatchEvent(new Event("beforeunload"));
+  const writeWhenLeft = () => setTimeout(() => {
+    if (!kit.inFront()) writeNow();
+  }, 0);
+  const host = window.parent;
+  const writeWhenHidden = () => {
+    if (host.document.visibilityState === "hidden") writeNow();
+  };
+  host.document.addEventListener("visibilitychange", writeWhenHidden);
+  host.addEventListener("pagehide", writeNow);
+  host.addEventListener("blur", writeWhenLeft);
+  window.addEventListener("blur", writeWhenLeft);
+  window.addEventListener("pagehide", () => {
+    host.document.removeEventListener("visibilitychange", writeWhenHidden);
+    host.removeEventListener("pagehide", writeNow);
+    host.removeEventListener("blur", writeWhenLeft);
+  });
+
   const syncKeyboard = () => shell.syncKeyboard();
   if (window.visualViewport) window.visualViewport.addEventListener("resize", syncKeyboard);
   ["focusin", "focusout"].forEach((name) => window.addEventListener(name, () => {
