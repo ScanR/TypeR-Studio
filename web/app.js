@@ -4596,6 +4596,150 @@
     return shape && shape.textType === "box" && shape.box;
   };
 
+  // The last gradients put on layers (a Gradient Overlay confirmed in Layer Style, pasted with a
+  // layer style, or one of these applied), without duplicates: next to the text's colour, one
+  // click puts the same overlay on the next texts, where a chapter has several bubbles alike.
+  // A new one comes first; one used again keeps its place, so a swatch stays where the hand
+  // found it.
+  const STORE_RECENT_GRADIENTS = "typer.web.recentGradients";
+  const MAX_RECENT_GRADIENTS = 5;
+  const RECENT_GRADIENT_KEYS = ["blend", "opacity", "stops", "style", "angle", "scale", "reverse", "align", "dither", "offset"];
+  const RECENT_GRADIENT_STYLES = new Set(["linear", "radial", "angle", "reflected", "diamond"]);
+  const channel = (value) => Number.isFinite(value) && value >= 0 && value <= 255;
+  // Its settings, alone, in one order: two equal overlays give the same text. What was kept by
+  // another version, or by hand, is only taken when it can be drawn.
+  const recentGradientOf = (fx) => {
+    if (!fx || !Array.isArray(fx.stops)) return null;
+    const stops = fx.stops.filter((item) => item && channel(item.r) && channel(item.g) && channel(item.b)).map((item) => ({ at: Math.min(1, Math.max(0, Number(item.at) || 0)), r: item.r, g: item.g, b: item.b, a: Number.isFinite(item.a) ? item.a : 1 })).sort((one, other) => one.at - other.at);
+    if (stops.length < 2 || stops.length !== fx.stops.length) return null;
+    const out = {};
+    RECENT_GRADIENT_KEYS.forEach((key) => {
+      const value = fx[key];
+      if (value === undefined) return;
+      if (key === "stops") out.stops = stops;
+      else if (key === "style") {
+        if (RECENT_GRADIENT_STYLES.has(value)) out.style = value;
+      } else if (key === "blend") {
+        if (typeof value === "string") out.blend = value;
+      } else if (key === "opacity" || key === "angle" || key === "scale") {
+        if (Number.isFinite(value)) out[key] = value;
+      } else if (key === "reverse" || key === "align" || key === "dither") out[key] = Boolean(value);
+      else if (value && Number.isFinite(value.x) && Number.isFinite(value.y)) out[key] = { x: value.x, y: value.y };
+    });
+    return out;
+  };
+  let recentGradients = [];
+  // The one put on a layer last: Apply Last Gradient's
+  let lastGradient = "";
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(STORE_RECENT_GRADIENTS));
+    const list = Array.isArray(saved) ? saved : saved && Array.isArray(saved.list) ? saved.list : [];
+    recentGradients = list.map(recentGradientOf).filter(Boolean).slice(0, MAX_RECENT_GRADIENTS);
+    if (saved && typeof saved.last === "string") lastGradient = saved.last;
+  } catch (error) {
+    recentGradients = [];
+  }
+  const lastGradientIndex = () => Math.max(0, recentGradients.findIndex((item) => JSON.stringify(item) === lastGradient));
+  // Changes when the list does: the bars showing it are built again
+  let recentGradientsSeen = 0;
+  // `replaces`: the gradient this one was made from in Layer Style. Tuning one doesn't fill the
+  // list with its tries: it takes the place of the one it was.
+  const rememberGradient = (fx, replaces) => {
+    const kept = recentGradientOf(fx);
+    if (!kept) return;
+    const text = JSON.stringify(kept);
+    const was = replaces ? JSON.stringify(recentGradientOf(replaces)) : "";
+    let next = recentGradients;
+    if (!recentGradients.some((item) => JSON.stringify(item) === text)) {
+      const at = was ? recentGradients.findIndex((item) => JSON.stringify(item) === was) : -1;
+      next = at >= 0 ? recentGradients.map((item, index) => (index === at ? kept : item)) : [kept].concat(recentGradients).slice(0, MAX_RECENT_GRADIENTS);
+    }
+    if (next === recentGradients && lastGradient === text) return;
+    recentGradients = next;
+    lastGradient = text;
+    recentGradientsSeen++;
+    try {
+      window.localStorage.setItem(STORE_RECENT_GRADIENTS, JSON.stringify({ list: recentGradients, last: lastGradient }));
+    } catch (error) {
+      console.warn("TypeR web: could not keep the recent gradients", error);
+    }
+    renderOptions();
+  };
+  // The Gradient Overlay a layer shows, as the list keeps one, or ""
+  const gradientOn = (layer) => {
+    const fx = layer && layer.effects && layer.effects.gradientOverlay;
+    return fx && fx.enabled !== false ? JSON.stringify(recentGradientOf(fx)) : "";
+  };
+  // A recent gradient on the selected layers, the whole overlay as it was used, in one step:
+  // their other effects stay. The layers that take a Layer Style, as its dialog. On the text
+  // being typed, which stays open, as its colour does.
+  const applyRecentGradient = (index = lastGradientIndex()) => {
+    const kept = recentGradients[index];
+    if (!app.doc) return;
+    if (!kept) {
+      toast(fill(T("No gradient used yet: set one in {where}."), { where: `${T("Layer Style")} › ${T("Gradient Overlay")}` }));
+      return;
+    }
+    const typed = !ui.editor.hidden && editing ? typedLayer() : null;
+    if (!typed) commitTransform();
+    const targets = typed ? [typed].filter(takesFx) : fxTargets();
+    if (!targets.length) {
+      toast(fxRefusal() || T("A style goes on text and pixel layers."));
+      return;
+    }
+    const text = JSON.stringify(kept);
+    // Already there on each of them: no step for nothing
+    if (!targets.every((layer) => gradientOn(layer) === text)) {
+      const fx = Object.assign({}, PS.fxDefault("gradientOverlay"), JSON.parse(text), { enabled: true });
+      ops.setLayerEffects(targets.map((layer) => layer.id), (layer) => Object.assign({}, layer.effects, { gradientOverlay: Object.assign({}, fx, { stops: fx.stops.map((item) => Object.assign({}, item)) }) }));
+    }
+    rememberGradient(kept);
+  };
+  // The swatch draws it as the layer will: the way it runs (Photoshop's angle goes up from the
+  // right, CSS's clockwise from the top), its style, transparency over a checkerboard
+  const recentGradientCss = (fx) => {
+    const stops = fx.stops.map((item) => ({ at: fx.reverse ? 1 - item.at : item.at, c: `rgba(${item.r}, ${item.g}, ${item.b}, ${item.a})` })).sort((a, b) => a.at - b.at);
+    const list = (from, to) => stops.map((item) => `${item.c} ${Math.round((from + (to - from) * item.at) * 1000) / 10}%`);
+    const angle = fx.angle === undefined ? 90 : Number(fx.angle) || 0;
+    const style = fx.style || "linear";
+    if (style === "radial" || style === "diamond") return `radial-gradient(circle closest-side, ${list(0, 1).join(", ")})`;
+    if (style === "angle") return `conic-gradient(from ${90 - angle}deg, ${list(0, 1).join(", ")})`;
+    // Reflected: from the middle out, both ways
+    if (style === "reflected") return `linear-gradient(${90 - angle}deg, ${list(0.5, 0).reverse().concat(list(0.5, 1)).join(", ")})`;
+    return `linear-gradient(${90 - angle}deg, ${list(0, 1).join(", ")})`;
+  };
+  // The swatches, or nothing while no gradient was used. The one the selected text wears is
+  // marked.
+  const recentGradientSwatches = () => {
+    if (!recentGradients.length) return null;
+    const group = document.createElement("span");
+    group.className = "recent-grads";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", T("Recent Gradients"));
+    const keys = keyLabel(setupKeysOf("Apply Last Gradient"));
+    const last = lastGradientIndex();
+    const typed = !ui.editor.hidden && editing ? typedLayer() : null;
+    const worn = gradientOn(typed || activeTexts()[0]);
+    recentGradients.forEach((fx, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "recent-grads__one";
+      const on = JSON.stringify(fx) === worn;
+      button.classList.toggle("is-on", on);
+      button.setAttribute("aria-pressed", String(on));
+      const shown = document.createElement("i");
+      shown.style.backgroundImage = `${recentGradientCss(fx)}, conic-gradient(#ccc 25%, #fff 0 50%, #ccc 0 75%, #fff 0)`;
+      button.appendChild(shown);
+      button.title = `${T("Apply this gradient to the selected layers")}${index === last && keys ? ` (${keys})` : ""}`;
+      button.setAttribute("aria-label", button.title);
+      // Pressing it leaves the focus where it is, on the text being typed for instance
+      button.addEventListener("pointerdown", (event) => event.preventDefault());
+      button.addEventListener("click", () => applyRecentGradient(index));
+      group.appendChild(button);
+    });
+    return group;
+  };
+
   const ANTI_ALIAS_NAMES = [["antiAliasNone", "None"], ["antiAliasSharp", "Sharp"], ["antiAliasCrisp", "Crisp"], ["antiAliasStrong", "Strong"], ["antiAliasSmooth", "Smooth"]];
 
   const textControls = (host, compact) => {
@@ -5085,7 +5229,11 @@
     hide.classList.add("ctxbar__hide");
     taskBar.textContent = "";
     taskBar.setAttribute("aria-label", T("Contextual Task Bar"));
-    taskBar.append(taskBarGrip(), c.family, sizeIcon, c.color, separator(), aligns, separator(), hide);
+    taskBar.append(taskBarGrip(), c.family, sizeIcon, c.color);
+    // The last gradients used, right after the colour: nothing while there are none
+    const gradients = recentGradientSwatches();
+    if (gradients) taskBar.append(gradients);
+    taskBar.append(separator(), aligns, separator(), hide);
   };
   const placeTaskBar = () => {
     const box = taskBarBox;
@@ -5101,7 +5249,7 @@
       return;
     }
     const layer = texts[0];
-    const key = JSON.stringify([texts.map((item) => item.id), styleShown(layer), layer.params.layerText.paragraphStyleRange[0].paragraphStyle.alignment, Fonts.generation]);
+    const key = JSON.stringify([texts.map((item) => item.id), styleShown(layer), layer.params.layerText.paragraphStyleRange[0].paragraphStyle.alignment, Fonts.generation, recentGradientsSeen, gradientOn(layer)]);
     const busy = scrubbing || (taskBar.contains(document.activeElement) && document.activeElement.tagName === "INPUT");
     if (key !== taskBarKey && !busy) {
       taskBarKey = key;
@@ -7376,7 +7524,7 @@
     // A transform or a warp under way: the bar shows its numbers, built again every time as before
     if (transform || warpedLayer()) return "live:" + nextToken++;
     const active = doc ? doc.state.layers.filter((layer) => doc.state.activeIds.includes(layer.id)) : [];
-    return [app.tool, doc ? doc.id : "", Fonts.generation, settings.hiddenChars ? 1 : 0, editing ? editing.id + ":" + (editRange() || []).join("-") : "", active.map((layer) => layer.id + ":" + tokenOf(layer)).join(","), tokenOf(app.textDefaults)].join("|");
+    return [app.tool, doc ? doc.id : "", Fonts.generation, settings.hiddenChars ? 1 : 0, recentGradientsSeen, editing ? editing.id + ":" + (editRange() || []).join("-") : "", active.map((layer) => layer.id + ":" + tokenOf(layer)).join(","), tokenOf(app.textDefaults)].join("|");
   };
   const renderOptions = () => {
     const bar = ui.options;
@@ -7472,7 +7620,7 @@
       }
       if (activeTexts().length) {
         const c = textControls(bar, true);
-        bar.append(c.family, c.faces, scrubbed(T("Size"), c.size, withUnit(c.size, "pt")), labelled("aa", c.antiAlias), c.color, c.aligns, hiddenCharsButton());
+        bar.append(c.family, c.faces, scrubbed(T("Size"), c.size, withUnit(c.size, "pt")), labelled("aa", c.antiAlias), c.color, c.aligns, ...[recentGradientSwatches()].filter(Boolean), hiddenCharsButton());
       }
     }
     if (tool === "brush" || tool === "eraser" || tool === "stamp" || tool === "heal" || RETOUCH_BRUSHES.has(tool)) {
@@ -7540,7 +7688,7 @@
     if (tool === "brush" && window.TypeRLibrary) window.TypeRLibrary.options(bar);
     if (tool === "text") {
       const c = textControls(bar, true);
-      bar.append(c.family, c.faces, scrubbed(T("Size"), c.size, withUnit(c.size, "pt")), labelled("aa", c.antiAlias), c.color, c.aligns, hiddenCharsButton());
+      bar.append(c.family, c.faces, scrubbed(T("Size"), c.size, withUnit(c.size, "pt")), labelled("aa", c.antiAlias), c.color, c.aligns, ...[recentGradientSwatches()].filter(Boolean), hiddenCharsButton());
     }
     if (tool === "crop") cropOptions(bar);
     if (tool === "zoom" || tool === "hand") {
@@ -17739,6 +17887,10 @@
     const token = `gesture:layer-style:${Date.now()}`;
     const lookOf = () => JSON.stringify(layersNow().map((layer) => [layer.stroke || null, layer.effects || null, layer.blend || "normal", layer.opacity === undefined ? 1 : layer.opacity, PS.fillOf(layer)]));
     const before = lookOf();
+    // Each layer's Gradient Overlay before: one set or changed here is remembered on OK
+    const gradientsOf = () => JSON.stringify(layersNow().map((layer) => (layer.effects && layer.effects.gradientOverlay) || null));
+    const gradientsBefore = gradientsOf();
+    const gradientBefore = lead() && lead().effects && lead().effects.gradientOverlay;
     // The step every change goes into, named for the dialog from the start
     ops.setLayerEffects(ids, (layer) => layer.effects, token);
     const own = doc.history[doc.historyIndex];
@@ -18699,6 +18851,9 @@
       // Nothing changed: no step either
       if (lookOf() === before) backToStart();
       else ops.sealHistory();
+      const gradient = lead() && lead().effects && lead().effects.gradientOverlay;
+      // One only looked at is remembered too: that is how a gradient a PSD came with gets in
+      if (gradient && gradient.enabled !== false) rememberGradient(gradient, gradientsOf() !== gradientsBefore ? gradientBefore : null);
     };
     no.addEventListener("click", () => finish(false));
     yes.addEventListener("click", () => finish(true));
@@ -18980,7 +19135,14 @@
     ...[["stroke", "Stroke…"], ["innerShadow", "Inner Shadow…"], ["innerGlow", "Inner Glow…"], ["colorOverlay", "Colour Overlay…"], ["gradientOverlay", "Gradient Overlay…"], ["outerGlow", "Outer Glow…"], ["dropShadow", "Drop Shadow…"]].map(([name, label]) => ({ label, enabled: hasLayer, action: () => styleFrom(name) })),
     null,
     { label: "Copy Layer Style", enabled: hasLayer, action: () => { if (ops.copyLayerStyle()) toast(T("Copied.")); } },
-    { label: "Paste Layer Style", enabled: () => hasLayer() && Boolean(app.styleClipboard), action: () => ops.pasteLayerStyle() },
+    { label: "Paste Layer Style", enabled: () => hasLayer() && Boolean(app.styleClipboard), action: () => {
+      ops.pasteLayerStyle();
+      const pasted = fxTargets().map((layer) => layer.effects && layer.effects.gradientOverlay).find((fx) => fx && fx.enabled !== false);
+      if (pasted) rememberGradient(pasted);
+    } },
+    // The Gradient Overlay used last, on the selected layers. Photoshop has none: Shift+G, G
+    // being the Gradient's key
+    { label: "Apply Last Gradient", keys: "Shift+G", enabled: hasLayer, action: () => applyRecentGradient() },
     { label: "Clear Layer Style", enabled: hasLayer, action: () => {
       if (canClearStyle()) ops.clearLayerStyle();
       else toast(fxRefusal() || T("This layer has no style to clear."));

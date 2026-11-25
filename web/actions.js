@@ -1705,7 +1705,7 @@
     "Select:All", "Select:Deselect", "Select:Reselect", "Select:Inverse", "Select:Expand…", "Select:Contract…",
     "Image:Levels…", "Image:Canvas Size…", "Image:Image Size…",
     "Layer:New Layer", "Layer:New Group", "Layer:Duplicate Layer", "Layer:Delete Layer", "Layer:Group Layers", "Layer:Merge Down", "Layer:Merge Visible", "Layer:Flatten Image", "Layer:Clear Layer Style",
-    "Layer:Blending Options…", "Layer:Stroke…", "Layer:Inner Shadow…", "Layer:Inner Glow…", "Layer:Colour Overlay…", "Layer:Gradient Overlay…", "Layer:Outer Glow…", "Layer:Drop Shadow…",
+    "Layer:Apply Last Gradient", "Layer:Blending Options…", "Layer:Stroke…", "Layer:Inner Shadow…", "Layer:Inner Glow…", "Layer:Colour Overlay…", "Layer:Gradient Overlay…", "Layer:Outer Glow…", "Layer:Drop Shadow…",
     "Edit:Fill with Foreground Colour", "Edit:Fill with Background Colour", "Edit:Content-Aware Fill…", "Edit:Clear", "Edit:Free Transform",
     "Filter:Gaussian Blur…", "Filter:Motion Blur…", "Filter:Last Filter",
   ]);
