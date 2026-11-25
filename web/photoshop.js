@@ -32,19 +32,24 @@
 
   /* ============================== text ============================== */
 
+  // Photoshop's Faux Bold sets each letter 0.027 of the size wider, the last one of a line too
+  // (measured in Photoshop 2026, in 3 fonts at 16 and 40 px)
+  const FAUX_BOLD_SPACING = 0.027;
+  // The space set between a run's letters, besides their kerning, in parts of the size
+  const spacingOf = (textStyle) => (textStyle.tracking || 0) / 1000 + (textStyle.syntheticBold ? FAUX_BOLD_SPACING : 0);
+
   const cssFont = (textStyle, sizePx) => {
     const font = Fonts.resolve(textStyle);
     const italic = font.italic || textStyle.syntheticItalic;
     // Faux Bold keeps the font's own face, as Photoshop does: its letters are outlined (see
     // boldWidthOf), where weight 700 would take the family's Bold face or the browser's bold
     const weight = font.weight;
-    const family = (textStyle.ligature === false && Fonts.withoutLigatures(font)) || font.css;
+    // Standard ligatures off, or Contextual alternates as the style has them: a twin of the font
+    // (see variantOf in fonts.js)
+    const family = Fonts.variantOf(font, textStyle.ligature !== false, textStyle.contextualLigatures !== false, spacingOf(textStyle) !== 0) || font.css;
     return `${italic ? "italic " : ""}${weight} ${sizePx}px "${family}", "Wildjess", sans-serif`;
   };
 
-  // Photoshop's Faux Bold sets each letter 0.027 of the size wider, the last one of a line too
-  // (measured in Photoshop 2026, in 3 fonts at 16 and 40 px)
-  const FAUX_BOLD_SPACING = 0.027;
   // With Strong it outlines the font's own letters in their colour, as much of the size wide
   // (half of it outside them), whatever the font and its weight. So does Smooth from 26 px up,
   // about a pixel wide whatever the size: 1.2 px at 100 px in each of 60 fonts, where the
@@ -90,7 +95,7 @@
   };
   const setRunFont = (ctx, textStyle, sizePx) => {
     ctx.font = cssFont(textStyle, sizePx);
-    const spacing = (textStyle.tracking || 0) / 1000 + (textStyle.syntheticBold ? FAUX_BOLD_SPACING : 0);
+    const spacing = spacingOf(textStyle);
     if ("letterSpacing" in ctx) ctx.letterSpacing = spacing ? `${spacing * sizePx}px` : "0px";
     if ("fontKerning" in ctx) ctx.fontKerning = textStyle.autoKern === "manual" ? "none" : "normal";
     if ("fontVariantCaps" in ctx) ctx.fontVariantCaps = textStyle.fontCaps === "smallCaps" ? "small-caps" : "normal";
@@ -139,7 +144,7 @@
   };
 
   // A zero-width non-joiner between two letters also stops ligatures, where the browser can't
-  // turn a font's off (see withoutLigatures in fonts.js), and leaves their kerning alone.
+  // turn a font's off (see variantOf in fonts.js), and leaves their kerning alone.
   // It doesn't stop the letter variants a font keeps with its ligatures. Other scripts need
   // their letters joined.
   // All Caps follows the text language, as in Photoshop: in Turkish, i becomes İ, not I

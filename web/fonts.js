@@ -204,39 +204,145 @@
     return found;
   };
 
-  // With Standard ligatures off, Photoshop turns off the font's whole "liga" feature, and with it
-  // the letter variants some lettering fonts keep there (a doubled letter drawn another way).
-  // Canvas has no switch for it: such text is drawn with a twin of the font that has it off.
-  // Until the twin is there, the font itself is used, and the page is drawn again after.
-  const twins = new Map(); // PostScript name -> the twin's CSS name, null while it loads, false if it can't
+  // Photoshop's OpenType switches, where a canvas has no switch for a font's features: such
+  // text is drawn with a twin of its font, made for it.
+  // - With Standard ligatures off, Photoshop turns off the font's whole "liga" feature, and with
+  //   it the letter variants some lettering fonts keep there (a doubled letter drawn another way).
+  // - With Contextual alternates off, its "calt" feature: the capital I a comic font draws with
+  //   crossbars only where it stands alone comes out with them everywhere.
+  // - With them on, Photoshop keeps the feature whatever the tracking, where the browser drops it
+  //   as soon as the letters are spaced (tracking, Faux Bold): the twin has the feature filed
+  //   under another name, one the browser always applies. That twin is made from the font's
+  //   file: a font reached by its name alone, before the computer's fonts are listed, and the
+  //   fonts that ship with the page (none has the feature) go without.
+  // Until a twin is there, the font itself is used, and the page is drawn again after.
+  const twins = new Map(); // a twin's CSS name -> true once it is there, null while it loads, false if it can't
   const sourceOf = (font) => {
     if (font.source === "builtin") return `url("../assets/fonts/${font.file}.woff2")`;
     if (font.source === "file") return font.url ? `url(${quote(font.url)})` : null;
     return font.src || null;
   };
-  const withoutLigatures = (font) => {
-    const ps = font && font.ready && font.postScriptName;
-    if (!ps) return null;
-    if (twins.has(ps)) return twins.get(ps) || null;
-    const src = sourceOf(font);
-    if (!src) {
-      twins.set(ps, false);
+  const twinOf = (font, suffix, source, features) => {
+    const css = `${font.css}--${suffix}`;
+    if (twins.has(css)) return twins.get(css) ? css : null;
+    if (!source) {
+      twins.set(css, false);
       return null;
     }
-    const css = `${font.css}--noliga`;
-    twins.set(ps, null);
-    const descriptors = { featureSettings: '"liga" 0' };
+    twins.set(css, null);
+    const descriptors = { featureSettings: features };
     if (font.source === "builtin") Object.assign(descriptors, { weight: String(font.weight), style: font.italic ? "italic" : "normal" });
-    const face = new FontFace(css, src, descriptors);
+    const face = new FontFace(css, source, descriptors);
     face.load().then(() => {
       document.fonts.add(face);
-      twins.set(ps, css);
+      twins.set(css, true);
       changed();
     }, (error) => {
-      console.warn("TypeR web: could not turn a font's ligatures off", ps, error);
-      twins.set(ps, false);
+      console.warn("TypeR web: could not make a font's twin", css, error);
+      twins.set(css, false);
     });
     return null;
+  };
+
+  // A font's file, when it can be read here: a font file kept in the browser, or an installed
+  // font once the computer's fonts are listed
+  const bytesOf = (font) => {
+    if (font.source === "file") return font.url ? fetch(font.url).then((response) => response.arrayBuffer()) : null;
+    const ps = font.postScriptName;
+    const entry = font.source === "local" ? installedData.get(ps) : null;
+    if (!entry || typeof entry.blob !== "function") return null;
+    // A collection holds several fonts: this one is found by its name
+    return entry.blob().then((blob) => blob.arrayBuffer()).then((buffer) => splitCollection(buffer).find((part) => {
+      try {
+        return readNames(part).ps === ps;
+      } catch (error) {
+        return false;
+      }
+    }) || buffer);
+  };
+  // The sum a font file keeps of each of its tables, and of itself
+  const sumOf = (data, from, length) => {
+    let sum = 0;
+    for (let at = from; at < from + length; at += 4) {
+      let word = 0;
+      for (let k = 0; k < 4; k++) word = word * 256 + (at + k < from + length && at + k < data.byteLength ? data.getUint8(at + k) : 0);
+      sum = (sum + word) >>> 0;
+    }
+    return sum;
+  };
+  // Tags the browser applies to every text, spaced or not, in the order they are tried
+  const KEPT_TAGS = ["rclt", "rlig", "ccmp", "locl"];
+  // Whether a font file has contextual alternates (`calt`) and, when it has, a copy of the
+  // file where they are filed under a tag the browser never drops (`kept`; null when every
+  // such tag is taken)
+  const readAlternates = (buffer) => {
+    const data = new DataView(buffer);
+    const tag = (at) => String.fromCharCode(data.getUint8(at), data.getUint8(at + 1), data.getUint8(at + 2), data.getUint8(at + 3));
+    const count = data.getUint16(4);
+    let entry = -1;
+    for (let i = 0; i < count; i++) if (tag(12 + i * 16) === "GSUB") entry = 12 + i * 16;
+    if (entry < 0) return { calt: false, kept: null };
+    const gsub = data.getUint32(entry + 8);
+    const list = gsub + data.getUint16(gsub + 6);
+    const records = [];
+    const taken = new Set();
+    for (let i = 0; i < data.getUint16(list); i++) {
+      const at = list + 2 + i * 6;
+      if (tag(at) === "calt") records.push(at);
+      else taken.add(tag(at));
+    }
+    if (!records.length) return { calt: false, kept: null };
+    const free = KEPT_TAGS.find((name) => !taken.has(name));
+    if (!free) return { calt: true, kept: null };
+    const kept = buffer.slice(0);
+    const out = new DataView(kept);
+    records.forEach((at) => {
+      for (let k = 0; k < 4; k++) out.setUint8(at + k, free.charCodeAt(k));
+    });
+    // The file's sums follow, as a font file's reader may check them
+    out.setUint32(entry + 4, sumOf(out, gsub, out.getUint32(entry + 12)));
+    for (let i = 0; i < count; i++) {
+      if (tag(12 + i * 16) !== "head") continue;
+      const head = out.getUint32(12 + i * 16 + 8);
+      out.setUint32(head + 8, 0);
+      out.setUint32(12 + i * 16 + 4, sumOf(out, head, out.getUint32(12 + i * 16 + 12)));
+      out.setUint32(head + 8, (0xb1b0afba - sumOf(out, 0, out.byteLength)) >>> 0);
+    }
+    return { calt: true, kept };
+  };
+  const NO_ALTERNATES = { calt: false, kept: null };
+  const alternates = new Map(); // PostScript name -> what readAlternates found, null while the file is read
+  // undefined when the font's file can't be read here
+  const alternatesOf = (font) => {
+    if (font.source === "builtin") return NO_ALTERNATES;
+    const ps = font.postScriptName;
+    if (alternates.has(ps)) return alternates.get(ps);
+    const bytes = bytesOf(font);
+    if (!bytes) return undefined;
+    alternates.set(ps, null);
+    bytes.then(readAlternates).catch((error) => {
+      console.warn("TypeR web: could not read a font's contextual alternates", ps, error);
+      // Not known: it may have some, and no twin keeps them
+      return { calt: true, kept: null };
+    }).then((found) => {
+      alternates.set(ps, found);
+      changed();
+    });
+    return null;
+  };
+
+  // The CSS name of the twin a text is drawn with, or null for the font itself. `ligatures` and
+  // `contextual`: Standard ligatures and Contextual alternates, as the text's style has them;
+  // `spaced`: its letters are set apart (the browser then drops the alternates by itself).
+  const variantOf = (font, ligatures, contextual, spaced) => {
+    if (!font || !font.ready || !font.postScriptName) return null;
+    const plain = ligatures ? null : twinOf(font, "noliga", sourceOf(font), '"liga" 0');
+    // The browser does as asked already
+    if (contextual !== spaced) return plain;
+    const found = alternatesOf(font);
+    if (contextual) return (found && found.kept && twinOf(font, ligatures ? "calt" : "noliga-calt", found.kept, ligatures ? "normal" : '"liga" 0')) || plain;
+    if (found && !found.calt) return plain;
+    return twinOf(font, ligatures ? "nocalt" : "noliga-nocalt", sourceOf(font), ligatures ? '"calt" 0' : '"liga" 0, "calt" 0') || plain;
   };
 
   const isMissing = (ps) => Boolean(ps) && missing.has(ps) && !(fonts.get(ps) && fonts.get(ps).ready) && !sameFont(ps);
@@ -712,7 +818,7 @@
     list,
     resolve,
     measuresOf,
-    withoutLigatures,
+    variantOf,
     ensure,
     ready,
     isMissing,

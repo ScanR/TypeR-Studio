@@ -198,6 +198,113 @@
     return { r: 0, g: 0, b: 0 };
   };
 
+  /* What Photoshop keeps of a text only in the document's own text block (`Txt2`), not in the
+     layer's: its kerning as the Character panel names it (Metrics, Optical, or a number: a
+     layer's own data says Metrics for all three) and its Contextual alternates. Found by saving
+     one text in each state from Photoshop 2026: in each run's style sheet, key 11 is the
+     kerning (0 a number, 1 Metrics, 2 Optical) and key 20 the alternates. */
+  // The block's own writing: dictionaries << /key value >>, lists [ ], names, numbers, and
+  // strings ( ) in UTF-16 behind a mark
+  const parseTextBlock = (bytes) => {
+    let at = 0;
+    const blank = (c) => c === 32 || c === 10 || c === 13 || c === 9 || c === 0;
+    const skip = () => {
+      while (at < bytes.length && blank(bytes[at])) at++;
+    };
+    const word = () => {
+      let out = "";
+      while (at < bytes.length && !blank(bytes[at]) && bytes[at] !== 0x5d && bytes[at] !== 0x3e) out += String.fromCharCode(bytes[at++]);
+      return out;
+    };
+    const entries = (closed) => {
+      const out = {};
+      for (;;) {
+        skip();
+        if (at >= bytes.length) return out;
+        if (closed && bytes[at] === 0x3e && bytes[at + 1] === 0x3e) {
+          at += 2;
+          return out;
+        }
+        if (bytes[at] !== 0x2f) throw new Error("unreadable text block");
+        at++;
+        const key = word();
+        out[key] = value();
+      }
+    };
+    const value = () => {
+      skip();
+      const c = bytes[at];
+      if (c === 0x3c && bytes[at + 1] === 0x3c) {
+        at += 2;
+        return entries(true);
+      }
+      if (c === 0x5b) {
+        at++;
+        const out = [];
+        for (;;) {
+          skip();
+          if (at >= bytes.length) return out;
+          if (bytes[at] === 0x5d) {
+            at++;
+            return out;
+          }
+          out.push(value());
+        }
+      }
+      if (c === 0x28) {
+        at++;
+        const codes = [];
+        while (at < bytes.length && bytes[at] !== 0x29) {
+          if (bytes[at] === 0x5c) at++;
+          codes.push(bytes[at++]);
+        }
+        at++;
+        let out = "";
+        if (codes[0] === 0xfe && codes[1] === 0xff) for (let i = 2; i + 1 < codes.length; i += 2) out += String.fromCharCode(codes[i] * 256 + codes[i + 1]);
+        else codes.forEach((code) => { out += String.fromCharCode(code); });
+        return out;
+      }
+      if (c === 0x2f) {
+        at++;
+        return "/" + word();
+      }
+      const text = word();
+      if (text === "true") return true;
+      if (text === "false") return false;
+      const number = Number(text);
+      return text && !Number.isNaN(number) ? number : text;
+    };
+    return entries(false);
+  };
+  // Each text of the document, by the number its layer gives it: its characters and, run by
+  // run, what the block alone says of them. Empty when the file has no such block (a file
+  // TypeR wrote, or an old Photoshop's) or when it can't be read.
+  const textBlockOf = (psd) => {
+    if (!psd || typeof psd.engineData !== "string" || !psd.engineData) return [];
+    try {
+      const binary = atob(psd.engineData);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const block = parseTextBlock(bytes);
+      // A run's sheet only says what differs from the named style it comes from
+      const named = (((block[0] || {})[5] || {})[0] || []).map((entry) => ((entry && entry[0]) || {})[6] || {});
+      return (((block[1] || {})[1]) || []).map((entry) => {
+        const model = (entry && entry[0]) || {};
+        const runs = (((model[6] || {})[0]) || []).map((run) => {
+          const head = ((run[0] || {})[0]) || {};
+          const sheet = head[6] || {};
+          const parent = named[head[5]] || {};
+          const said = (key) => (sheet[key] !== undefined ? sheet[key] : parent[key]);
+          return { length: run[1] || 0, kerning: said(11), contextual: said(20) };
+        });
+        return { text: String(model[0] || ""), runs };
+      });
+    } catch (error) {
+      console.warn("TypeR web: could not read the document's text block", error);
+      return [];
+    }
+  };
+
   const styleFromPsd = (style, scale, resolution) => {
     const font = (style.font && style.font.name) || "";
     const known = Fonts.get(font);
@@ -235,9 +342,38 @@
     return out;
   };
 
+  // The kerning and the Contextual alternates of each run, from the document's text block: a
+  // run is cut where they change inside it. Only when the block has this very text (it ends
+  // each one with a return): a layer the block doesn't follow keeps what its own data says.
+  const blockStyles = (ranges, value, block) => {
+    if (!block || !block.runs.length || block.text.replace(/\r$/, "") !== value.replace(/\r$/, "")) return;
+    const cuts = [];
+    let at = 0;
+    block.runs.forEach((run) => {
+      cuts.push({ from: at, to: at + run.length, run });
+      at += run.length;
+    });
+    const out = [];
+    ranges.forEach((range) => {
+      cuts.forEach(({ from, to, run }) => {
+        const start = Math.max(range.from, from);
+        const end = Math.min(range.to, to);
+        if (end <= start) return;
+        const textStyle = Object.assign({}, range.textStyle);
+        if (typeof run.contextual === "boolean") textStyle.contextualLigatures = run.contextual;
+        const last = out[out.length - 1];
+        if (last && last.to === start && JSON.stringify(last.textStyle) === JSON.stringify(textStyle)) last.to = end;
+        else out.push({ from: start, to: end, textStyle });
+      });
+    });
+    // Every letter still has its style: otherwise the layer's own data stays as it was
+    if (out.length && out[0].from === ranges[0].from && out[out.length - 1].to === ranges[ranges.length - 1].to) ranges.splice(0, ranges.length, ...out);
+  };
+
   const isTurned = (transform) => Boolean(transform) && (Math.abs(transform[1]) > 0.001 || Math.abs(transform[2]) > 0.001);
 
-  const paramsFromPsd = (text, doc) => {
+  // `block`: what the document's text block says of this text (see textBlockOf), when it has it
+  const paramsFromPsd = (text, doc, block) => {
     const transform = text.transform || [1, 0, 0, 1, 0, 0];
     // The size Photoshop shows: along the frame's side (yx, yy), which a skew leaves alone
     const scale = Math.hypot(transform[2] || 0, transform[3] === undefined ? 1 : transform[3]) || 1;
@@ -252,6 +388,7 @@
       if (at > from) ranges.push({ from, to: at, textStyle: styleFromPsd(Object.assign({}, base, run.style), scale, doc.resolution) });
     });
     if (!ranges.length) ranges.push({ from: 0, to: value.length, textStyle: styleFromPsd(base, scale, doc.resolution) });
+    blockStyles(ranges, value, block);
     const alignment = JUSTIFY(text.paragraphStyle && text.paragraphStyle.justification);
     // Paragraph text: its top left and size, in the document's pixels
     const bounds = text.shapeType === "box" && text.boxBounds && text.boxBounds[2] > text.boxBounds[0] ? text.boxBounds : null;
@@ -892,6 +1029,7 @@
     const engine = PS();
     const layers = [];
     const fontNames = [];
+    const textBlock = textBlockOf(psd);
     const notes = { adjustments: 0, depth: psd.bitsPerChannel || 8, colorMode: psd.colorMode };
 
     const common = (node, parent) => ({
@@ -960,7 +1098,7 @@
           return;
         }
         if (node.text) {
-          const params = paramsFromPsd(node.text, doc);
+          const params = paramsFromPsd(node.text, doc, textBlock[node.text.index]);
           params.layerText.textStyleRange.forEach((range) => fontNames.push(range.textStyle.fontPostScriptName));
           const layer = Object.assign(common(node, parent), { kind: "text", params, stroke: strokeFromEffects(node.effects), raster: null });
           // Its shadow, glows and overlays, drawn around and on Photoshop's own letters
@@ -1063,13 +1201,14 @@
     const info = psd.imageResources && psd.imageResources.resolutionInfo;
     const doc = { width: psd.width, height: psd.height, resolution: (info && info.horizontalResolution) || 72 };
     const layers = [];
+    const textBlock = textBlockOf(psd);
     // Where each one sits, and whether it shows, groups included: TextShapeR's training needs both
     const walk = (children, parentPath, parentVisible) => (children || []).forEach((node) => {
       const name = node.name || "";
       const path = parentPath ? parentPath + " / " + name : name;
       const visible = parentVisible && !node.hidden;
       if (node.children) walk(node.children, path, visible);
-      else if (node.text) layers.push({ name, path, visible, params: paramsFromPsd(node.text, doc), stroke: strokeFromEffects(node.effects) });
+      else if (node.text) layers.push({ name, path, visible, params: paramsFromPsd(node.text, doc, textBlock[node.text.index]), stroke: strokeFromEffects(node.effects) });
     });
     walk(psd.children, "", true);
     return { resolution: doc.resolution, layers };

@@ -22,6 +22,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "A mouse's wheel zooms. Alt + wheel scrolls up and down, Shift + wheel sideways. On a trackpad, two fingers scroll and a pinch zooms.": "La molette de la souris zoome. Alt + molette fait défiler verticalement, Maj + molette horizontalement. Sur un trackpad, deux doigts font défiler et le pincement zoome.",
     "Click to zoom in, Alt to zoom out.": "Cliquez pour zoomer, Alt pour dézoomer.",
     "Standard ligatures": "Ligatures standards",
+    "Contextual alternates (crossbar I)": "Variantes contextuelles (I à barres)",
     "Settings": "Paramètres",
     "Settings…": "Paramètres…",
     "Interface language": "Langue de l’interface",

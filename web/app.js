@@ -11763,7 +11763,11 @@
     languageRow.style.flex = "1";
     const typography = document.createElement("div");
     typography.className = "character__row wide";
-    typography.append(languageRow, iconTextToggle("fi", T("Standard ligatures"), style.ligature !== false, () => patchTypography({ ligature: style.ligature === false })));
+    // Contextual alternates, as Photoshop's: the letters a font draws another way by what stands
+    // around them, as a comic font's capital I, with crossbars only where it stands alone
+    const alternates = iconTextToggle("", T("Contextual alternates (crossbar I)"), style.contextualLigatures !== false, () => patchTypography({ contextualLigatures: style.contextualLigatures === false }));
+    alternates.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5h8M12 5.5v13M8 18.5h8"/></svg>';
+    typography.append(languageRow, iconTextToggle("fi", T("Standard ligatures"), style.ligature !== false, () => patchTypography({ ligature: style.ligature === false })), alternates);
     host.appendChild(typography);
     const hyphenRow = document.createElement("div");
     hyphenRow.className = "character__row wide";
