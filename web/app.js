@@ -19391,7 +19391,7 @@
       { label: "Styles", check: () => Workspace().isVisible("styles"), action: () => Workspace().toggle("styles") },
       // Brushes and materials brought in from Clip Studio Paint (library.js)
       { label: "Library", check: () => Workspace().isVisible("library"), action: () => Workspace().toggle("library") },
-      { label: "Line Breaks", keys: "Shift+L", check: () => Workspace().isVisible("breaks"), action: () => Workspace().toggle("breaks") },
+      { label: "Line Breaks", keys: "Alt+Cmd+L", check: () => Workspace().isVisible("breaks"), action: () => Workspace().toggle("breaks") },
       ...(Shell.touch ? [] : [{ label: "Contextual Task Bar", check: () => settings.taskBar, action: () => setTaskBar(!settings.taskBar) }]),
       null,
       { label: "Reset Workspace", action: () => Workspace().reset() },
