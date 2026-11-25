@@ -21459,6 +21459,57 @@
     if (plan.practice) $("start-practice").click();
   };
 
+  // What became of TypeR's files at start (kit.js), said before the panel shows them: a user's
+  // styles, settings and scripts never go without a word.
+  const LEFT_EMPTY = "typer.web.leftEmpty";
+  const dateOf = (time) => new Date(time).toLocaleDateString((window.TYPER_I18N && window.TYPER_I18N.lang) || undefined, { day: "numeric", month: "long", year: "numeric" });
+  const tellAboutFiles = async () => {
+    const { unread, restored, damaged } = Kit.report();
+    const title = T("TypeR's styles, settings and scripts couldn't be read");
+    if (unread) {
+      await dialog({
+        title,
+        body: IN_APP
+          ? T("They are still kept, but couldn't be read this time. TypeR starts empty, and what you change in it now won't be kept, so that nothing replaces them. Close the app and open it again to try once more.")
+          : T("They are still kept in this browser, but couldn't be read this time. TypeR starts empty, and what you change in it now won't be kept, so that nothing replaces them. Reload the page to try once more."),
+        cancel: false,
+        ok: T("Got it"),
+      });
+    } else if (restored.length) {
+      await dialog({
+        title: T("TypeR's styles, settings and scripts were brought back"),
+        body: fill(T("What was kept of them could no longer be read. They are back as they were on {date}: what you changed since is missing."), { date: dateOf(Math.min(...restored.map((one) => one.time))) }),
+        cancel: false,
+        ok: T("Got it"),
+      });
+    } else if (damaged.length) {
+      await dialog({ title, body: T("What was kept of them is damaged, and there is no earlier copy to bring back. TypeR starts empty."), cancel: false, ok: T("Got it") });
+    }
+    // No style and no script left, and an earlier copy had some: asked once for that copy
+    const lost = Kit.emptied();
+    let declined = null;
+    try {
+      declined = window.localStorage.getItem(LEFT_EMPTY);
+    } catch (error) {
+      declined = null;
+    }
+    if (!lost || unread || declined === String(lost.time)) return;
+    const back = await dialog({
+      title: T("Bring back your styles and scripts?"),
+      body: fill(T("TypeR has no style and no script left, and a copy kept on {date} has some (styles: {styles}, scripts: {scripts}). Its settings come back with it."), { date: dateOf(lost.time), styles: lost.styles, scripts: lost.scripts }),
+      ok: T("Bring Back"),
+      cancel: T("Leave Empty"),
+    });
+    if (back) await Kit.bringBack(lost);
+    else {
+      try {
+        window.localStorage.setItem(LEFT_EMPTY, String(lost.time));
+      } catch (error) {
+        console.warn("TypeR web: could not keep the answer", error);
+      }
+    }
+  };
+
   const boot = async () => {
     await PS.ops.fontsReady();
     await Promise.all([Fonts.restore().catch(() => null), Kit.loadFiles().catch(() => null)]);
@@ -21479,6 +21530,7 @@
       // TypeR Studio offers to start from TypeR for Photoshop's settings (desktop.js)
       if (window.TypeRStudio) await window.TypeRStudio.beforePanel().catch((error) => console.warn("TypeR Studio: Photoshop's settings", error));
     }
+    await tellAboutFiles().catch((error) => console.warn("TypeR web: TypeR's files", error));
     const guide = Boolean(plan && plan.tour && window.TypeRGuide && !Shell.touch);
     startPanel({ tour: Boolean(plan && plan.tour) && !guide });
     const documents = window.TypeRSession.restore({

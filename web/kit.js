@@ -252,35 +252,149 @@
   // TypeR's storage files: the default profile, the list of profiles, one file per
   // other profile. The database is what lasts (it survives a crash and has room);
   // localStorage is a second copy. Whichever is newer wins at start.
+  //
+  // They hold all that a user set up, the styles, the settings and the scripts, so:
+  // - a file that could not be read is never taken for a file that isn't there, and nothing
+  //   is written over it (`unread`);
+  // - earlier copies of each file stay in the database (`copies`): one a day, and what a file
+  //   was before it lost most of its length at once. A file that can't be read comes back from
+  //   them, and the app offers them when the styles and scripts come back empty (app.js).
   const memory = new Map();
+  const copies = new Map();
+  const unread = new Set();
+  const report = { unread: false, restored: [], damaged: [] };
   const keeps = (path) => /^\/typer\/storage(_profiles|_profile_[^.]+)?$/.test(String(path));
   const keyFor = (path) => (path === `${ROOT}/storage` ? "typer.web.storage" : `typer.web.file:${path}`);
   const timeKey = (path) => `typer.web.time:${path}`;
+  // The rows of the database that are earlier copies: "copy:<slot>:<path>"
+  const COPY = /^copy:(\d+):(.*)$/;
+  const COPIES = 3;
+  const A_DAY = 20 * 3600 * 1000;
+  // Set once the database holds one of these files: a database that doesn't answer is then
+  // known to hold something
+  const IN_DATABASE = "typer.web.inDatabase";
+  const OPEN_WAIT = 5000;
+  const reads = (text) => {
+    try {
+      return isObject(JSON.parse(text));
+    } catch (error) {
+      return false;
+    }
+  };
+  // The newest first; the database's when both are as new
+  const newestFirst = (a, b) => b.time - a.time || b.from - a.from;
+
+  // One change to the database's files, once more on a new connection when the browser closed
+  // the one kept (fonts.js). True once it is written.
+  const inFiles = async (act) => {
+    const run = (db) => new Promise((done) => {
+      const tx = db.transaction("files", "readwrite");
+      act(tx.objectStore("files"));
+      tx.oncomplete = () => done(true);
+      tx.onerror = () => done(false);
+      tx.onabort = () => done(false);
+    });
+    const db = await window.TypeRFonts.openStore().catch(() => null);
+    if (!db) return false;
+    return run(db).catch(() => window.TypeRFonts.openStore(true).then(run)).catch(() => false);
+  };
+  // Null: the database didn't answer
+  const fromFiles = (db, ask) => new Promise((done) => {
+    try {
+      const request = ask(db.transaction("files").objectStore("files"));
+      request.onsuccess = () => done(request.result === undefined ? false : request.result);
+      request.onerror = () => done(null);
+    } catch (error) {
+      done(null);
+    }
+  });
+
+  // What a storage file holds of a user's work: how many styles, how many scripts with text
+  const contentOf = (text) => {
+    try {
+      const storage = JSON.parse(text);
+      const tabs = Array.isArray(storage.tabs) ? storage.tabs : [{ text: storage.text }];
+      return { styles: Array.isArray(storage.styles) ? storage.styles.length : 0, scripts: tabs.filter((tab) => tab && String(tab.text || "").trim()).length };
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // An earlier copy of a file, in the place of the oldest one
+  const setAside = (path, entry) => {
+    const list = copies.get(path) || [];
+    if (list.some((one) => one.text === entry.text)) return;
+    let slot = 0;
+    while (slot < COPIES && list.some((one) => one.slot === slot)) slot++;
+    if (slot === COPIES) slot = list[list.length - 1].slot;
+    const copy = { slot, text: entry.text, time: entry.time, made: Date.now() };
+    copies.set(path, [copy].concat(list.filter((one) => one.slot !== slot)));
+    inFiles((store) => store.put({ path: `copy:${slot}:${path}`, text: copy.text, time: copy.time, made: copy.made }));
+  };
+  const dropCopies = (path) => {
+    const list = copies.get(path) || [];
+    copies.delete(path);
+    if (list.length) inFiles((store) => list.forEach((one) => store.delete(`copy:${one.slot}:${path}`)));
+  };
 
   const loadFiles = async () => {
+    const found = new Map();
+    const offer = (path, text, time, from) => found.set(path, (found.get(path) || []).concat({ text, time: Number(time) || 0, from }));
+    let inDatabase = false;
     try {
       Object.keys(window.localStorage).forEach((key) => {
         let path = null;
         if (key === "typer.web.storage") path = `${ROOT}/storage`;
         else if (key.indexOf("typer.web.file:") === 0) path = key.slice("typer.web.file:".length);
-        if (path) memory.set(path, { text: window.localStorage.getItem(key), time: Number(window.localStorage.getItem(timeKey(path))) || 0 });
+        if (path) offer(path, window.localStorage.getItem(key), window.localStorage.getItem(timeKey(path)), 0);
       });
+      inDatabase = window.localStorage.getItem(IN_DATABASE) === "1";
     } catch (error) {
       console.warn("TypeR web: localStorage is not available", error);
     }
-    const db = await window.TypeRFonts.openStore().catch(() => null);
-    if (!db) return;
-    const rows = await new Promise((done) => {
-      const request = db.transaction("files").objectStore("files").getAll();
-      request.onsuccess = () => done(request.result || []);
-      request.onerror = () => done([]);
+    // A database that never answers doesn't hold the app at its start
+    const db = await Promise.race([window.TypeRFonts.openStore(), new Promise((done, fail) => setTimeout(() => fail(new Error("the database doesn't answer")), OPEN_WAIT))]).catch(() => null);
+    const rows = db ? await fromFiles(db, (store) => store.getAll()) : null;
+    (rows || []).forEach((row) => {
+      const copy = COPY.exec(row.path);
+      if (copy) copies.set(copy[2], (copies.get(copy[2]) || []).concat({ slot: Number(copy[1]), text: row.text, time: row.time, made: row.made || row.time }));
+      else offer(row.path, row.text, row.time, 1);
     });
-    rows.forEach((row) => {
-      const known = memory.get(row.path);
-      if (!known || row.time >= known.time) memory.set(row.path, { text: row.text, time: row.time });
+    copies.forEach((list) => list.sort((a, b) => b.made - a.made));
+    // The database holds files and didn't give them: one that isn't in localStorage either is
+    // there, unread. TypeR starts without it and nothing is kept in its place (keep).
+    if (!rows && inDatabase) {
+      [`${ROOT}/storage`, `${ROOT}/storage_profiles`].forEach((path) => { if (!found.has(path)) unread.add(path); });
+      report.unread = unread.size > 0;
+    }
+    const back = [];
+    found.forEach((list, path) => {
+      list.sort(newestFirst);
+      const good = keeps(path) ? list.find((one) => reads(one.text)) : list[0];
+      if (good) {
+        memory.set(path, { text: good.text, time: good.time });
+        return;
+      }
+      // Neither can be read: the newest earlier copy that can. What couldn't be read is put
+      // aside in its turn rather than thrown away.
+      const copy = (copies.get(path) || []).find((one) => reads(one.text));
+      setAside(path, list[0]);
+      if (copy) back.push({ path, text: copy.text, time: copy.time });
+      else report.damaged.push(path);
     });
+    for (const one of back) {
+      await keep(one.path, one.text);
+      report.restored.push({ path: one.path, time: one.time });
+    }
     cleanPracticeStyles();
     repairTypeUnits();
+    // One copy a day of each file, of what it holds as the day's work starts. Not of a file
+    // that came back empty: the copies are what the app is about to offer.
+    const lost = emptied();
+    memory.forEach((entry, path) => {
+      const last = (copies.get(path) || [])[0];
+      if (keeps(path) && rows && !(lost && lost.path === path) && (!last || Date.now() - last.made > A_DAY)) setAside(path, entry);
+    });
   };
 
   // Styles taken from a layer here before the host named the unit
@@ -313,35 +427,62 @@
   const read = (path) => (memory.has(path) ? memory.get(path).text : null);
   const storedPaths = () => Array.from(memory.keys());
 
-  const keep = async (path, text) => {
-    const time = Date.now();
-    memory.set(path, { text, time });
-    let copies = 0;
-    try {
-      window.localStorage.setItem(keyFor(path), text);
-      window.localStorage.setItem(timeKey(path), String(time));
-      copies++;
-    } catch (error) {
-      console.warn("TypeR web: localStorage is full", error);
-    }
-    const put = (db) => new Promise((done) => {
-      const tx = db.transaction("files", "readwrite");
-      tx.objectStore("files").put({ path, text, time });
-      tx.oncomplete = () => done(true);
-      tx.onerror = () => done(false);
-      tx.onabort = () => done(false);
-    });
-    const db = await window.TypeRFonts.openStore().catch(() => null);
-    if (db) {
-      // A connection the browser closed meanwhile: once more on a new one
-      const saved = await put(db).catch(() => window.TypeRFonts.openStore(true).then(put)).catch(() => false);
-      if (saved) copies++;
-    }
-    if (!copies && window.TypeRPhotoshop) window.TypeRPhotoshop.warnStorage();
-    return copies > 0;
+  // The browser may clear what a site keeps when the disk fills up, unless the site asked to
+  // keep it for good. Asked once the user has done something here, at the first thing kept
+  // after that: a browser that asks its user (Firefox) then asks about work that exists.
+  let askedToStay = false;
+  const askToStay = () => {
+    if (askedToStay || !navigator.storage || !navigator.storage.persist || (navigator.userActivation && !navigator.userActivation.hasBeenActive)) return;
+    askedToStay = true;
+    navigator.storage.persist().catch(() => false);
   };
 
+  let markedInDatabase = false;
+  const keep = async (path, text) => {
+    // Said once, at start (app.js)
+    if (unread.has(path)) return false;
+    const before = memory.get(path);
+    // Later than what it replaces, whatever the clock says
+    const time = Math.max(Date.now(), before ? before.time + 1 : 0);
+    memory.set(path, { text, time });
+    // Most of a file gone at once (all the styles, a whole script): what it was stays
+    if (before && keeps(path) && before.text.length - text.length > 1500 && text.length < before.text.length * 0.6) setAside(path, before);
+    let stores = 0;
+    try {
+      // The time first: a page killed between the two leaves the earlier text under the later
+      // time, and the database's row of that time, when it was written, wins over it at start
+      window.localStorage.setItem(timeKey(path), String(time));
+      window.localStorage.setItem(keyFor(path), text);
+      stores++;
+    } catch (error) {
+      console.warn("TypeR web: localStorage is full", error);
+      // No earlier text stays here to be taken for the file on a day the database doesn't answer
+      try {
+        window.localStorage.removeItem(keyFor(path));
+        window.localStorage.removeItem(timeKey(path));
+      } catch (again) {
+        console.warn("TypeR web: localStorage is not available", again);
+      }
+    }
+    if (await inFiles((store) => store.put({ path, text, time }))) {
+      stores++;
+      if (!markedInDatabase) {
+        try {
+          window.localStorage.setItem(IN_DATABASE, "1");
+          markedInDatabase = true;
+        } catch (error) {
+          console.warn("TypeR web: localStorage is full", error);
+        }
+      }
+    }
+    if (!stores && window.TypeRPhotoshop) window.TypeRPhotoshop.warnStorage();
+    if (stores) askToStay();
+    return stores > 0;
+  };
+
+  // Deleted for good, its earlier copies too: TypeR's own reset of everything
   const forget = async (path) => {
+    if (unread.has(path)) return;
     memory.delete(path);
     try {
       window.localStorage.removeItem(keyFor(path));
@@ -349,16 +490,23 @@
     } catch (error) {
       console.warn("TypeR web: localStorage is not available", error);
     }
-    const db = await window.TypeRFonts.openStore().catch(() => null);
-    const remove = (from) => from.transaction("files", "readwrite").objectStore("files").delete(path);
-    if (db) {
-      try {
-        remove(db);
-      } catch (error) {
-        await window.TypeRFonts.openStore(true).then(remove).catch(() => {});
-      }
-    }
+    dropCopies(path);
+    await inFiles((store) => store.delete(path));
   };
+
+  // The styles and the scripts came back empty, and an earlier copy had some: what the app
+  // offers to bring back at start. Null when nothing is missing.
+  const emptied = () => {
+    const path = activeStoragePath();
+    const now = memory.has(path) ? contentOf(memory.get(path).text) : { styles: 0, scripts: 0 };
+    if (!now || now.styles || now.scripts) return null;
+    for (const copy of copies.get(path) || []) {
+      const had = contentOf(copy.text);
+      if (had && (had.styles || had.scripts)) return Object.assign({ path, text: copy.text, time: copy.time }, had);
+    }
+    return null;
+  };
+  const bringBack = (lost) => keep(lost.path, lost.text);
 
   // What TypeR starts from; a user who imports their styles first skips the tutorial
   const freshStorage = (firstTime) => ({ notFirstTime: !firstTime, whatsNewSeen: "3.0", checkUpdates: false, autoUpdate: false, textShapeRPerformanceTipShown: true });
@@ -390,5 +538,5 @@
     return active === "default" ? `${ROOT}/storage` : `${ROOT}/storage_profile_${active}`;
   };
 
-  window.TypeRKit = { readArchive, writeArchive, zipEntries, validate, mergeInto, keeps, loadFiles, read, keep, forget, storedPaths, activeStoragePath, freshStorage, freshTouchStorage, ROOT };
+  window.TypeRKit = { readArchive, writeArchive, zipEntries, validate, mergeInto, keeps, loadFiles, read, keep, forget, storedPaths, activeStoragePath, freshStorage, freshTouchStorage, ROOT, report: () => report, emptied, bringBack, dropCopies };
 })();
