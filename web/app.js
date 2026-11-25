@@ -3017,9 +3017,13 @@
     if (!Array.isArray(saved)) return defaultSlots();
     return untouchedSlots(saved) ? defaultSlots().map((slot) => keepCurrent(slot, saved)) : completeSlots(saved);
   };
-  // The toolbar before its sections (2026-11-25), in which each kept arrangement was saved, with
-  // the tools it didn't have yet left out: one never rearranged by hand takes the new order
-  const UNSORTED_TOOLBAR = "move|rectangle,ellipse|lasso,polygon|wand|crop|-|brush|eraser,magicEraser|gradient|stamp|clean|heal|blur,sharpen,smudge|reshape|eyedropper|pen|text|sfx|perspective|-|hand|zoom";
+  // The toolbars before its sections (2026-11-25), in which each kept arrangement was saved, with
+  // the tools it didn't have yet left out: one never rearranged by hand takes the new order. The
+  // Blur, Sharpen and Smudge tools had a place each before their group (2026-11-11).
+  const UNSORTED_TOOLBARS = [
+    "move|rectangle,ellipse|lasso,polygon|wand|crop|-|brush|eraser,magicEraser|gradient|stamp|clean|heal|blur,sharpen,smudge|reshape|eyedropper|pen|text|sfx|perspective|-|hand|zoom",
+    "move|rectangle,ellipse|lasso,polygon|wand|crop|-|brush|eraser,magicEraser|gradient|stamp|clean|heal|blur|sharpen|smudge|reshape|eyedropper|pen|text|sfx|perspective|-|hand|zoom",
+  ];
   const untouchedSlots = (saved) => {
     const had = new Set();
     const mine = saved.map((slot) => {
@@ -3028,13 +3032,13 @@
       tools.forEach((id) => had.add(id));
       return tools.join(",");
     }).filter(Boolean);
-    const then = UNSORTED_TOOLBAR.split("|").map((slot) => (slot === "-" ? slot : slot.split(",").filter((id) => had.has(id)).join(","))).filter(Boolean);
-    return had.size > 0 && mine.join("|") === then.join("|");
+    const then = (order) => order.split("|").map((slot) => (slot === "-" ? slot : slot.split(",").filter((id) => had.has(id)).join(","))).filter(Boolean).join("|");
+    return had.size > 0 && UNSORTED_TOOLBARS.some((order) => mine.join("|") === then(order));
   };
   // Each group still shows the tool last chosen in it
   const keepCurrent = (slot, saved) => {
     if (slot.gap) return slot;
-    const was = saved.find((one) => one && one.current && slot.tools.includes(one.current) && one.current !== slot.tools[0]);
+    const was = saved.find((one) => one && one.current && Array.isArray(one.tools) && one.tools.length > 1 && slot.tools.includes(one.current) && one.current !== slot.tools[0]);
     return was ? { tools: slot.tools, current: was.current } : slot;
   };
   // Every tool in exactly one place, whatever a saved or imported arrangement says
