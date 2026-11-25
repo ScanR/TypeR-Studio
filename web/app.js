@@ -2430,6 +2430,8 @@
 
   /* -------------------------------- tools -------------------------------- */
 
+  // In sections, from what is done first on a page to what is done last: select, clean,
+  // draw, type, then look around. A null is the line between two sections.
   const TOOLS = [
     ["move", "Move", "V"],
     ["rectangle", "Rectangular Marquee", "M"],
@@ -2439,24 +2441,26 @@
     ["wand", "Magic Wand", "W"],
     ["crop", "Crop", "C"],
     null,
-    ["brush", "Brush", "B"],
-    ["eraser", "Eraser", "E"],
-    ["magicEraser", "Magic Eraser", "Shift+E"],
-    ["gradient", "Gradient", "G"],
-    ["stamp", "Clone Stamp", "S"],
     ["clean", "Bubble Cleaner", "J"],
     // Shift+J, as in Photoshop
     ["heal", "Spot Healing Brush", "Shift+J"],
+    // The Bubble Reshaper (reshape.js, reshape-tool.js): still experimental, and said so in its
+    // name and its hint. U, Photoshop's shapes, since Shift+J is the Spot Healing Brush's.
+    ["reshape", "Bubble Reshaper (experimental)", "U"],
+    ["stamp", "Clone Stamp", "S"],
     // Photoshop gives them no key either: one can be given in Keyboard Shortcuts
     ["blur", "Blur Tool", ""],
     ["sharpen", "Sharpen Tool", ""],
     ["smudge", "Smudge Tool", ""],
-    // The Bubble Reshaper (reshape.js, reshape-tool.js): still experimental, and said so in its
-    // name and its hint. U, Photoshop's shapes, since Shift+J is the Spot Healing Brush's.
-    ["reshape", "Bubble Reshaper (experimental)", "U"],
-    ["eyedropper", "Eyedropper", "I"],
+    null,
+    ["brush", "Brush", "B"],
+    ["eraser", "Eraser", "E"],
+    ["magicEraser", "Magic Eraser", "Shift+E"],
+    ["gradient", "Gradient", "G"],
     // The Pen (pen.js): P, as in Photoshop
     ["pen", "Pen", "P"],
+    ["eyedropper", "Eyedropper", "I"],
+    null,
     ["text", "Type", "T"],
     ["sfx", "SFX", "K"],
     // Auto Perspective (perspective.js, perspective-tool.js): A, since P is the Pen's as in
@@ -2604,7 +2608,7 @@
   // Each place shows one tool of its group, the last one used. A drag moves a place, or one
   // tool out of its group's list; dropped on another place, it joins that group.
   const STORE_TOOLBAR = "typer.web.toolbar";
-  const TOOL_GROUPS = [["rectangle", "ellipse"], ["lasso", "polygon"], ["eraser", "magicEraser"], ["blur", "sharpen", "smudge"]];
+  const TOOL_GROUPS = [["rectangle", "ellipse"], ["lasso", "polygon"], ["clean", "heal", "reshape"], ["eraser", "magicEraser"], ["blur", "sharpen", "smudge"]];
   const toolEntry = (id) => TOOLS.find((entry) => entry && entry[0] === id);
   // Tools that share a key, as in Photoshop: the first has the key, the second Shift + it. While
   // they keep these keys, Shift + the key goes from one to the other at each press; the plain key
@@ -2669,7 +2673,28 @@
     } catch (error) {
       saved = null;
     }
-    return Array.isArray(saved) ? completeSlots(saved) : defaultSlots();
+    if (!Array.isArray(saved)) return defaultSlots();
+    return untouchedSlots(saved) ? defaultSlots().map((slot) => keepCurrent(slot, saved)) : completeSlots(saved);
+  };
+  // The toolbar before its sections (2026-11-25), in which each kept arrangement was saved, with
+  // the tools it didn't have yet left out: one never rearranged by hand takes the new order
+  const UNSORTED_TOOLBAR = "move|rectangle,ellipse|lasso,polygon|wand|crop|-|brush|eraser,magicEraser|gradient|stamp|clean|heal|blur,sharpen,smudge|reshape|eyedropper|pen|text|sfx|perspective|-|hand|zoom";
+  const untouchedSlots = (saved) => {
+    const had = new Set();
+    const mine = saved.map((slot) => {
+      if (slot && slot.gap) return "-";
+      const tools = (slot && Array.isArray(slot.tools) ? slot.tools : []).filter(toolEntry);
+      tools.forEach((id) => had.add(id));
+      return tools.join(",");
+    }).filter(Boolean);
+    const then = UNSORTED_TOOLBAR.split("|").map((slot) => (slot === "-" ? slot : slot.split(",").filter((id) => had.has(id)).join(","))).filter(Boolean);
+    return had.size > 0 && mine.join("|") === then.join("|");
+  };
+  // Each group still shows the tool last chosen in it
+  const keepCurrent = (slot, saved) => {
+    if (slot.gap) return slot;
+    const was = saved.find((one) => one && one.current && slot.tools.includes(one.current) && one.current !== slot.tools[0]);
+    return was ? { tools: slot.tools, current: was.current } : slot;
   };
   // Every tool in exactly one place, whatever a saved or imported arrangement says
   const completeSlots = (saved) => {
