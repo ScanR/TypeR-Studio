@@ -1,91 +1,25 @@
 // The SFX tool's guide: every shortcut on one card, each shown by a small looping drawing, and
-// a practice of ten steps on a page of its own, each step passed by doing it. The practice is
-// offered once, the first time the tool is picked; Help → SFX Guide and the ? of the options bar
-// bring both back.
+// a practice of ten steps on a page of its own, each step passed by doing it (tool-guide.js).
+// The practice is offered once, the first time the tool is picked; Help → SFX Guide and the ?
+// of the options bar bring both back.
 
 (function () {
   "use strict";
 
   const PS = window.TypeRPhotoshop;
+  const Guide = window.TypeRToolGuide;
+  if (!PS || !Guide) return;
   const { app, ops } = PS;
   const SFX = () => window.TypeRSFX;
   const App = () => window.TypeRApp;
   const T = (text) => (App() ? App().T(text) : text);
-  const IS_MAC = /mac/i.test(navigator.platform || "");
-  const STORE = "typer.web.sfx.guide";
-  const SVGNS = "http://www.w3.org/2000/svg";
-
-  const remembered = () => {
-    try {
-      return window.localStorage.getItem(STORE) || "";
-    } catch (error) {
-      return "";
-    }
-  };
-  const remember = (value) => {
-    try {
-      window.localStorage.setItem(STORE, value);
-    } catch (error) {
-      // Private window: the offer may come again, nothing else
-    }
-  };
-
-  const el = (tag, className, parent, text) => {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text !== undefined) node.textContent = text;
-    if (parent) parent.appendChild(node);
-    return node;
-  };
-
-  /* ------------------------------- the keys ------------------------------- */
-
-  // A key as this computer names it; the mouse's part in words
-  const MOUSE = { click: "click", drag: "drag", dblclick: "double-click" };
-  const capOf = (token) => {
-    if (token === "Cmd") return IS_MAC ? "⌘" : "Ctrl";
-    if (token === "Alt") return IS_MAC ? "⌥" : "Alt";
-    if (token === "Shift") return IS_MAC ? "⇧" : "Shift";
-    if (token === "Backspace") return IS_MAC ? "⌫" : "Backspace";
-    if (token === "Space") return T("Space");
-    return token;
-  };
-  // ["Alt", "drag"]: Alt + drag. "/" between two keys: either one.
-  const capsInto = (parent, keys) => {
-    keys.forEach((token, index) => {
-      if (token === "/") {
-        el("span", "sfxg__or", parent, "/");
-        return;
-      }
-      if (index && keys[index - 1] !== "/") el("span", "sfxg__plus", parent, "+");
-      if (MOUSE[token]) el("span", "sfxg__mouse", parent, T(MOUSE[token]));
-      else el("kbd", "sk__cap", parent, capOf(token));
-    });
-    return parent;
-  };
-  const keysText = (keys) => keys.map((token, index) => (token === "/" ? " / " : (index && keys[index - 1] !== "/" ? " + " : "") + (MOUSE[token] ? T(MOUSE[token]) : capOf(token)))).join("");
-  // "Hold {Shift} and drag": the keys drawn in the sentence
-  const sentence = (parent, text) => {
-    String(text).split(/(\{[^{}\s]+\})/).forEach((part) => {
-      const key = /^\{([^{}\s]+)\}$/.exec(part);
-      if (key) el("kbd", "sk__cap", parent, capOf(key[1]));
-      else if (part) parent.appendChild(document.createTextNode(part));
-    });
-    return parent;
-  };
+  const { ease, lerp, phase, notches, between, n1 } = Guide;
 
   /* --------------------------- the small drawings --------------------------- */
 
   // A word on a path, 110 × 44, drawn again and again: `p` goes 0 → 1 → 0 in each loop
-  const W = 110;
-  const H = 44;
   const A = [14, 24];
   const B = [82, 24];
-  const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
-  const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-  const phase = (u) => (u < 0.12 ? 0 : u < 0.55 ? ease((u - 0.12) / 0.43) : u < 0.8 ? 1 : 1 - ease((u - 0.8) / 0.2));
-  const notches = (p, n) => Math.round(p * n) / n;
-  const between = (u, a, b) => u >= a && u < b;
   // The letters of BOOM between two points, sized with the distance
   const onLine = (a, b, word = "BOOM") => {
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -288,7 +222,6 @@
     },
   };
 
-  const n1 = (value) => Math.round(value * 10) / 10;
   // A letter reshaped (`m`, from its foot), as an SVG transform after its turn
   const shaped = (l) => (l.m ? ` translate(${n1(l.x)} ${n1(l.y + 9 * l.s)}) matrix(${l.m.map((v) => Math.round(v * 1000) / 1000).join(" ")} 0 0) translate(${n1(-l.x)} ${n1(-(l.y + 9 * l.s))})` : "");
   const shapedPoint = (l, x, y) => {
@@ -353,45 +286,11 @@
     }
     if (scene.ends) scene.ends.forEach((q) => { out += `<rect x="${n1(q[0] - 2.5)}" y="${n1(q[1] - 2.5)}" width="5" height="5" class="sfxg__end"/>`; });
     if (scene.bend) out += `<circle cx="${n1(scene.bend[0])}" cy="${n1(scene.bend[1])}" r="2.6" class="sfxg__knob"/>`;
-    if (scene.ptr) {
-      const [x, y] = scene.ptr;
-      if (scene.press) out += `<circle cx="${n1(x)}" cy="${n1(y)}" r="4.5" class="sfxg__press"/>`;
-      out += `<path d="M${n1(x)} ${n1(y)}l0 10.5 2.6-2.4 2.3 4.8 1.8-.9-2.3-4.7 3.6-.3z" class="sfxg__ptr"/>`;
-    }
+    out += Guide.pointer(scene.ptr, scene.press);
     return out;
   };
-
-  // One loop of frames for every drawing on screen; none when there is none
-  const LOOP = 2600;
-  const still2 = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const live = new Set();
-  let frame = 0;
-  let lastDrawn = 0;
-  const tick = (now) => {
-    frame = 0;
-    live.forEach((node) => { if (!node.isConnected) live.delete(node); });
-    if (!live.size) return;
-    if (now - lastDrawn > 33) {
-      lastDrawn = now;
-      const u = (now % LOOP) / LOOP;
-      live.forEach((node) => { node.innerHTML = drawScene(DEMOS[node.dataset.demo](u)); });
-    }
-    frame = requestAnimationFrame(tick);
-  };
-  const demo = (parent, name, className) => {
-    const node = document.createElementNS(SVGNS, "svg");
-    node.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    node.setAttribute("class", `sfxg__demo${className ? ` ${className}` : ""}`);
-    node.setAttribute("aria-hidden", "true");
-    node.dataset.demo = name;
-    node.innerHTML = drawScene(DEMOS[name](0.6));
-    parent.appendChild(node);
-    if (!still2) {
-      live.add(node);
-      if (!frame) frame = requestAnimationFrame(tick);
-    }
-    return node;
-  };
+  const SCENES = {};
+  Object.keys(DEMOS).forEach((name) => { SCENES[name] = (u) => drawScene(DEMOS[name](u)); });
 
   /* --------------------------------- the card --------------------------------- */
 
@@ -439,41 +338,6 @@
     ]],
   ];
 
-  // Every shortcut as one line, for the Keyboard Shortcuts window
-  const rows = () => GROUPS.flatMap(([group, , items]) => items.map(([keys, label]) => ({ keys, text: keysText(keys), label: `${T(label)} (${T(group)})` })));
-
-  const show = async () => {
-    if (!App()) return;
-    const body = el("div", "sfxg");
-    const top = el("div", "sfxg__top", body);
-    el("p", "sfxg__intro", top, T("Every shortcut of the SFX tool (K). Undo works as everywhere: Cmd + Z.").replace(/Cmd/g, IS_MAC ? "Cmd" : "Ctrl"));
-    const grid = el("div", "sfxg__grid", body);
-    GROUPS.forEach(([title, about, items]) => {
-      const box = el("section", "sfxg__group", grid);
-      el("h3", "sfxg__title", box, T(title));
-      el("p", "sfxg__about", box, T(about));
-      items.forEach(([keys, label, name]) => {
-        const row = el("div", "sfxg__row", box);
-        demo(row, name);
-        const text = el("div", "sfxg__text", row);
-        capsInto(el("div", "sfxg__keys", text), keys);
-        el("div", "sfxg__label", text, T(label));
-      });
-    });
-    const pending = App().dialog({
-      title: T("SFX Guide"),
-      body,
-      cancel: false,
-      also: T("Practice (2 min)"),
-      ok: T("Close"),
-    });
-    // Open by now: wider than a question
-    const modal = body.closest("dialog");
-    if (modal) modal.classList.add("modal--sfxguide");
-    const answer = await pending;
-    if (answer && answer.also) practise();
-  };
-
   /* ------------------------------- the practice ------------------------------- */
 
   const STEPS = [
@@ -508,168 +372,35 @@
     ctx.stroke();
     return canvas;
   };
-
-  let coach = null;
-  const endPractice = () => {
-    if (!coach) return;
-    const { card, stop, watch, before } = coach;
-    coach = null;
-    stop();
-    clearInterval(watch);
-    card.remove();
-    window.removeEventListener("resize", placeCard);
-    if (SFX()) {
-      SFX().setMark(null);
-      SFX().restoreDefaults(before);
-    }
-  };
-  const placeCard = () => {
-    if (!coach) return;
-    const stage = document.getElementById("stage");
-    if (!stage) return;
-    const rect = stage.getBoundingClientRect();
-    coach.card.style.left = `${Math.round(rect.left + 12)}px`;
-    coach.card.style.bottom = `${Math.round(window.innerHeight - rect.bottom + 12)}px`;
-  };
-  // Buttons of the card never keep the keys from the page
-  const cardButton = (parent, label, action, main) => {
-    const node = el("button", `btn${main ? " btn--main" : ""}`, parent, label);
-    node.type = "button";
-    node.addEventListener("pointerdown", (event) => event.preventDefault());
-    node.addEventListener("click", () => {
-      node.blur();
-      action();
-    });
-    return node;
-  };
-
-  const practise = async () => {
-    if (!App()) return;
-    endPractice();
-    remember("seen");
-    // What the tool remembers for the next SFX (word, look) stays as it was before the practice
-    const before = SFX().defaultsSnapshot();
-    const name = `${T("SFX practice")}.psd`;
-    const doc = ops.imageDocument(practicePage(), name, `new://sfx-practice-${PS.newId()}`);
-    const page = doc || app.doc;
-    App().setTool("sfx");
-    // From the tool's own settings, not the ones kept from the last SFX: a letter turn or a wave
-    // kept from it would make the word unlike the pictures of the steps
-    await SFX().newSfx({ line: [[420, 400], [800, 400]], text: "BOOM", look: SFX().startingLook() });
-    // Nothing to save until the practice changes it
-    if (page && page.history && page.history[page.historyIndex]) page.savedId = page.history[page.historyIndex].id;
-    SFX().drawOverlay();
-    App().renderOptions();
-
-    const card = el("div", "sfxg-coach");
-    card.setAttribute("role", "status");
-    const head = el("div", "sfxg-coach__head", card);
-    const count = el("span", "sfxg-coach__count", head);
-    const bar = el("div", "sfxg-coach__bar", head);
-    const fillBar = el("span", "", bar);
-    const text = el("p", "sfxg-coach__text", card);
-    const art = el("div", "sfxg-coach__art", card);
-    const foot = el("div", "sfxg-coach__foot", card);
-    document.body.appendChild(card);
-    let at = 0;
-    let passing = false;
-    let timer = 0;
-    // Back one step, from a step or from the last card
-    const back = () => {
-      if (at <= 0) return;
-      clearTimeout(timer);
-      passing = false;
-      at--;
-      render();
-    };
-    const backButton = () => {
-      if (at > 0) cardButton(foot, T("Back"), back).classList.add("sfxg-coach__back");
-    };
-    const render = () => {
-      const step = STEPS[at];
-      count.textContent = App().fill(T("Step {n} of {total}"), { n: at + 1, total: STEPS.length });
-      fillBar.style.width = `${(at / STEPS.length) * 100}%`;
-      text.textContent = "";
-      sentence(text, T(step.text));
-      art.textContent = "";
-      demo(art, step.demo, "sfxg__demo--big");
-      foot.textContent = "";
-      backButton();
-      cardButton(foot, T("Skip this step"), next);
-      cardButton(foot, T("Quit"), endPractice);
-      card.classList.remove("is-passed");
-      SFX().setMark(step.mark);
-    };
-    const finish = () => {
-      SFX().setMark(null);
-      remember("done");
-      fillBar.style.width = "100%";
-      count.textContent = T("Done!");
-      text.textContent = T("You know the SFX tool. The whole list stays in Help → SFX Guide, and behind the ? of the options bar.");
-      art.textContent = "";
-      foot.textContent = "";
-      backButton();
-      cardButton(foot, T("Keep the page"), endPractice);
-      cardButton(foot, T("Close the practice page"), async () => {
-        const open = app.docs.find((one) => one === page);
-        if (open) {
-          if (open.history && open.history[open.historyIndex]) open.savedId = open.history[open.historyIndex].id;
-          await App().closeDoc(open);
-        }
-        endPractice();
-      }, true);
-    };
-    function next() {
-      clearTimeout(timer);
-      passing = false;
-      at++;
-      if (at >= STEPS.length) finish();
-      else render();
-    }
-    const stop = SFX().onGesture((detail) => {
-      if (passing || at >= STEPS.length) return;
-      const d = Object.assign({ ways: [] }, detail);
-      if (!STEPS[at].done(d)) return;
-      passing = true;
-      card.classList.add("is-passed");
-      count.textContent = T("Well done!");
-      timer = setTimeout(next, 900);
-    });
-    // The practice ends with its page
-    const watch = setInterval(() => {
-      if (coach && page && !app.docs.includes(page)) endPractice();
-    }, 500);
-    coach = { card, stop, watch, before };
-    window.addEventListener("resize", placeCard);
-    placeCard();
-    render();
-  };
-
-  /* --------------------------------- the offer --------------------------------- */
-
-  // The first time the tool is picked, once: the practice is offered, never pushed
-  let offered = false;
-  const toolChosen = () => {
-    if (offered || coach || window.TypeRShell.touch || remembered()) return;
-    offered = true;
-    setTimeout(async () => {
-      if (app.tool !== "sfx" || coach || !App() || document.querySelector("dialog[open]")) {
-        offered = false;
-        return;
-      }
-      remember("offered");
-      const answer = await App().dialog({
-        title: T("New: the SFX tool"),
-        body: T("Learn its shortcuts in 2 minutes, on a page of its own? Ten short steps, each passed by doing it."),
-        cancel: T("Not now"),
-        also: T("See the shortcuts"),
-        ok: T("Start the practice"),
-      });
-      if (!answer) return;
-      if (answer.also) show();
-      else practise();
-    }, 350);
-  };
-
-  window.TypeRSFXGuide = { show, practise, toolChosen, rows, capsInto, endPractice };
+  window.TypeRSFXGuide = Guide.make({
+    tool: "sfx",
+    store: "typer.web.sfx.guide",
+    title: "SFX Guide",
+    intro: () => T("Every shortcut of the SFX tool (K). Undo works as everywhere: Cmd + Z."),
+    practiceLabel: "Practice (2 min)",
+    groups: GROUPS,
+    scenes: SCENES,
+    steps: STEPS,
+    doneText: "You know the SFX tool. The whole list stays in Help → SFX Guide, and behind the ? of the options bar.",
+    offerTitle: "New: the SFX tool",
+    offerBody: "Learn its shortcuts in 2 minutes, on a page of its own? Ten short steps, each passed by doing it.",
+    start: async () => {
+      // What the tool remembers for the next SFX (word, look) stays as it was before the practice
+      const before = SFX().defaultsSnapshot();
+      const name = `${T("SFX practice")}.psd`;
+      const doc = ops.imageDocument(practicePage(), name, `new://sfx-practice-${PS.newId()}`);
+      const page = doc || app.doc;
+      App().setTool("sfx");
+      // From the tool's own settings, not the ones kept from the last SFX: a letter turn or a wave
+      // kept from it would make the word unlike the pictures of the steps
+      await SFX().newSfx({ line: [[420, 400], [800, 400]], text: "BOOM", look: SFX().startingLook() });
+      SFX().drawOverlay();
+      return {
+        page,
+        onGesture: SFX().onGesture,
+        setMark: (mark) => { if (SFX()) SFX().setMark(mark); },
+        restore: () => { if (SFX()) SFX().restoreDefaults(before); },
+      };
+    },
+  });
 })();
