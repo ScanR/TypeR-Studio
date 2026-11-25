@@ -20753,9 +20753,14 @@
 
   // "tour" opens TypeR's own walkthrough. "seeded" is for scripts/: the practice
   // script and styles behind the site's film, when scripts/seed.js is loaded.
+  // The panel only starts from here: its page checks the start it was given (bridge.js), so
+  // that one the browser loads again by itself, from its history, starts nothing.
+  let panelStarts = 0;
   const startPanel = ({ tour, seeded } = {}) => {
     PS.resetPanelListeners();
-    ui.frame.src = `panel/index.html?lang=${lang}&v=${Date.now().toString(36)}${tour ? "&tour=1" : ""}${seeded ? "&seeded=1" : ""}`;
+    const start = `${Date.now().toString(36)}${(panelStarts++).toString(36)}`;
+    ui.frame.dataset.start = start;
+    ui.frame.src = `panel/index.html?lang=${lang}&v=${start}${tour ? "&tour=1" : ""}${seeded ? "&seeded=1" : ""}`;
   };
 
   const closePanel = () => new Promise((resolve) => {

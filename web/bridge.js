@@ -5,10 +5,22 @@
 (function () {
   "use strict";
 
+  const params = new URLSearchParams(window.location.search);
+  // Only the app starts the panel (startPanel in app.js), once it has read TypeR's files. A
+  // browser also loads this page by itself, from its history: as soon as a page that comes back
+  // (a tab reopened, the browser's session restored, Back) holds the frame, long before the
+  // files are read, or at a later Back. A panel started then would find no file, start as a new
+  // user's and write that over the user's styles, settings and scripts. That page stays empty;
+  // the app, when it is already running, starts the panel itself.
+  const frame = window.frameElement;
+  if (!frame || !params.get("v") || frame.dataset.start !== params.get("v")) {
+    const app = window.parent !== window && window.parent.TypeRApp;
+    if (app && app.booted && app.startPanel) setTimeout(() => app.startPanel(), 0);
+    return;
+  }
   const photoshop = window.parent.TypeRPhotoshop;
   const seed = window.parent.TypeRSeed;
   const ROOT = "/typer";
-  const params = new URLSearchParams(window.location.search);
   const language = params.get("lang") || "en";
   const LOCALES = { en: "en_US", fr: "fr_FR", es: "es_SP", it: "it_IT", de: "de_DE", pt: "pt_BR", ru: "ru_RU", tr: "tr_TR", uk: "uk_UA", vi: "vi_VN", ar: "ar_AE" };
   // Languages the Photoshop plugin doesn't ship yet live in web/panel-locale/
