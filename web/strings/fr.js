@@ -558,7 +558,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Reset Bar Position": "Réinitialiser la position de la barre",
     "Hide Bar": "Masquer la barre",
     "Contextual task bar hidden. {menu} shows it again.": "Barre des tâches contextuelle masquée. {menu} la réaffiche.",
-    "Handle: scale. Outside: rotate. Inside: move. Shift: free shape, 15° steps. Alt: from the middle. Cmd + handle: skew. Enter: apply. Esc: cancel.": "Poignée : taille. Dehors : rotation. Dedans : déplacer. Maj : forme libre, pas de 15°. Alt : depuis le centre. Cmd + poignée : inclinaison. Entrée : appliquer. Échap : annuler.",
+    "Enter or a click outside: apply. Esc: cancel. Handle: scale. Outside: rotate. Inside: move. Shift: free shape, 15° steps. Alt: from the middle. Cmd + handle: skew.": "Entrée ou un clic dehors : appliquer. Échap : annuler. Poignée : taille. Dehors : faire pivoter. Dedans : déplacer. Maj : forme libre, pas de 15°. Alt : depuis le centre. Cmd + poignée : inclinaison.",
     "This layer has nothing to transform.": "Ce calque n’a rien à transformer.",
     "The result would be too large: 30000 pixels at most.": "Le résultat serait trop grand : 30000 pixels au maximum.",
     "Height %": "Hauteur %",

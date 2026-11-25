@@ -2468,7 +2468,7 @@
   const RETOUCH_BRUSHES = new Set(["blur", "sharpen", "smudge"]);
   // While a text is typed in: what the handles and the edges of its box do
   const TYPING_HINT = "Handles: the text box. Cmd + handle: the text size. Just outside, or Cmd + drag around: turn. A little further: move. Esc or Cmd+Enter: done.";
-  const TRANSFORM_HINT = "Handle: scale. Outside: rotate. Inside: move. Shift: free shape, 15° steps. Alt: from the middle. Cmd + handle: skew. Enter: apply. Esc: cancel.";
+  const TRANSFORM_HINT = "Enter or a click outside: apply. Esc: cancel. Handle: scale. Outside: rotate. Inside: move. Shift: free shape, 15° steps. Alt: from the middle. Cmd + handle: skew.";
   const TOOL_HINT = {
     move: "Drag to move, live. Arrows: 1 px, Shift: 10 px. Side points: the text box. Corners: the text size. Double-click: edit.",
     rectangle: "Drag. Shift while dragging: a square. Alt while dragging: from the centre. Space while dragging: move it. Shift before: add, Alt before: subtract.",
@@ -8244,6 +8244,15 @@
     return ops.hitLayer(point[0], point[1]) ? null : pan();
   };
 
+  // A press that closes a menu or a list, or that leaves a field, only does that: it is not the
+  // click that applies a transform. Seen before any of them closes.
+  let pressDismisses = false;
+  window.addEventListener("pointerdown", () => {
+    const field = document.activeElement;
+    const typing = Boolean(field) && field !== ui.editor && /^(INPUT|TEXTAREA|SELECT)$/.test(field.tagName);
+    pressDismisses = Boolean(openMenu || contextMenu || toolFlyout || brushPicker || blendMenu || leadingMenu || searchBox || closeFontMenu || typing);
+  }, true);
+
   ui.stage.addEventListener("pointerdown", (event) => {
     if (spring) spring.used = true;
     if (shapeHold) shapeHold.used = true;
@@ -8342,7 +8351,10 @@
     const turning = transformOf();
     if (turning) {
       const over = hitHandle(event);
-      gesture = Object.assign(base, { kind: "transform", from: transformState(turning), mode: over ? over.kind : inTransform(turning, point) ? "move" : "rotate" });
+      // Outside the frame, a drag turns and a click applies, as Enter does, as in Photoshop. The
+      // click may slip a little: that turns nothing either.
+      const mode = over ? over.kind : inTransform(turning, point) ? "move" : "rotate";
+      gesture = Object.assign(base, { kind: "transform", from: transformState(turning), mode, appliesOnClick: mode === "rotate" && event.button === 0 && !(IS_MAC && event.ctrlKey) && !pressDismisses }, mode === "rotate" ? { slop: Math.max(base.slop, 4) } : {});
       ui.stage.setPointerCapture(event.pointerId);
       return;
     }
@@ -8988,6 +9000,7 @@
         Object.assign(t, current.from);
         showTransform();
       }
+      if (t && !cancelled && !current.moved && current.appliesOnClick) commitTransform();
       renderOptions();
     } else if (kind === "crop") {
       if (cancelled && crop) crop.box = current.from;
