@@ -249,16 +249,17 @@ input[type="range"]:disabled::-moz-range-thumb { background: var(--muted); }
 .stage__over { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
 /* the page also shows below the columns' panels, where they leave room (see placeUnder) */
 .stage.is-under { overflow: visible; }
-/* The scroll bars: thin over the page's edge, wider and clearer under the pointer */
-.scrollbar { position: absolute; z-index: 3; box-sizing: border-box; padding: 2px; opacity: .55; transition: opacity .15s; touch-action: none; }
+/* The scroll bars: thin over the page's edge, clearer under the pointer */
+.scrollbar { position: absolute; z-index: 3; box-sizing: border-box; padding: 2px; opacity: .7; transition: opacity .15s; touch-action: none; }
 .scrollbar:hover, .scrollbar.is-dragging { opacity: 1; }
 .scrollbar[hidden] { display: none; }
 .scrollbar--v { top: 0; right: 0; bottom: 0; width: 12px; }
 .scrollbar--h { left: 0; right: 0; bottom: 0; height: 12px; }
 .scrollbar--v.is-short { bottom: 12px; }
 .scrollbar--h.is-short { right: 12px; }
-.scrollbar__thumb { border-radius: 4px; background: color-mix(in srgb, var(--text, #ccc) 45%, transparent); }
-.scrollbar:hover .scrollbar__thumb, .scrollbar.is-dragging .scrollbar__thumb { background: color-mix(in srgb, var(--text, #ccc) 70%, transparent); }
+/* A grey ringed with white and black: seen over a white page, a black one, and the stage */
+.scrollbar__thumb { box-sizing: border-box; border-radius: 4px; background: #7d7d7d; border: 1px solid rgba(255, 255, 255, .75); box-shadow: 0 0 0 1px rgba(0, 0, 0, .45); }
+.scrollbar:hover .scrollbar__thumb, .scrollbar.is-dragging .scrollbar__thumb { background: #9a9a9a; }
 .scrollbar--v .scrollbar__thumb { width: 100%; }
 .scrollbar--h .scrollbar__thumb { height: 100%; }
 .stage.is-under .stage__canvas { background: var(--stage); }

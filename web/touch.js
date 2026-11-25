@@ -763,8 +763,10 @@
     const layer = App.activeTexts()[0];
     if (!layer) return;
     const style = layer.params.layerText.textStyleRange[0].textStyle;
-    const size = (style.impliedFontSize || style.size || 14) + sign;
-    if (size >= 1) {
+    // A step is one of the unit shown (Settings > Type units); the text's size is in points
+    const perPoint = App.typePixelsPerPoint();
+    const size = Math.round(((style.impliedFontSize || style.size || 14) * perPoint + sign) * 100) / 100 / perPoint;
+    if (size * perPoint >= 1) {
       App.applyTextPatch({ size }, null, "size");
     }
   };
@@ -793,7 +795,7 @@
   const renderSize = () => {
     const layer = App.activeTexts()[0];
     const style = layer && layer.params.layerText.textStyleRange[0].textStyle;
-    const size = style ? Math.round((style.impliedFontSize || style.size || 0) * 10) / 10 : 0;
+    const size = style ? Math.round((style.impliedFontSize || style.size || 0) * App.typePixelsPerPoint() * 10) / 10 : 0;
     const text = size ? String(size) : "";
     sizeValues.forEach((value) => {
       if (value.textContent !== text) value.textContent = text;

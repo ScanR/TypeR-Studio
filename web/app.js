@@ -482,7 +482,10 @@
     hexField.addEventListener("blur", () => show());
 
     const right = make("div", "picker__right", body);
+    // A drag picking the page's colour, to end when the window closes under it (Escape)
+    let stopPicking = null;
     const done = (keep) => {
+      if (stopPicking) stopPicking();
       modal.classList.remove("modal--picker", "is-over-page");
       modal.style.transform = "";
       modal.onkeydown = null;
@@ -644,19 +647,25 @@
     });
 
     // As Layer Style's: outside the window, over the page, the pointer is the eyedropper. A
-    // click there takes the page's colour, a drag goes on picking.
+    // click there takes the page's colour, a drag goes on picking. Only where the page itself
+    // shows: not beside it, nor under a window or a panel lying over it (Layer Style's, which
+    // this one opens over).
     const onPage = (event) => {
-      if (!app.doc) return false;
-      const box = modal.getBoundingClientRect();
-      if (event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom) return false;
-      const stage = ui.stage.getBoundingClientRect();
-      return event.clientX >= stage.left && event.clientX <= stage.right && event.clientY >= stage.top && event.clientY <= stage.bottom;
+      const doc = app.doc;
+      if (!doc) return false;
+      const inside = (box) => event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom;
+      if (inside(modal.getBoundingClientRect()) || !inside(ui.stage.getBoundingClientRect())) return false;
+      const over = document.querySelectorAll("dialog[open], .work .is-floating, .ctxbar");
+      for (let i = 0; i < over.length; i++) if (over[i] !== modal && !over[i].hidden && inside(over[i].getBoundingClientRect())) return false;
+      const [x, y] = toDoc(event);
+      return x >= 0 && y >= 0 && x < doc.width && y < doc.height;
     };
+    // What the Eyedropper tool takes: the page as it shows, its texts too
     const pickAt = (event) => {
       const [x, y] = toDoc(event);
-      const rgb = ops.colorAt(x, y);
-      if (!rgb) return;
-      setRgb(rgb[0], rgb[1], rgb[2]);
+      const color = ops.pickColor(x, y);
+      if (!color) return;
+      setRgb(color.r, color.g, color.b);
       changed();
     };
     modal.onpointermove = (event) => {
@@ -671,10 +680,13 @@
       modal.setPointerCapture(event.pointerId);
       const move = (e) => pickAt(e);
       const stop = () => {
+        stopPicking = null;
         modal.removeEventListener("pointermove", move);
         modal.removeEventListener("pointerup", stop);
         modal.removeEventListener("pointercancel", stop);
+        if (modal.hasPointerCapture(event.pointerId)) modal.releasePointerCapture(event.pointerId);
       };
+      stopPicking = stop;
       modal.addEventListener("pointermove", move);
       modal.addEventListener("pointerup", stop);
       modal.addEventListener("pointercancel", stop);
@@ -1013,10 +1025,11 @@
   // Along the stage's right and bottom edges, as in Photoshop: how much of the page (in Flow,
   // of every page) is on screen, and a way to move over it. They move the view as the Hand
   // does, so Flow follows: the page in the middle of the screen comes in front once it rests.
-  // With Shift, they go tile by tile: a page that fits the screen is a tile, centred; a larger
-  // one is gone through a screen at a time, from its start to its end.
   const SCROLL_MARGIN = 16;
-  const scrollbars = { v: null, h: null };
+  // The bars' width and padding, as app.css gives them
+  const SCROLL_BAR = 12;
+  const SCROLL_PAD = 2;
+  const scrollbars = { v: null, h: null, key: "" };
   const scrollAxis = (axis) => (axis === "v" ? { a: "y", len: "height", view: () => stageH } : { a: "x", len: "width", view: () => stageW });
   // The pages on screen, in pixels of the screen
   const scrollPages = () => {
@@ -1027,41 +1040,23 @@
     const v = doc.view;
     return [{ x: v.x, y: v.y, width: doc.width * v.zoom, height: doc.height * v.zoom }];
   };
-  // How far the view can go on one axis: the pages with a margin, and the screen itself
+  // One axis measured: how far the view can go (the pages with a margin, and the screen itself),
+  // and how far it may still be moved each way before the pages' end is on screen: back (to
+  // their start, a pan above 0) and on (to their end, a pan under 0)
   const scrollExtent = (axis, pages) => {
     const { a, len, view } = scrollAxis(axis);
-    const from = Math.min(0, ...pages.map((page) => page[a] - SCROLL_MARGIN));
-    const to = Math.max(view(), ...pages.map((page) => page[a] + page[len] + SCROLL_MARGIN));
-    return { from, to };
-  };
-  // The tiles: each a pan of the view, from where it is now, that shows one
-  const scrollStops = (axis, pages) => {
-    const { a, len, view } = scrollAxis(axis);
     const V = view();
-    const room = Math.max(20, V - SCROLL_MARGIN * 2);
-    const stops = [];
-    pages.forEach((page) => {
-      const start = page[a];
-      const end = page[a] + page[len];
-      if (page[len] <= room) {
-        stops.push(V / 2 - (start + end) / 2);
-        return;
-      }
-      const first = SCROLL_MARGIN - start;
-      const last = V - SCROLL_MARGIN - end;
-      for (let at = first; at > last + 1; at -= room) stops.push(at);
-      stops.push(last);
-    });
-    return stops;
+    const start = Math.min(...pages.map((page) => page[a])) - SCROLL_MARGIN;
+    const end = Math.max(...pages.map((page) => page[a] + page[len])) + SCROLL_MARGIN;
+    return { V, from: Math.min(0, start), to: Math.max(V, end), back: Math.max(0, -start), on: Math.min(0, V - end) };
   };
-  // One tile on: the next one forward (down or right) or back. Shift with the bar or the wheel.
-  const stepTile = (axis, forward) => {
-    const stops = scrollStops(axis, scrollPages());
-    const ahead = forward ? stops.filter((stop) => stop < -1) : stops.filter((stop) => stop > 1);
-    if (!ahead.length) return;
-    const amount = forward ? Math.max(...ahead) : Math.min(...ahead);
-    if (axis === "v") panBy(0, amount);
-    else panBy(amount, 0);
+  // The thumb in its track: the bar goes along the stage's whole edge, less the corner where
+  // both bars show (short) and its own padding
+  const scrollThumb = (extent, short) => {
+    const track = Math.max(1, extent.V - (short ? SCROLL_BAR : 0) - SCROLL_PAD * 2);
+    const total = extent.to - extent.from;
+    const size = Math.max(24, Math.min(track, (track * extent.V) / total));
+    return { track, size, total, at: Math.max(0, Math.min(track - size, (-extent.from / Math.max(1, total - extent.V)) * (track - size))) };
   };
   const makeScrollbar = (axis) => {
     const bar = document.createElement("div");
@@ -1077,35 +1072,27 @@
       event.stopPropagation();
       if (event.button !== 0 || !app.doc) return;
       event.preventDefault();
-      const pages = scrollPages();
-      const { a, view } = scrollAxis(axis);
-      const track = axis === "v" ? bar.clientHeight : bar.clientWidth;
-      const extent = scrollExtent(axis, pages);
+      // The view stops where the pages do: neither the thumb nor the track takes it past them
+      const extent = scrollExtent(axis, scrollPages());
+      const within = (amount) => Math.max(extent.on, Math.min(extent.back, amount));
       const rect = thumb.getBoundingClientRect();
       const at = axis === "v" ? event.clientY : event.clientX;
       if (event.target !== thumb) {
-        // On the track: a screen towards the press, or with Shift the next tile that way
+        // On the track: a screen towards the press
         const forward = at > (axis === "v" ? rect.bottom : rect.right);
-        if (event.shiftKey) stepTile(axis, forward);
-        else pan((forward ? -1 : 1) * Math.max(20, view() - SCROLL_MARGIN * 4));
+        const amount = within((forward ? -1 : 1) * Math.max(20, extent.V - SCROLL_MARGIN * 4));
+        if (amount) pan(amount);
         return;
       }
-      // The thumb dragged: the view follows it, and with Shift falls on the nearest tile
-      const ratio = (extent.to - extent.from) / Math.max(1, track);
-      const boxes = pages.map((page) => Object.assign({}, page));
+      // The thumb dragged: the view follows it, the thumb staying under the pointer
+      const { track, size, total } = scrollThumb(extent, bar.classList.contains("is-short"));
+      const ratio = (total - extent.V) / Math.max(1, track - size);
       const drag = { done: 0, start: at };
       bar.classList.add("is-dragging");
       bar.setPointerCapture(event.pointerId);
       const move = (e) => {
         if (!app.doc) return;
-        const want = -((axis === "v" ? e.clientY : e.clientX) - drag.start) * ratio;
-        let to = want;
-        if (e.shiftKey) {
-          // The tiles as they would be with the view where the thumb is, then the nearest one
-          const moved = boxes.map((box) => Object.assign({}, box, { [a]: box[a] + want }));
-          const stops = scrollStops(axis, moved).map((stop) => stop + want);
-          if (stops.length) to = stops.reduce((best, stop) => (Math.abs(stop - want) < Math.abs(best - want) ? stop : best));
-        }
+        const to = within(-((axis === "v" ? e.clientY : e.clientX) - drag.start) * ratio);
         if (Math.abs(to - drag.done) < 0.01) return;
         pan(to - drag.done);
         drag.done = to;
@@ -1128,7 +1115,15 @@
     return { bar, thumb };
   };
   const placeScrollbars = () => {
-    if (Shell.touch) return;
+    if (Shell.touch) {
+      // The touch interface has none: those made before it was chosen go
+      if (scrollbars.v && scrollbars.key !== "touch") {
+        scrollbars.v.bar.hidden = true;
+        scrollbars.h.bar.hidden = true;
+        scrollbars.key = "touch";
+      }
+      return;
+    }
     if (!scrollbars.v) {
       scrollbars.v = makeScrollbar("v");
       scrollbars.h = makeScrollbar("h");
@@ -1138,21 +1133,23 @@
     const shown = {};
     ["v", "h"].forEach((axis) => {
       extents[axis] = pages.length ? scrollExtent(axis, pages) : null;
-      shown[axis] = Boolean(extents[axis] && extents[axis].to - extents[axis].from > scrollAxis(axis).view() + 1);
+      shown[axis] = Boolean(extents[axis] && extents[axis].to - extents[axis].from > extents[axis].V + 1);
     });
+    // This runs at every frame painted (a pan, a zoom, a stroke of the brush): nothing is read
+    // from the page here, which would lay it out again each time, and nothing is written when
+    // the bars would be where they are
+    const key = ["v", "h"].map((axis) => (shown[axis] ? `${extents[axis].from},${extents[axis].to},${extents[axis].V}` : "-")).join("|");
+    if (key === scrollbars.key) return;
+    scrollbars.key = key;
     ["v", "h"].forEach((axis) => {
       const { bar, thumb } = scrollbars[axis];
       const on = shown[axis];
       if (bar.hidden !== !on) bar.hidden = !on;
       // Where both show, they leave each other the corner
-      bar.classList.toggle("is-short", on && shown[axis === "v" ? "h" : "v"]);
+      const short = on && shown[axis === "v" ? "h" : "v"];
+      bar.classList.toggle("is-short", short);
       if (!on) return;
-      const V = scrollAxis(axis).view();
-      const extent = extents[axis];
-      const track = axis === "v" ? bar.clientHeight : bar.clientWidth;
-      const total = extent.to - extent.from;
-      const size = Math.max(24, Math.min(track, (track * V) / total));
-      const at = Math.max(0, Math.min(track - size, ((0 - extent.from) / Math.max(1, total - V)) * (track - size)));
+      const { size, at } = scrollThumb(extents[axis], short);
       const length = `${Math.round(size)}px`;
       const offset = `translate${axis === "v" ? "Y" : "X"}(${Math.round(at)}px)`;
       if (axis === "v" && thumb.style.height !== length) thumb.style.height = length;
@@ -4459,7 +4456,7 @@
         { id: "ligature", label: T("Standard ligatures in new text"), type: "checkbox", checked: d.ligature },
         { id: "hyphenate", label: T("Hyphenate new paragraph text"), type: "checkbox", checked: Boolean(d.hyphenate), hint: () => T("Long words are cut at a syllable, with a hyphen, at the end of a line: in paragraph text, and in the text TypeR fits in a bubble.") },
         { id: "textOnTop", label: T("Always place new text on top"), type: "checkbox", checked: Boolean(d.textOnTop), hint: () => T("When off, new text goes right above the selected layer, as in Photoshop.") },
-        { id: "typeUnit", label: T("Type units"), value: d.typeUnit === "pixels" ? "pixels" : "points", options: [["points", T("Points")], ["pixels", T("Pixels")]], hint: (value) => (value === "pixels" ? T("Sizes and leading in the Character panel and in TypeR's styles are in pixels of the page. Your styles are converted at the page's resolution.") : T("Sizes and leading in the Character panel and in TypeR's styles are in points, as in Photoshop. A point is a pixel at 72 ppi.")) },
+        { id: "typeUnit", label: T("Type units"), value: d.typeUnit === "pixels" ? "pixels" : "points", options: [["points", T("Points (pt)")], ["pixels", T("Pixels (px)")]], hint: (value) => (value === "pixels" ? T("Text sizes, leading and baseline shift are shown and typed in pixels of the page. Your texts and your styles stay as they are.") : T("Text sizes, leading and baseline shift are shown and typed in points, as in Photoshop. A point is a pixel at 72 ppi.")) },
         { id: "sizeStep", label: T("Text size step"), value: settings.sizeStep, type: "number", min: 0.1, step: "any", hint: () => T("How much Ctrl + Shift + < and > change the size of the text. With Alt, five times as much.") },
       ],
     });
@@ -4483,7 +4480,6 @@
     d.textOnTop = answer.textOnTop;
     const retyped = (answer.typeUnit === "pixels" ? "pixels" : "points") !== (d.typeUnit === "pixels" ? "pixels" : "points");
     d.typeUnit = answer.typeUnit === "pixels" ? "pixels" : undefined;
-    if (retyped) convertStyleUnits();
     const step = Math.round(parseFloat(String(answer.sizeStep).replace(",", ".")) * 100) / 100;
     if (step > 0 && step <= 100) settings.sizeStep = step;
     keepSettings();
@@ -4492,6 +4488,13 @@
     appearance.save();
     characterKey = "";
     renderCharacter();
+    // Every size on screen is in the unit chosen at once, and TypeR's panel reads the text again
+    if (retyped) {
+      renderOptions();
+      schedule(false);
+      PS.announce("selection");
+      ops.typeUnitChanged();
+    }
     if (relanguage) Fonts.refresh();
     if (answer.lang !== lang) {
       const url = new URL(window.location.href);
@@ -4567,10 +4570,16 @@
 
   const ANTI_ALIAS_NAMES = [["antiAliasNone", "None"], ["antiAliasSharp", "Sharp"], ["antiAliasCrisp", "Crisp"], ["antiAliasStrong", "Strong"], ["antiAliasSmooth", "Smooth"]];
 
-  // Settings > Type units, as Photoshop's Preferences > Units > Type: the sizes the panels show,
-  // in points or in the page's pixels. The text keeps them in points: a point is a pixel at 72 ppi.
+  // Settings > Type units, as Photoshop's Preferences > Units > Type: the sizes shown and typed,
+  // in points or in the page's pixels. Only what is shown changes: a text keeps its sizes in
+  // points (a point is a pixel at 72 ppi), and a style of TypeR's the unit it was saved with.
   const typePixelsPerPoint = () => (app.textDefaults.typeUnit === "pixels" ? ((app.doc && app.doc.resolution) || 72) / 72 : 1);
   const typeUnitName = () => (app.textDefaults.typeUnit === "pixels" ? "px" : "pt");
+  // A length in points after a step, a round number (to the hundredth) of the unit shown
+  const roundInTypeUnit = (points) => {
+    const perPoint = typePixelsPerPoint();
+    return Math.round(points * perPoint * 100) / 100 / perPoint;
+  };
   const textControls = (host, compact) => {
     const layer = activeTexts()[0];
     const style = layer ? styleShown(layer) : null;
@@ -4920,7 +4929,7 @@
       return;
     }
     const layer = texts[0];
-    const key = JSON.stringify([texts.map((item) => item.id), styleShown(layer), layer.params.layerText.paragraphStyleRange[0].paragraphStyle.alignment, Fonts.generation]);
+    const key = JSON.stringify([texts.map((item) => item.id), styleShown(layer), layer.params.layerText.paragraphStyleRange[0].paragraphStyle.alignment, Fonts.generation, typePixelsPerPoint()]);
     const busy = scrubbing || (taskBar.contains(document.activeElement) && document.activeElement.tagName === "INPUT");
     if (key !== taskBarKey && !busy) {
       taskBarKey = key;
@@ -7195,7 +7204,7 @@
     // A transform or a warp under way: the bar shows its numbers, built again every time as before
     if (transform || warpedLayer()) return "live:" + nextToken++;
     const active = doc ? doc.state.layers.filter((layer) => doc.state.activeIds.includes(layer.id)) : [];
-    return [app.tool, doc ? doc.id : "", Fonts.generation, settings.hiddenChars ? 1 : 0, editing ? editing.id + ":" + (editRange() || []).join("-") : "", active.map((layer) => layer.id + ":" + tokenOf(layer)).join(","), tokenOf(app.textDefaults)].join("|");
+    return [app.tool, doc ? doc.id : "", Fonts.generation, settings.hiddenChars ? 1 : 0, editing ? editing.id + ":" + (editRange() || []).join("-") : "", active.map((layer) => layer.id + ":" + tokenOf(layer)).join(","), tokenOf(app.textDefaults), typePixelsPerPoint()].join("|");
   };
   const renderOptions = () => {
     const bar = ui.options;
@@ -8989,27 +8998,10 @@
   // costs a layout each time. Measured a few times a second, and again when its size changes.
   let wheelRect = null;
   let wheelRectAt = 0;
-  // Navigation like Photoshop's: Ctrl + wheel scrolls sideways, and Shift + wheel goes up or down
-  // a tile at a time, as Shift does on the scroll bars. A notch is a tile; a trackpad's small
-  // steps add up to one first, and a burst of them moves one tile, not a dozen.
-  const tileWheel = { sum: 0, at: -Infinity };
-  const wheelByTiles = (event) => {
-    if (settings.wheel !== "pan" || !event.shiftKey || event.ctrlKey || event.metaKey || event.altKey || Shell.touch) return false;
-    // Windows gives a wheel turned with Shift as a sideways turn
-    const delta = (event.deltaY || event.deltaX) * WHEEL_PIXELS[event.deltaMode];
-    if (event.timeStamp - tileWheel.at > 400) tileWheel.sum = 0;
-    tileWheel.sum += delta;
-    if (Math.abs(tileWheel.sum) < 40 || event.timeStamp - tileWheel.at < 180) return true;
-    stepTile("v", tileWheel.sum > 0);
-    tileWheel.sum = 0;
-    tileWheel.at = event.timeStamp;
-    return true;
-  };
   ui.stage.addEventListener("wheel", (event) => {
     if (!app.doc) return;
     event.preventDefault();
     movingQuickly();
-    if (wheelByTiles(event)) return;
     if (!wheelRect || event.timeStamp - wheelRectAt > 250 || event.timeStamp < wheelRectAt) {
       wheelRect = ui.stage.getBoundingClientRect();
       wheelRectAt = event.timeStamp;
@@ -9541,14 +9533,15 @@
   // letters selected in the editor, else on the whole of the selected texts. Auto leading
   // starts from the leading it gives, as the Leading field's own steps do.
   const stepLeading = (direction, large) => {
-    const delta = direction * (large ? 10 : 2);
+    // 2 and 10 of the unit shown (Settings > Type units); the text's own leading is in points
+    const delta = (direction * (large ? 10 : 2)) / typePixelsPerPoint();
     const range = editRange();
     const layers = range ? app.doc.state.layers.filter((layer) => layer.id === editing.id) : activeTexts();
     layers.forEach((layer) => {
       const paragraph = layer.params.layerText.paragraphStyleRange[0].paragraphStyle || {};
       const change = (style) => {
         const from = style.autoLeading === false && style.leading > 0 ? style.leading : (style.impliedFontSize || style.size || 12) * (paragraph.autoLeadingPercentage || 1.2);
-        return { autoLeading: false, leading: Math.max(0.1, Math.min(5000, Math.round((from + delta) * 100) / 100)) };
+        return { autoLeading: false, leading: Math.max(0.1, Math.min(5000, roundInTypeUnit(from + delta))) };
       };
       ops.setTextStyle([layer.id], change, null, "leading", range || undefined);
     });
@@ -9557,8 +9550,9 @@
     if (!ui.editor.hidden) placeEditor();
   };
   const shiftBaseline = (direction, large) => {
-    const delta = direction * (large ? 10 : 2);
-    applyTextPatch((style) => ({ baselineShift: Math.max(-1000, Math.min(1000, Math.round((((style.impliedBaselineShift !== undefined ? style.impliedBaselineShift : style.baselineShift) || 0) + delta) * 100) / 100)) }), null, "baseline");
+    // 2 and 10 of the unit shown (Settings > Type units); the text's own shift is in points
+    const delta = (direction * (large ? 10 : 2)) / typePixelsPerPoint();
+    applyTextPatch((style) => ({ baselineShift: Math.max(-1000, Math.min(1000, roundInTypeUnit(((style.impliedBaselineShift !== undefined ? style.impliedBaselineShift : style.baselineShift) || 0) + delta))) }), null, "baseline");
     characterKey = "";
     renderCharacter();
     if (!ui.editor.hidden) placeEditor();
@@ -11427,7 +11421,7 @@
     box.className = "combo";
     const input = document.createElement("input");
     input.type = "text";
-    input.title = T("Leading");
+    input.title = `${T("Leading")} (${typeUnitName()})`;
     input.setAttribute("aria-label", T("Leading"));
     input.value = manual ? shown(style.leading * perPoint) : T("Auto");
     // Dragged on its name, it goes from these limits, and from what Auto gives
@@ -11580,7 +11574,7 @@
     if (scrubbing) return;
     if (host.contains(document.activeElement) && document.activeElement.tagName === "INPUT" && document.activeElement.type !== "checkbox" && document.activeElement.type !== "color") return;
     const layer = activeTexts()[0];
-    const key = layer ? JSON.stringify([layer.id, styleShown(layer), kerningShown(layer), layer.params.layerText.paragraphStyleRange[0], layer.params.layerText.antiAlias, layer.params.layerText.textShape, Boolean(layer.warp), layer.stroke, layer.effects || null, inSfx(layer), Fonts.generation]) : "none";
+    const key = layer ? JSON.stringify([layer.id, styleShown(layer), kerningShown(layer), layer.params.layerText.paragraphStyleRange[0], layer.params.layerText.antiAlias, layer.params.layerText.textShape, Boolean(layer.warp), layer.stroke, layer.effects || null, inSfx(layer), Fonts.generation, typePixelsPerPoint()]) : "none";
     if (key === characterKey) return;
     characterKey = key;
     closeLeadingMenu();
@@ -11619,7 +11613,7 @@
     host.append(scrubbed(`${T("Size")} (${typeUnitName()})`, c.size, withSteps(c.size)));
     const leading = leadingField(layer, style);
     // Dragged on its name, as Size, from what Auto gives when it is on
-    host.append(scrubbed(`${T("Leading")} (${typeUnitName()})`, leading.input, leading.box, { from: leading.from, step: leading.step }));
+    host.append(scrubbed(T("Leading"), leading.input, leading.box, { from: leading.from, step: leading.step }));
     const aaRow = labelled("aa", c.antiAlias);
     aaRow.classList.add("wide");
     host.append(aaRow);
@@ -11759,8 +11753,9 @@
     }
     const height = numberInput(style.verticalScale === undefined ? 100 : style.verticalScale, 10, 500, (value) => applyTextPatch({ verticalScale: value }, null, "scale"));
     host.append(scrubbed(T("Height %"), height, withSteps(height)));
-    const baseline = numberInput(style.impliedBaselineShift !== undefined ? style.impliedBaselineShift : style.baselineShift || 0, -1000, 1000, (value) => applyTextPatch({ baselineShift: value }, null, "baseline"));
-    baseline.title = T("Baseline shift");
+    const perPoint = typePixelsPerPoint();
+    const baseline = numberInput(Math.round((style.impliedBaselineShift !== undefined ? style.impliedBaselineShift : style.baselineShift || 0) * perPoint * 100) / 100, Math.round(-1000 * perPoint), Math.round(1000 * perPoint), (value) => applyTextPatch({ baselineShift: value / perPoint }, null, "baseline"));
+    baseline.title = `${T("Baseline shift")} (${typeUnitName()})`;
     host.append(scrubbed(T("Baseline"), baseline, withSteps(baseline)));
     const kerning = kerningField(layer);
     const kerningRow = labelled(T("Kerning"), kerning.box);
@@ -15879,7 +15874,7 @@
     // The step is in the unit the panels show (Settings > Type units); the text's size in points
     const perPoint = typePixelsPerPoint();
     const step = (settings.sizeStep * (large ? 5 : 1)) / perPoint;
-    applyTextPatch((style) => ({ size: Math.max(1 / perPoint, Math.round(((style.impliedFontSize || style.size || 12) + direction * step) * 10000) / 10000) }), null, "text-size");
+    applyTextPatch((style) => ({ size: Math.max(1 / perPoint, roundInTypeUnit((style.impliedFontSize || style.size || 12) + direction * step)) }), null, "text-size");
     characterKey = "";
     renderCharacter();
     if (!ui.editor.hidden) placeEditor();
@@ -20581,29 +20576,6 @@
     setTimeout(done, 1500);
   });
 
-  // Settings > Type units changed: TypeR's styles take the new unit, their sizes converted at the
-  // page's resolution, so the panel shows them in it. The panel writes what it holds as it
-  // closes; only then can its files change. Every profile follows.
-  const convertStyleUnits = async () => {
-    const running = Boolean(ui.frame.src) && !/^about:blank/.test(ui.frame.src);
-    if (running) await closePanel();
-    const resolution = (app.doc && app.doc.resolution) || 72;
-    let changed = 0;
-    await Promise.all(Kit.storedPaths().filter((path) => /^\/typer\/storage(_profile_.+)?$/.test(path)).map((path) => {
-      try {
-        const storage = JSON.parse(Kit.read(path) || "null");
-        const count = storage ? Kit.convertTypeUnits(storage, app.textDefaults.typeUnit, resolution) : 0;
-        changed += count;
-        return count ? Kit.keep(path, JSON.stringify(storage)) : null;
-      } catch (error) {
-        console.warn("TypeR web: could not convert the styles' unit", error);
-        return null;
-      }
-    }));
-    if (running) startPanel();
-    if (changed) toast(fill(T("{count} style(s) now in {unit}."), { count: changed, unit: app.textDefaults.typeUnit === "pixels" ? T("Pixels") : T("Points") }));
-  };
-
   // A script sent by TypeR for Photoshop (Open in TypeR Studio): the tab that already holds it,
   // or a new one, becomes the panel's open tab, as TypeR does with one sent from here
   const SCRIPT_TAB_FIELDS = ["text", "images", "currentLineIndex", "lastOpenedImagePath", "usedLineStyles"];
@@ -21491,6 +21463,8 @@
     nudge,
     flattened,
     applyTextPatch,
+    // How many of the unit shown a point is (Settings > Type units): 1 in points
+    typePixelsPerPoint,
     openFontMenu,
     scrubbed,
     numberInput,

@@ -189,38 +189,6 @@
     return true;
   };
 
-  // Preferences > Units > Type changed: every style is given the new unit, its lengths
-  // converted at the page's resolution (points are pixels only at 72 ppi). The quick sizes
-  // follow. Returns how many styles changed.
-  const TEXT_LENGTHS = ["size", "impliedFontSize", "leading", "impliedLeading", "baselineShift", "impliedBaselineShift"];
-  const convertTypeUnits = (storage, unit, resolution) => {
-    const target = unit === "pixels" ? "pixelsUnit" : "pointsUnit";
-    const res = resolution > 0 ? resolution : 72;
-    const round = (value) => Math.round(value * 100) / 100;
-    let changed = 0;
-    (storage.styles || []).forEach((style) => {
-      const props = style.textProps;
-      if (!props || props.typeUnit === target) return;
-      const from = props.typeUnit || "pixelsUnit";
-      if (from !== "pixelsUnit" && from !== "pointsUnit") return;
-      // points to pixels: × res / 72, pixels to points: × 72 / res
-      const factor = target === "pixelsUnit" ? res / 72 : 72 / res;
-      ((props.layerText && props.layerText.textStyleRange) || []).forEach((range) => {
-        const textStyle = range && range.textStyle;
-        if (textStyle) TEXT_LENGTHS.forEach((field) => {
-          if (typeof textStyle[field] === "number") textStyle[field] = round(textStyle[field] * factor);
-        });
-      });
-      if (Array.isArray(style.sizePresets)) style.sizePresets = style.sizePresets.map((size) => {
-        const value = parseFloat(size);
-        return Number.isFinite(value) ? round(value * factor) : size;
-      });
-      props.typeUnit = target;
-      changed++;
-    });
-    return changed;
-  };
-
   // Earlier versions started with a practice folder: it goes, unless it was edited
   const dropPracticeStyles = (storage) => {
     const kept = (storage.styles || []).filter((style) => !(String(style.id).indexOf("demo-") === 0 && style.edited === SEED_EDITED));
@@ -422,5 +390,5 @@
     return active === "default" ? `${ROOT}/storage` : `${ROOT}/storage_profile_${active}`;
   };
 
-  window.TypeRKit = { convertTypeUnits, readArchive, writeArchive, zipEntries, validate, mergeInto, keeps, loadFiles, read, keep, forget, storedPaths, activeStoragePath, freshStorage, freshTouchStorage, ROOT };
+  window.TypeRKit = { readArchive, writeArchive, zipEntries, validate, mergeInto, keeps, loadFiles, read, keep, forget, storedPaths, activeStoragePath, freshStorage, freshTouchStorage, ROOT };
 })();
