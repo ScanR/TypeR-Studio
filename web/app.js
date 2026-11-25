@@ -1820,6 +1820,21 @@
     const det = u[0] * v[1] - u[1] * v[0] || 1e-12;
     return [(dx * v[1] - dy * v[0]) / det, (u[0] * dy - u[1] * dx) / det];
   };
+  // While a text is typed in, Ctrl or Cmd held turns it from anywhere outside its box, as in
+  // Photoshop, not only from the ring just outside
+  // Cmd on a Mac, where Ctrl + click asks for the menu; Ctrl elsewhere, but not the one AltGr
+  // sends. Only the main button's press.
+  let ringOnly = false;
+  const turnsAnywhere = (event) => !ringOnly && !ui.editor.hidden && Boolean(editing) && !pixelControls && Boolean(turnControls) && (IS_MAC ? event.metaKey && !event.ctrlKey : event.ctrlKey) && !event.altKey && !event.getModifierState("AltGraph") && !(event.button > 0) && !Shell.touch && !isFinger(event);
+  // In the ring just outside the box, which turns with or without the key
+  const inRotateRing = (event) => {
+    ringOnly = true;
+    try {
+      return Boolean(rotateZoneCursor(event));
+    } finally {
+      ringOnly = false;
+    }
+  };
   const rotateZoneCursor = (event) => {
     const controls = pixelControls ? { center: [(pixelControls.x0 + pixelControls.x1) / 2, (pixelControls.y0 + pixelControls.y1) / 2], u: [1, 0], v: [0, 1], hw: (pixelControls.x1 - pixelControls.x0) / 2, hh: (pixelControls.y1 - pixelControls.y0) / 2 } : turnControls;
     if (!controls) return null;
@@ -1829,7 +1844,7 @@
     const { u, v, hw, hh } = controls;
     const [pu, pv] = alongFrame(u, v, dx, dy);
     const out = Math.hypot(Math.max(0, Math.abs(pu) - hw), Math.max(0, Math.abs(pv) - hh));
-    if (!out || out > ROTATE_REACH) return null;
+    if (!out || (out > ROTATE_REACH && !turnsAnywhere(event))) return null;
     return rotateCursor(sideOfFrame(pu, pv, hw, hh, u));
   };
   const inRotateZone = (event) => Boolean(rotateZoneCursor(event));
@@ -2452,7 +2467,7 @@
   // beginRetouch), with options of their own (retouch.js)
   const RETOUCH_BRUSHES = new Set(["blur", "sharpen", "smudge"]);
   // While a text is typed in: what the handles and the edges of its box do
-  const TYPING_HINT = "Handles: the text box, the text flows again. Cmd + handle: the text size. Just outside: turn. A little further: move. Esc or Cmd+Enter: done.";
+  const TYPING_HINT = "Handles: the text box. Cmd + handle: the text size. Just outside, or Cmd + drag around: turn. A little further: move. Esc or Cmd+Enter: done.";
   const TRANSFORM_HINT = "Handle: scale. Outside: rotate. Inside: move. Shift: free shape, 15° steps. Alt: from the middle. Cmd + handle: skew. Enter: apply. Esc: cancel.";
   const TOOL_HINT = {
     move: "Drag to move, live. Arrows: 1 px, Shift: 10 px. Side points: the text box. Corners: the text size. Double-click: edit.",
@@ -8418,7 +8433,7 @@
       const layer = turnWhileTyping ? typedLayer() : activeTexts()[0];
       if (layer) {
         gestureCount++;
-        gesture = Object.assign(base, { kind: "turn", layer, pivot: turnControls.pivot, from: PS.turnOf(layer), token: `gesture:${gestureCount}` });
+        gesture = Object.assign(base, { kind: "turn", layer, pivot: turnControls.pivot, from: PS.turnOf(layer), token: `gesture:${gestureCount}`, far: Boolean(turnWhileTyping) && !inRotateRing(event) });
         if (Fonts.isMissing(layer.params.layerText.textStyleRange[0].textStyle.fontPostScriptName) && layer.raster) toast(T("This text's font is missing: it will be drawn with another font."), true);
         ui.stage.setPointerCapture(event.pointerId);
         event.preventDefault();
@@ -8575,8 +8590,21 @@
     ui.stage.setPointerCapture(event.pointerId);
   });
 
+  // Where the mouse last was over the page: pressing or letting go of Cmd while typing changes
+  // what a drag there does, and the pointer says so without waiting for the mouse to move
+  let mouseAt = null;
+  const TURN_KEYS = new Set(["Meta", "Control", "Alt", "AltGraph"]);
+  const showTypingTurn = (event) => {
+    if (!mouseAt || ui.editor.hidden || gesture || hitHandle(mouseAt) || transformOf()) return;
+    const at = { clientX: mouseAt.clientX, clientY: mouseAt.clientY, pointerType: "mouse", metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, getModifierState: (key) => (event.getModifierState ? event.getModifierState(key) : false) };
+    ui.stage.style.cursor = rotateZoneCursor(at) || (inTypingMoveZone(at) ? "move" : "");
+  };
+  ui.stage.addEventListener("pointerleave", () => {
+    mouseAt = null;
+  });
   ui.stage.addEventListener("pointermove", (event) => {
     if (pointers.has(event.pointerId)) pointers.set(event.pointerId, [event.clientX, event.clientY]);
+    mouseAt = event.pointerType === "mouse" ? { clientX: event.clientX, clientY: event.clientY, pointerType: "mouse" } : null;
     // In Flow, the name of a page is what the page is moved by: the pointer says so over it
     if (Flow && flowOn()) {
       const rect = stageRectOf(event);
@@ -8917,6 +8945,23 @@
     const cancelled = event.type === "pointercancel";
     const point = cancelled ? current.last : carried(current, toDoc(event));
     const { kind, mode } = current;
+    if (kind === "turn" && current.far) {
+      // With Cmd held away from the text, only a drag turns. A click there stays the click it
+      // was: it ends the edit and does what the tool does, as if the press came now.
+      if (!current.moved && !cancelled) {
+        const press = { bubbles: true, cancelable: true, pointerId: event.pointerId, pointerType: event.pointerType, isPrimary: event.isPrimary, clientX: event.clientX, clientY: event.clientY, screenX: event.screenX, screenY: event.screenY, button: 0, metaKey: event.metaKey, ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, altKey: event.altKey };
+        ringOnly = true;
+        try {
+          ui.stage.dispatchEvent(new PointerEvent("pointerdown", Object.assign({ buttons: 1 }, press)));
+          ui.stage.dispatchEvent(new PointerEvent("pointerup", press));
+        } finally {
+          ringOnly = false;
+        }
+        return;
+      }
+      // The key let go during the drag: the pointer says what a press there does now
+      showTypingTurn(event);
+    }
     if (smartLines.length) {
       smartLines = [];
       schedule(false);
@@ -9762,6 +9807,7 @@
   };
   ui.editor.addEventListener("keydown", (event) => {
     event.stopPropagation();
+    if (TURN_KEYS.has(event.key)) showTypingTurn(event);
     const letter = event.key.toLowerCase();
     if (isCommand(event) && !event.altKey && (letter === "z" || (!IS_MAC && letter === "y" && !event.shiftKey))) {
       event.preventDefault();
@@ -20601,6 +20647,7 @@
     holdCleanShape(event);
     showSampling(event);
     showZoomHold(event);
+    if (TURN_KEYS.has(event.key)) showTypingTurn(event);
     PS.setKeys({ meta: event.metaKey, ctrl: event.ctrlKey, alt: event.altKey, shift: event.shiftKey, key: PS.keyName(event) });
   });
   document.addEventListener("keyup", (event) => {
@@ -20613,6 +20660,7 @@
     }
     showSampling(event);
     showZoomHold(event);
+    if (TURN_KEYS.has(event.key)) showTypingTurn(event);
     PS.setKeys({ meta: event.metaKey, ctrl: event.ctrlKey, alt: event.altKey, shift: event.shiftKey, key: "" });
   });
   window.addEventListener("blur", () => {
@@ -20622,6 +20670,7 @@
     if (shapeHold && app.tool === "clean") setCleanShape(shapeHold.previous);
     shapeHold = null;
     ui.stage.classList.remove("is-spacing", "is-sampling", "is-zoom-hold", "is-zoom-out", "is-move-lent");
+    showTypingTurn({});
     PS.clearKeys();
   });
 

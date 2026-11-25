@@ -312,7 +312,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Fast": "Rapide",
     "Very fast": "Très rapide",
     "When dragging sideways with Ctrl + Space or the Zoom tool.": "En faisant glisser latéralement avec Ctrl + Espace ou l’outil Zoom.",
-    "Handles: the text box, the text flows again. Cmd + handle: the text size. Just outside: turn. A little further: move. Esc or Cmd+Enter: done.": "Poignées : la boîte de texte, le texte se remet à la ligne. Cmd + poignée : la taille du texte. Juste à côté : faire pivoter. Un peu plus loin : déplacer. Échap ou Cmd+Entrée : terminer.",
+    "Handles: the text box. Cmd + handle: the text size. Just outside, or Cmd + drag around: turn. A little further: move. Esc or Cmd+Enter: done.": "Poignées : la boîte de texte. Cmd + poignée : la taille du texte. Juste à côté, ou Cmd + glisser autour : faire pivoter. Un peu plus loin : déplacer. Échap ou Cmd+Entrée : terminer.",
     "File": "Fichier",
     "Fill": "Remplir",
     "Fill with Background Colour": "Remplir avec la couleur d’arrière-plan",
