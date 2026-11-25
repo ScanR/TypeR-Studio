@@ -232,8 +232,9 @@
       for (const file of Array.from(input.files)) {
         const key = photoshop.ops.registerFile(file);
         if (/\.(json|txt|properties)$/i.test(file.name)) files[key] = await file.text();
-        // A tool preset is binary: the panel asks for it in Base64
-        else if (/\.tpl$/i.test(file.name)) files[key] = toBase64(new Uint8Array(await file.arrayBuffer()));
+        // A tool preset, or the picture of the Custom image theme, is binary: the panel asks for
+        // it in Base64
+        else if (/\.(tpl|png|jpe?g|webp|bmp|gif)$/i.test(file.name)) files[key] = toBase64(new Uint8Array(await file.arrayBuffer()));
         paths.push(key);
       }
       resolve({ err: FS.NO_ERROR, data: paths });

@@ -265,7 +265,13 @@
   const copies = new Map();
   const unread = new Set();
   const report = { unread: false, restored: [], damaged: [] };
-  const keeps = (path) => /^\/typer\/storage(_profiles|_profile_[^.]+)?$/.test(String(path));
+  // A profile's picture for the Custom image theme sits beside its storage file, as a data URL
+  const isPicture = (path) => /^\/typer\/storage(_profile_[^.]+)?_background$/.test(String(path));
+  const keeps = (path) => isPicture(path) || /^\/typer\/storage(_profiles|_profile_[^.]+)?$/.test(String(path));
+  // A storage file, whose text is TypeR's settings
+  const isStorage = (path) => !isPicture(path) && /^\/typer\/storage(_profile_.+)?$/.test(String(path));
+  // The files watched over below (read as JSON, copied, heard from another tab): not a picture
+  const guards = (path) => keeps(path) && !isPicture(path);
   const keyFor = (path) => (path === `${ROOT}/storage` ? "typer.web.storage" : `typer.web.file:${path}`);
   const timeKey = (path) => `typer.web.time:${path}`;
   // The rows of the database that are earlier copies: "copy:<slot>:<path>"
@@ -372,7 +378,7 @@
     const back = [];
     found.forEach((list, path) => {
       list.sort(newestFirst);
-      const good = keeps(path) ? list.find((one) => reads(one.text)) : list[0];
+      const good = guards(path) ? list.find((one) => reads(one.text)) : list[0];
       if (good) {
         memory.set(path, { text: good.text, time: good.time });
         return;
@@ -395,14 +401,14 @@
     const lost = emptied();
     memory.forEach((entry, path) => {
       const last = (copies.get(path) || [])[0];
-      if (keeps(path) && rows && !(lost && lost.path === path) && (!last || Date.now() - last.made > A_DAY)) setAside(path, entry);
+      if (guards(path) && rows && !(lost && lost.path === path) && (!last || Date.now() - last.made > A_DAY)) setAside(path, entry);
     });
   };
 
   // Styles taken from a layer here before the host named the unit
   const repairTypeUnits = () => {
     memory.forEach((entry, path) => {
-      if (!/^\/typer\/storage(_profile_.+)?$/.test(path)) return;
+      if (!isStorage(path)) return;
       try {
         const storage = JSON.parse(entry.text);
         if ((storage.styles || []).filter(giveTypeUnit).length) keep(path, JSON.stringify(storage));
@@ -414,7 +420,7 @@
 
   const cleanPracticeStyles = () => {
     memory.forEach((entry, path) => {
-      if (!/^\/typer\/storage(_profile_.+)?$/.test(path) || entry.text.indexOf('"demo-') < 0) return;
+      if (!isStorage(path) || entry.text.indexOf('"demo-') < 0) return;
       try {
         const storage = JSON.parse(entry.text);
         dropPracticeStyles(storage);
@@ -448,9 +454,11 @@
     const time = Math.max(Date.now(), before ? before.time + 1 : 0);
     memory.set(path, { text, time });
     // Most of a file gone at once (all the styles, a whole script): what it was stays
-    if (before && keeps(path) && before.text.length - text.length > 1500 && text.length < before.text.length * 0.6) setAside(path, before);
+    if (before && guards(path) && before.text.length - text.length > 1500 && text.length < before.text.length * 0.6) setAside(path, before);
     let stores = 0;
-    try {
+    // A picture would fill localStorage's few megabytes, which the settings need: it is kept
+    // only in the database
+    if (!isPicture(path)) try {
       // The time first: a page killed between the two leaves the earlier text under the later
       // time, and the database's row of that time, when it was written, wins over it at start
       window.localStorage.setItem(timeKey(path), String(time));
@@ -567,7 +575,7 @@
   };
   const hearing = new Map();
   const hear = (path) => {
-    if (!keeps(path) || unread.has(path)) return;
+    if (!guards(path) || unread.has(path)) return;
     clearTimeout(hearing.get(path));
     hearing.set(path, setTimeout(async () => {
       hearing.delete(path);
