@@ -2556,6 +2556,7 @@
     ui.stage.style.cursor = "";
     app.tool = tool;
     ui.stage.dataset.tool = tool;
+    rememberPairTool(tool);
     // A group shows the tool last chosen in it, by its list or by its key
     const slot = slotOf(tool);
     if (slot && slot.current !== tool) {
@@ -2585,6 +2586,49 @@
   const STORE_TOOLBAR = "typer.web.toolbar";
   const TOOL_GROUPS = [["rectangle", "ellipse"], ["lasso", "polygon"], ["eraser", "magicEraser"], ["blur", "sharpen", "smudge"]];
   const toolEntry = (id) => TOOLS.find((entry) => entry && entry[0] === id);
+  // Tools that share a key, as in Photoshop: the first has the key, the second Shift + it. While
+  // they keep these keys, Shift + the key goes from one to the other at each press; the plain key
+  // brings back the one used last for the marquees and the lassos, which only select. The Eraser
+  // and the Bubble Cleaner stay on theirs: a Magic Eraser or a Spot Healing Brush come back
+  // unasked would change the page at the first click. Given keys of their own, each tool keeps
+  // exactly them.
+  const TOOL_PAIRS = [
+    { tools: ["rectangle", "ellipse"], key: "M", last: true },
+    { tools: ["lasso", "polygon"], key: "L", last: true },
+    { tools: ["eraser", "magicEraser"], key: "E" },
+    { tools: ["clean", "heal"], key: "J" },
+  ];
+  // The one used last is the one their group shows in the toolbar, which remembers it. Set
+  // apart in the toolbar (an imported one, the tablet's), the one picked last since the start.
+  const pairPicked = {};
+  const pairOf = (id) => TOOL_PAIRS.find((pair) => pair.tools.includes(id) && toolEntry(pair.tools[0])[2] === pair.key && toolEntry(pair.tools[1])[2] === `Shift+${pair.key}`);
+  const rememberPairTool = (id) => {
+    const pair = TOOL_PAIRS.find((one) => one.last && one.tools.includes(id));
+    if (pair) pairPicked[pair.key] = id;
+  };
+  const pairLast = (pair) => {
+    const [first, second] = pair.tools;
+    if (!pair.last) return first;
+    const slot = slotOf(first);
+    if (slot && slot === slotOf(second)) return slot.current;
+    return pairPicked[pair.key] || first;
+  };
+  // The tool a tool's key brings
+  const keyedTool = (id) => {
+    const pair = pairOf(id);
+    if (!pair) return id;
+    const [first, second] = pair.tools;
+    const last = pairLast(pair);
+    if (id === first) return last;
+    const from = pair.tools.includes(app.tool) ? app.tool : last;
+    return from === first ? second : first;
+  };
+  // The key a toolbar's tool shows: the pair's own on both, as Photoshop does, when that key
+  // brings back either
+  const shownToolKey = (id) => {
+    const pair = pairOf(id);
+    return pair && pair.last ? pair.key : toolEntry(id)[2];
+  };
   const defaultSlots = () => {
     const slots = [];
     TOOLS.forEach((entry) => {
@@ -2643,7 +2687,8 @@
 
   const toolButton = (slot, index) => {
     const id = slot.current;
-    const [, name, key] = toolEntry(id);
+    const name = toolEntry(id)[1];
+    const key = shownToolKey(id);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "tool";
@@ -2750,7 +2795,8 @@
     if (lang === "ar") list.dir = "rtl";
     list.setAttribute("role", "menu");
     slot.tools.forEach((id) => {
-      const [, name, key] = toolEntry(id);
+      const name = toolEntry(id)[1];
+      const key = shownToolKey(id);
       const row = document.createElement("button");
       row.type = "button";
       row.className = "menu__item tool-flyout__item";
@@ -19131,21 +19177,11 @@
 
   /* ---- the shortcuts: every tool, every menu command, a few more ---- */
 
-  // Rectangle and Ellipse share M and Shift+M, as in Photoshop, until they get keys of their own,
-  // Lasso and Polygonal Lasso share L and Shift+L, Eraser and Magic Eraser E and Shift+E
-  const TOOL_PAIRS = [["rectangle", "ellipse", "M"], ["lasso", "polygon", "L"], ["eraser", "magicEraser", "E"], ["clean", "heal", "J"]];
-  const pickTool = (id) => {
-    const keyOf = (tool) => (TOOLS.find((entry) => entry && entry[0] === tool) || [])[2];
-    const pair = TOOL_PAIRS.find(([first, second, key]) => (id === first || id === second) && keyOf(first) === key && keyOf(second) === `Shift+${key}`);
-    if (pair && id === pair[0]) setTool(app.tool === pair[1] ? pair[1] : pair[0]);
-    else if (pair) setTool(app.tool === pair[0] ? pair[1] : pair[0]);
-    else setTool(id);
-  };
   const scaleBrush = (factor) => {
     app.brush.size = Math.max(1, Math.round(app.brush.size * factor));
     renderOptions();
   };
-  const TOOL_ITEMS = TOOLS.filter(Boolean).map((entry) => ({ label: entry[1], keys: entry[2], entry, virtual: true, action: () => pickTool(entry[0]) }));
+  const TOOL_ITEMS = TOOLS.filter(Boolean).map((entry) => ({ label: entry[1], keys: entry[2], entry, virtual: true, action: () => setTool(entry[0]) }));
   const MORE_ITEMS = [
     // On a layer mask, white paints and black is behind it, as in Photoshop
     { label: "Default colours", keys: "D", virtual: true, action: () => {
@@ -19377,6 +19413,8 @@
         if (!rows.length || (words && !featured)) return;
         const host = placeOf(featured);
         make("div", "sk__group", host, T(group));
+        // The keys the marquees and the lassos share: what each one does
+        if (group === "Tools" && featured && TOOL_PAIRS.every((pair) => !pair.last || pairOf(pair.tools[0]))) make("p", "sk__hint", host, fill(T("{m} and {l} bring back the marquee and the lasso used last, {shiftM} and {shiftL} the other one, unless you give these tools other keys."), { m: "M", l: "L", shiftM: keyLabel("Shift+M"), shiftL: keyLabel("Shift+L") }));
         if (group === "Mouse") make("p", "sk__hint", host, T("Hold the key as you would hold the button, to drag or paint. With Shift, Alt or Ctrl it clicks with them. Pick a key you don't type: in a text field, a letter stays a letter."));
         rows.forEach((one) => {
           shown++;
@@ -20483,8 +20521,11 @@
         // Held, a tool's key repeats: the tool is already there
         if (item.entry && event.repeat) return;
         const before = app.tool;
-        countUse(item, "key");
-        runCommand(item);
+        // A key two tools share brings the one it should (keyedTool): that one is counted
+        const tool = item.entry && keyedTool(item.entry[0]);
+        const run = (tool && TOOL_ITEMS.find((one) => one.entry[0] === tool)) || item;
+        countUse(run, "key");
+        runCommand(run);
         // The panel keeps its key ups: only the page's keys lend a tool
         if (item.entry && !fromPanel && app.tool !== before) spring = { key: springKey(event), tool: app.tool, previous: before, time: performance.now(), used: false, released: false };
         return;

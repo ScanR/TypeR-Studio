@@ -596,6 +596,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Left click": "Clic gauche",
     "Right click": "Clic droit",
     "Other shortcuts": "Autres raccourcis",
+    "{m} and {l} bring back the marquee and the lasso used last, {shiftM} and {shiftL} the other one, unless you give these tools other keys.": "{m} et {l} rappellent le dernier outil de sélection (rectangle ou ellipse) et le dernier lasso utilisés, {shiftM} et {shiftL} passent à l’autre, sauf si vous donnez d’autres touches à ces outils.",
     "Hold the key as you would hold the button, to drag or paint. With Shift, Alt or Ctrl it clicks with them. Pick a key you don't type: in a text field, a letter stays a letter.": "Maintenez la touche comme vous maintiendriez le bouton, pour faire glisser ou peindre. Avec Maj, Alt ou Ctrl, elle clique avec eux. Choisissez une touche que vous ne tapez pas : dans un champ de texte, une lettre reste une lettre.",
     "Reset to default": "Rétablir la valeur par défaut",
     "Taken from {name}.": "Retiré de {name}.",
