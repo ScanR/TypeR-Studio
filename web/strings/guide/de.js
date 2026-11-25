@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.de = Object.assign(window.TYPER_WEB_STRINGS.de || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Ziehen Sie mit dem Verlaufswerkzeug ({G}) vom oberen Rand des Himmels bis nach unten, quer über den Text: Der Verlauf des Himmels wird darunter neu gezeichnet.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Eine Zone erstellen",
-  "With Auto Perspective (P), on the page": "Mit der Auto-Perspektive (P), auf der Seite",
+  "With Auto Perspective (A), on the page": "Mit der Auto-Perspektive (A), auf der Seite",
   "The zone": "Die Zone",
   "Once its handles show": "Sobald ihre Griffe sichtbar sind",
   "A text on the zone": "Ein Text auf der Zone",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.de = Object.assign(window.TYPER_WEB_STRINGS.de || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Sie kennen jetzt die Auto-Perspektive. Alle Kurzbefehle bleiben unter Hilfe → Auto-Perspektive-Guide und hinter dem ? der Optionsleiste.",
   "New: Auto Perspective": "Neu: die Auto-Perspektive",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "Sie in 2 Minuten lernen, auf einer eigenen Seite? Acht kurze Schritte, jeder durch Ausführen bestanden.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Alle Kurzbefehle der Auto-Perspektive (P). Ihre Optionsleiste hat außerdem Breite % für breitere oder schmalere Buchstaben, Erneut erkennen und Zurücksetzen. Rückgängig wie überall: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Alle Kurzbefehle der Auto-Perspektive (A). Ihre Optionsleiste hat außerdem Breite % für breitere oder schmalere Buchstaben, Erneut erkennen und Zurücksetzen. Rückgängig wie überall: Cmd + Z.",
   "Perspective practice": "Perspektiv-Übung",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Auto-Perspektive-Guide: alle Kurzbefehle und eine Übung von 2 Minuten",
 

@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.pt = Object.assign(window.TYPER_WEB_STRINGS.pt || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Com a ferramenta Degradê ({G}), arraste do alto do céu até embaixo, atravessando o texto: o degradê do céu é redesenhado por baixo.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Criar uma zona",
-  "With Auto Perspective (P), on the page": "Com a Perspectiva automática (P), na página",
+  "With Auto Perspective (A), on the page": "Com a Perspectiva automática (A), na página",
   "The zone": "A zona",
   "Once its handles show": "Assim que suas alças aparecem",
   "A text on the zone": "Um texto na zona",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.pt = Object.assign(window.TYPER_WEB_STRINGS.pt || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Você já conhece a Perspectiva automática. Todos os atalhos ficam em Ajuda → Guia Perspectiva automática, e atrás do ? da barra de opções.",
   "New: Auto Perspective": "Novo: a Perspectiva automática",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "Aprendê-la em 2 minutos, numa página à parte? Oito passos curtos, cada um validado ao fazê-lo.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Todos os atalhos da Perspectiva automática (P). A barra de opções dela também tem Largura %, para letras mais largas ou mais estreitas, Detectar de novo e Redefinir. Para desfazer, como em todo lugar: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Todos os atalhos da Perspectiva automática (A). A barra de opções dela também tem Largura %, para letras mais largas ou mais estreitas, Detectar de novo e Redefinir. Para desfazer, como em todo lugar: Cmd + Z.",
   "Perspective practice": "Prática de perspectiva",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Guia Perspectiva automática: todos os atalhos e uma prática de 2 minutos",
 

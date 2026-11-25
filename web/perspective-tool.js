@@ -1,4 +1,4 @@
-// The Perspective tool (P): a drag over a surface drawn on the page, a board, a wall, a sign,
+// The Perspective tool (A): a drag over a surface drawn on the page, a board, a wall, a sign,
 // makes it a perspective zone. perspective.js reads the surface there; the zone keeps it (see
 // surfacesOf in photoshop.js), and every text in the zone lies on it from then on, as what was
 // written there: the ones already there, the ones typed, pasted or moved there later. They stay

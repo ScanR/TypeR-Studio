@@ -176,7 +176,7 @@
   /* --------------------------------- the card --------------------------------- */
 
   const GROUPS = [
-    ["Make a zone", "With Auto Perspective (P), on the page", [
+    ["Make a zone", "With Auto Perspective (A), on the page", [
       [["drag"], "Over a board, a wall, a sign: TypeR finds its perspective", "zone-drag"],
       [["click"], "On a zone: its corners and sides show", "zone-click"],
       [["click"], "On a text: picks it", "text-pick"],
@@ -279,7 +279,7 @@
     tool: "perspective",
     store: "typer.web.perspective.guide",
     title: "Auto Perspective Guide",
-    intro: () => T("Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z."),
+    intro: () => T("Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z."),
     practiceLabel: "Practice (2 min)",
     groups: GROUPS,
     scenes: SCENES,

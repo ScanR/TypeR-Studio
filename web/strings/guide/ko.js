@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.ko = Object.assign(window.TYPER_WEB_STRINGS.ko || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "그레이디언트 도구({G})로 하늘 위쪽에서 아래쪽까지 텍스트를 가로질러 드래그하세요. 하늘의 그레이디언트가 그 아래에 다시 그려집니다.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "영역 만들기",
-  "With Auto Perspective (P), on the page": "자동 원근 (P)으로, 페이지 위에서",
+  "With Auto Perspective (A), on the page": "자동 원근 (A)으로, 페이지 위에서",
   "The zone": "영역",
   "Once its handles show": "핸들이 표시되면",
   "A text on the zone": "영역 위의 텍스트",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.ko = Object.assign(window.TYPER_WEB_STRINGS.ko || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "자동 원근을 익혔습니다. 모든 단축키는 언제든 도움말 → 자동 원근 가이드와 옵션 바의 ?에서 볼 수 있습니다.",
   "New: Auto Perspective": "새 기능: 자동 원근",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "별도 페이지에서 2분 만에 익혀 볼까요? 직접 해 보며 통과하는 짧은 8단계입니다.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "자동 원근 (P)의 모든 단축키. 옵션 바에는 글자를 넓히거나 좁히는 폭 %, 다시 감지, 재설정도 있습니다. 실행 취소는 어디서나처럼 Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "자동 원근 (A)의 모든 단축키. 옵션 바에는 글자를 넓히거나 좁히는 폭 %, 다시 감지, 재설정도 있습니다. 실행 취소는 어디서나처럼 Cmd + Z.",
   "Perspective practice": "원근 연습",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "자동 원근 가이드: 모든 단축키와 2분 연습",
 

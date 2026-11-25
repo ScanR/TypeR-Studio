@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.ru = Object.assign(window.TYPER_WEB_STRINGS.ru || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Инструментом «Градиент» ({G}) протяните от верха неба до низа, через текст: градиент неба будет нарисован под ним заново.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Создать зону",
-  "With Auto Perspective (P), on the page": "Автоперспективой (P), на странице",
+  "With Auto Perspective (A), on the page": "Автоперспективой (A), на странице",
   "The zone": "Зона",
   "Once its handles show": "Когда видны её маркеры",
   "A text on the zone": "Текст на зоне",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.ru = Object.assign(window.TYPER_WEB_STRINGS.ru || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Теперь вы знаете автоперспективу. Все горячие клавиши остаются в меню Справка → Руководство по автоперспективе и за значком ? на панели параметров.",
   "New: Auto Perspective": "Новое: автоперспектива",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "Освоить её за 2 минуты на отдельной странице? Восемь коротких шагов, каждый засчитывается, когда вы его выполните.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Все горячие клавиши автоперспективы (P). На её панели параметров есть также Ширина % — для более широких или узких букв, Определить снова и Сбросить. Отмена, как и везде: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Все горячие клавиши автоперспективы (A). На её панели параметров есть также Ширина % — для более широких или узких букв, Определить снова и Сбросить. Отмена, как и везде: Cmd + Z.",
   "Perspective practice": "Практика перспективы",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Руководство по автоперспективе: все горячие клавиши и практика на 2 минуты",
 

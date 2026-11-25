@@ -2455,14 +2455,13 @@
     // name and its hint. U, Photoshop's shapes, since Shift+J is the Spot Healing Brush's.
     ["reshape", "Bubble Reshaper (experimental)", "U"],
     ["eyedropper", "Eyedropper", "I"],
-    // The Pen (pen.js). Photoshop's P is Auto Perspective's here: A, which Photoshop gives its
-    // two arrows for paths, and which Keyboard Shortcuts can change.
-    ["pen", "Pen", "A"],
+    // The Pen (pen.js): P, as in Photoshop
+    ["pen", "Pen", "P"],
     ["text", "Type", "T"],
     ["sfx", "SFX", "K"],
-    // Auto Perspective (perspective.js, perspective-tool.js): P, which Photoshop gives its Pen;
-    // Shift+P is Type > Perspective, the same by hand
-    ["perspective", "Auto Perspective", "P"],
+    // Auto Perspective (perspective.js, perspective-tool.js): A, since P is the Pen's as in
+    // Photoshop; Shift+P is Type > Perspective, the same by hand
+    ["perspective", "Auto Perspective", "A"],
     null,
     ["hand", "Hand", "H"],
     ["zoom", "Zoom", "Z"],

@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.ja = Object.assign(window.TYPER_WEB_STRINGS.ja || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "グラデーションツール（{G}）で、空の上端から下端まで、文字を横切ってドラッグします。空のグラデーションが文字の下に描き直されます。",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "ゾーンを作る",
-  "With Auto Perspective (P), on the page": "自動遠近法（P）で、ページ上で",
+  "With Auto Perspective (A), on the page": "自動遠近法（A）で、ページ上で",
   "The zone": "ゾーン",
   "Once its handles show": "ハンドルが表示されたら",
   "A text on the zone": "ゾーン上のテキスト",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.ja = Object.assign(window.TYPER_WEB_STRINGS.ja || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "自動遠近法をマスターしました。ショートカットはいつでも「ヘルプ → 自動遠近法ガイド」と、オプションバーの ? から開けます。",
   "New: Auto Perspective": "新機能：自動遠近法",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "専用のページで、2分で覚えませんか？ 実際に操作して進む、短い8ステップです。",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "自動遠近法（P）のすべてのショートカット。オプションバーには、文字を広く・狭くする「幅 %」、「再検出」、「リセット」もあります。取り消しはいつもどおり Cmd + Z。",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "自動遠近法（A）のすべてのショートカット。オプションバーには、文字を広く・狭くする「幅 %」、「再検出」、「リセット」もあります。取り消しはいつもどおり Cmd + Z。",
   "Perspective practice": "遠近法の練習",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "自動遠近法ガイド：すべてのショートカットと2分間の練習",
 

@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.ar = Object.assign(window.TYPER_WEB_STRINGS.ar || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "بأداة التدرّج ({G})، اسحب من أعلى السماء إلى أسفلها، عبر النص: يُعاد رسم تدرّج السماء تحته.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "إنشاء منطقة",
-  "With Auto Perspective (P), on the page": "بأداة منظور تلقائي (P)، على الصفحة",
+  "With Auto Perspective (A), on the page": "بأداة منظور تلقائي (A)، على الصفحة",
   "The zone": "المنطقة",
   "Once its handles show": "بعد ظهور مقابضها",
   "A text on the zone": "نص على المنطقة",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.ar = Object.assign(window.TYPER_WEB_STRINGS.ar || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "أصبحت تعرف منظور تلقائي. تبقى كل الاختصارات في تعليمات → دليل منظور تلقائي، وخلف ? في شريط الخيارات.",
   "New: Auto Perspective": "جديد: منظور تلقائي",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "هل تتعلّمه في دقيقتين، على صفحة مستقلة؟ ثماني خطوات قصيرة، تجتاز كلًّا منها بتنفيذها.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "كل اختصارات منظور تلقائي (P). وفي شريط خياراته أيضًا العرض %، لحروف أعرض أو أضيق، واكتشاف مجددًا وإعادة تعيين. التراجع كما في كل مكان: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "كل اختصارات منظور تلقائي (A). وفي شريط خياراته أيضًا العرض %، لحروف أعرض أو أضيق، واكتشاف مجددًا وإعادة تعيين. التراجع كما في كل مكان: Cmd + Z.",
   "Perspective practice": "تدريب المنظور",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "دليل منظور تلقائي: كل الاختصارات، وتدريب لمدة دقيقتين",
 

@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.th = Object.assign(window.TYPER_WEB_STRINGS.th || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "ใช้เครื่องมือ Gradient ({G}) ลากจากด้านบนของท้องฟ้าลงไปด้านล่าง ผ่านข้อความ: gradient ของท้องฟ้าจะถูกวาดใหม่ใต้ข้อความ",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "สร้างโซน",
-  "With Auto Perspective (P), on the page": "ด้วยเปอร์สเปกทีฟอัตโนมัติ (P) บนหน้า",
+  "With Auto Perspective (A), on the page": "ด้วยเปอร์สเปกทีฟอัตโนมัติ (A) บนหน้า",
   "The zone": "โซน",
   "Once its handles show": "เมื่อจุดจับแสดงขึ้น",
   "A text on the zone": "ข้อความบนโซน",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.th = Object.assign(window.TYPER_WEB_STRINGS.th || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "คุณรู้จักเปอร์สเปกทีฟอัตโนมัติแล้ว คีย์ลัดทั้งหมดยังอยู่ใน ความช่วยเหลือ → คู่มือเปอร์สเปกทีฟอัตโนมัติ และหลังปุ่ม ? ในแถบตัวเลือก",
   "New: Auto Perspective": "ใหม่: เปอร์สเปกทีฟอัตโนมัติ",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "เรียนรู้ใน 2 นาที บนหน้าแยกต่างหากไหม? แปดขั้นสั้นๆ ผ่านแต่ละขั้นด้วยการลงมือทำ",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "คีย์ลัดทั้งหมดของเปอร์สเปกทีฟอัตโนมัติ (P) แถบตัวเลือกยังมี ความกว้าง % สำหรับตัวอักษรที่กว้างขึ้นหรือแคบลง ตรวจหาอีกครั้ง และรีเซ็ต เลิกทำได้เหมือนทุกที่: Cmd + Z",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "คีย์ลัดทั้งหมดของเปอร์สเปกทีฟอัตโนมัติ (A) แถบตัวเลือกยังมี ความกว้าง % สำหรับตัวอักษรที่กว้างขึ้นหรือแคบลง ตรวจหาอีกครั้ง และรีเซ็ต เลิกทำได้เหมือนทุกที่: Cmd + Z",
   "Perspective practice": "การฝึกเปอร์สเปกทีฟ",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "คู่มือเปอร์สเปกทีฟอัตโนมัติ: คีย์ลัดทั้งหมด และการฝึก 2 นาที",
 

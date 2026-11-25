@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.it = Object.assign(window.TYPER_WEB_STRINGS.it || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Con lo strumento Sfumatura ({G}), trascina dalla cima del cielo fino in fondo, attraverso il testo: la sfumatura del cielo viene ridisegnata sotto.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Creare una zona",
-  "With Auto Perspective (P), on the page": "Con la Prospettiva automatica (P), sulla pagina",
+  "With Auto Perspective (A), on the page": "Con la Prospettiva automatica (A), sulla pagina",
   "The zone": "La zona",
   "Once its handles show": "Quando le sue maniglie sono visibili",
   "A text on the zone": "Un testo sulla zona",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.it = Object.assign(window.TYPER_WEB_STRINGS.it || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Ora conosci la Prospettiva automatica. Tutte le scorciatoie restano in Aiuto → Guida Prospettiva automatica, e dietro il ? della barra delle opzioni.",
   "New: Auto Perspective": "Novità: la Prospettiva automatica",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "Impararla in 2 minuti, su una pagina a parte? Otto brevi passi, ognuno superato facendolo.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Tutte le scorciatoie della Prospettiva automatica (P). La sua barra delle opzioni ha anche Larghezza %, per lettere più larghe o più strette, Rileva di nuovo e Ripristina. Per annullare, come ovunque: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Tutte le scorciatoie della Prospettiva automatica (A). La sua barra delle opzioni ha anche Larghezza %, per lettere più larghe o più strette, Rileva di nuovo e Ripristina. Per annullare, come ovunque: Cmd + Z.",
   "Perspective practice": "Esercizio prospettiva",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Guida Prospettiva automatica: tutte le scorciatoie e un esercizio di 2 minuti",
 

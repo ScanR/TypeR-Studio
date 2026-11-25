@@ -133,7 +133,7 @@ window.TYPER_WEB_STRINGS.fr = Object.assign(window.TYPER_WEB_STRINGS.fr || {}, {
 
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Créer une zone",
-  "With Auto Perspective (P), on the page": "Avec la Perspective automatique (P), sur la page",
+  "With Auto Perspective (A), on the page": "Avec la Perspective automatique (A), sur la page",
   "The zone": "La zone",
   "Once its handles show": "Une fois ses poignées affichées",
   "A text on the zone": "Un texte sur la zone",
@@ -163,7 +163,7 @@ window.TYPER_WEB_STRINGS.fr = Object.assign(window.TYPER_WEB_STRINGS.fr || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Vous maîtrisez la Perspective automatique. Tous les raccourcis restent dans Aide → Guide Perspective automatique, et derrière le ? de la barre d’options.",
   "New: Auto Perspective": "Nouveau : la Perspective automatique",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "L’apprendre en 2 minutes, sur une page à part ? Huit courtes étapes, chacune validée en la faisant.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Tous les raccourcis de la Perspective automatique (P). Sa barre d’options a aussi Largeur %, pour des lettres plus larges ou plus étroites, Détecter à nouveau et Réinitialiser. Pour annuler, comme partout : Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Tous les raccourcis de la Perspective automatique (A). Sa barre d’options a aussi Largeur %, pour des lettres plus larges ou plus étroites, Détecter à nouveau et Réinitialiser. Pour annuler, comme partout : Cmd + Z.",
   "Perspective practice": "Entraînement perspective",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Guide Perspective automatique : tous les raccourcis, et un entraînement de 2 minutes",
 

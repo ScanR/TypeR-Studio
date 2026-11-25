@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.tr = Object.assign(window.TYPER_WEB_STRINGS.tr || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Degrade aracıyla ({G}) gökyüzünün tepesinden altına, metnin üzerinden sürükleyin: gökyüzünün degradesi altına yeniden çizilir.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Bölge oluştur",
-  "With Auto Perspective (P), on the page": "Otomatik Perspektif (P) ile, sayfada",
+  "With Auto Perspective (A), on the page": "Otomatik Perspektif (A) ile, sayfada",
   "The zone": "Bölge",
   "Once its handles show": "Tutamaçları görününce",
   "A text on the zone": "Bölgedeki metin",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.tr = Object.assign(window.TYPER_WEB_STRINGS.tr || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Otomatik Perspektif’i artık biliyorsunuz. Tüm kısayollar Yardım → Otomatik Perspektif Kılavuzu’nda ve seçenekler çubuğundaki ? düğmesinde duruyor.",
   "New: Auto Perspective": "Yeni: Otomatik Perspektif",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "2 dakikada, ayrı bir sayfada öğrenmek ister misiniz? Sekiz kısa adım, her biri yapılarak geçilir.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Otomatik Perspektif’in (P) tüm kısayolları. Seçenekler çubuğunda ayrıca harfleri genişleten ya da daraltan Genişlik %, Yeniden algıla ve Sıfırla var. Geri alma her yerde olduğu gibi: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Otomatik Perspektif’in (A) tüm kısayolları. Seçenekler çubuğunda ayrıca harfleri genişleten ya da daraltan Genişlik %, Yeniden algıla ve Sıfırla var. Geri alma her yerde olduğu gibi: Cmd + Z.",
   "Perspective practice": "Perspektif alıştırması",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Otomatik Perspektif kılavuzu: tüm kısayollar ve 2 dakikalık alıştırma",
 

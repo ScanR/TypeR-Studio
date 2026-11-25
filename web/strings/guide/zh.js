@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.zh = Object.assign(window.TYPER_WEB_STRINGS.zh || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "用渐变工具（{G}）从天空顶部拖到底部，横穿文字：天空的渐变会在文字下方重新画出。",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "建立区域",
-  "With Auto Perspective (P), on the page": "用自动透视（P），在页面上",
+  "With Auto Perspective (A), on the page": "用自动透视（A），在页面上",
   "The zone": "区域",
   "Once its handles show": "显示手柄后",
   "A text on the zone": "区域上的文字",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.zh = Object.assign(window.TYPER_WEB_STRINGS.zh || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "你已掌握自动透视。所有快捷键随时可在“帮助 → 自动透视指南”以及选项栏的 ? 中找到。",
   "New: Auto Perspective": "新功能：自动透视",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "在单独的页面上用 2 分钟学会它？共八个简短步骤，每步动手做到即可通过。",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "自动透视（P）的所有快捷键。它的选项栏还有让文字变宽或变窄的“宽度 %”、“重新检测”和“复位”。还原和其他地方一样：Cmd + Z。",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "自动透视（A）的所有快捷键。它的选项栏还有让文字变宽或变窄的“宽度 %”、“重新检测”和“复位”。还原和其他地方一样：Cmd + Z。",
   "Perspective practice": "透视练习",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "自动透视指南：所有快捷键，以及 2 分钟练习",
 

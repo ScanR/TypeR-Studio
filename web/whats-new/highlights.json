@@ -35,8 +35,8 @@
         "fr": "Glissez sur un tableau, un mur ou une enseigne dessinés sur la page : TypeR trouve sa perspective, et les textes posés dessus épousent la surface, même quand vous les déplacez."
       },
       "where": {
-        "en": "P",
-        "fr": "P"
+        "en": "A",
+        "fr": "A"
       },
       "demo": "auto-perspective.mp4",
       "poster": "auto-perspective.webp",

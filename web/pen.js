@@ -1,4 +1,4 @@
-// The Pen (A): Photoshop's, for what a typesetter or a cleaner does with it. It draws the
+// The Pen (P): Photoshop's, for what a typesetter or a cleaner does with it. It draws the
 // page's work path: an exact outline around a bubble, a panel or a piece of art, which then
 // becomes a selection (Cmd+Enter), is filled, is stroked with the Brush (a bubble's line, a
 // speed line) or becomes a layer's vector mask.

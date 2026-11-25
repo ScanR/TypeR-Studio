@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.vi = Object.assign(window.TYPER_WEB_STRINGS.vi || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Với công cụ Gradient ({G}), kéo từ đỉnh bầu trời xuống đáy, ngang qua chữ: gradient của bầu trời được vẽ lại bên dưới.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Tạo vùng",
-  "With Auto Perspective (P), on the page": "Với Phối cảnh tự động (P), trên trang",
+  "With Auto Perspective (A), on the page": "Với Phối cảnh tự động (A), trên trang",
   "The zone": "Vùng",
   "Once its handles show": "Khi các tay nắm hiện ra",
   "A text on the zone": "Chữ trên vùng",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.vi = Object.assign(window.TYPER_WEB_STRINGS.vi || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Bạn đã nắm được Phối cảnh tự động. Mọi phím tắt luôn có trong Trợ giúp → Hướng dẫn Phối cảnh tự động, và sau dấu ? trên thanh tùy chọn.",
   "New: Auto Perspective": "Mới: Phối cảnh tự động",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "Học trong 2 phút, trên một trang riêng? Tám bước ngắn, mỗi bước qua khi bạn làm được.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Mọi phím tắt của Phối cảnh tự động (P). Thanh tùy chọn còn có Chiều rộng %, cho chữ rộng hơn hoặc hẹp hơn, Dò lại và Đặt lại. Hoàn tác như mọi nơi: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Mọi phím tắt của Phối cảnh tự động (A). Thanh tùy chọn còn có Chiều rộng %, cho chữ rộng hơn hoặc hẹp hơn, Dò lại và Đặt lại. Hoàn tác như mọi nơi: Cmd + Z.",
   "Perspective practice": "Luyện tập phối cảnh",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Hướng dẫn Phối cảnh tự động: mọi phím tắt, và 2 phút luyện tập",
 

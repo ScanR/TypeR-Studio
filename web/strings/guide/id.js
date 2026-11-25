@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.id = Object.assign(window.TYPER_WEB_STRINGS.id || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Dengan Gradient ({G}), seret dari atas langit sampai bawah, melintasi teks: gradient langit digambar ulang di bawahnya.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Buat zona",
-  "With Auto Perspective (P), on the page": "Dengan Perspektif Otomatis (P), di halaman",
+  "With Auto Perspective (A), on the page": "Dengan Perspektif Otomatis (A), di halaman",
   "The zone": "Zona",
   "Once its handles show": "Setelah pegangannya muncul",
   "A text on the zone": "Teks di zona",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.id = Object.assign(window.TYPER_WEB_STRINGS.id || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Anda sudah menguasai Perspektif Otomatis. Semua pintasan tetap ada di Bantuan → Panduan Perspektif Otomatis, dan di balik ? pada bilah opsi.",
   "New: Auto Perspective": "Baru: Perspektif Otomatis",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "Pelajari dalam 2 menit, di halaman tersendiri? Delapan langkah singkat, masing-masing lulus dengan melakukannya.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Semua pintasan Perspektif Otomatis (P). Bilah opsinya juga punya Lebar %, untuk huruf yang lebih lebar atau lebih sempit, Deteksi lagi, dan Atur ulang. Urungkan seperti biasa: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Semua pintasan Perspektif Otomatis (A). Bilah opsinya juga punya Lebar %, untuk huruf yang lebih lebar atau lebih sempit, Deteksi lagi, dan Atur ulang. Urungkan seperti biasa: Cmd + Z.",
   "Perspective practice": "Latihan perspektif",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Panduan Perspektif Otomatis: semua pintasan, dan latihan 2 menit",
 

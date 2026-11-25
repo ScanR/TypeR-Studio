@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.es = Object.assign(window.TYPER_WEB_STRINGS.es || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Con la herramienta Degradado ({G}), arrastra desde lo alto del cielo hasta abajo, a través del texto: el degradado del cielo se vuelve a dibujar debajo.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Crear una zona",
-  "With Auto Perspective (P), on the page": "Con Perspectiva automática (P), sobre la página",
+  "With Auto Perspective (A), on the page": "Con Perspectiva automática (A), sobre la página",
   "The zone": "La zona",
   "Once its handles show": "Cuando se ven sus tiradores",
   "A text on the zone": "Un texto sobre la zona",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.es = Object.assign(window.TYPER_WEB_STRINGS.es || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Ya conoces la Perspectiva automática. Todos los atajos siguen en Ayuda → Guía Perspectiva automática, y tras el ? de la barra de opciones.",
   "New: Auto Perspective": "Novedad: la Perspectiva automática",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "¿Aprenderla en 2 minutos, en una página aparte? Ocho pasos cortos, cada uno superado al hacerlo.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Todos los atajos de la Perspectiva automática (P). Su barra de opciones también tiene Ancho %, para letras más anchas o más estrechas, Detectar de nuevo y Restablecer. Para deshacer, como en todas partes: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Todos los atajos de la Perspectiva automática (A). Su barra de opciones también tiene Ancho %, para letras más anchas o más estrechas, Detectar de nuevo y Restablecer. Para deshacer, como en todas partes: Cmd + Z.",
   "Perspective practice": "Práctica perspectiva",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Guía Perspectiva automática: todos los atajos y una práctica de 2 minutos",
 

@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.nl = Object.assign(window.TYPER_WEB_STRINGS.nl || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Sleep met het gereedschap Verloop ({G}) van de bovenkant van de lucht naar beneden, dwars over de tekst: het verloop van de lucht wordt eronder opnieuw getekend.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Een zone maken",
-  "With Auto Perspective (P), on the page": "Met Automatisch perspectief (P), op de pagina",
+  "With Auto Perspective (A), on the page": "Met Automatisch perspectief (A), op de pagina",
   "The zone": "De zone",
   "Once its handles show": "Zodra de grepen zichtbaar zijn",
   "A text on the zone": "Een tekst op de zone",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.nl = Object.assign(window.TYPER_WEB_STRINGS.nl || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Je kent Automatisch perspectief nu. Alle sneltoetsen blijven in Help → Gids Automatisch perspectief, en achter de ? van de optiebalk.",
   "New: Auto Perspective": "Nieuw: Automatisch perspectief",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "Het leren in 2 minuten, op een eigen pagina? Acht korte stappen, elk gehaald door het te doen.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Alle sneltoetsen van Automatisch perspectief (P). De optiebalk heeft ook Breedte %, voor bredere of smallere letters, Opnieuw detecteren en Herstellen. Ongedaan maken zoals overal: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Alle sneltoetsen van Automatisch perspectief (A). De optiebalk heeft ook Breedte %, voor bredere of smallere letters, Opnieuw detecteren en Herstellen. Ongedaan maken zoals overal: Cmd + Z.",
   "Perspective practice": "Perspectiefoefening",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Gids Automatisch perspectief: alle sneltoetsen en een oefening van 2 minuten",
 

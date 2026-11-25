@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.uk = Object.assign(window.TYPER_WEB_STRINGS.uk || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Інструментом «Градієнт» ({G}) протягніть від верху неба до низу, через текст: градієнт неба буде наново намальовано під ним.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Створити зону",
-  "With Auto Perspective (P), on the page": "Автоперспективою (P), на сторінці",
+  "With Auto Perspective (A), on the page": "Автоперспективою (A), на сторінці",
   "The zone": "Зона",
   "Once its handles show": "Коли видно її маркери",
   "A text on the zone": "Текст на зоні",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.uk = Object.assign(window.TYPER_WEB_STRINGS.uk || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Тепер ви знаєте автоперспективу. Усі гарячі клавіші лишаються в меню Довідка → Посібник з автоперспективи і за значком ? на панелі параметрів.",
   "New: Auto Perspective": "Нове: автоперспектива",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "Опанувати її за 2 хвилини на окремій сторінці? Вісім коротких кроків, кожен зараховується, коли ви його виконаєте.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Усі гарячі клавіші автоперспективи (P). На її панелі параметрів є також Ширина % — для ширших або вужчих літер, Визначити знову і Скинути. Скасування, як і всюди: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Усі гарячі клавіші автоперспективи (A). На її панелі параметрів є також Ширина % — для ширших або вужчих літер, Визначити знову і Скинути. Скасування, як і всюди: Cmd + Z.",
   "Perspective practice": "Практика перспективи",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Посібник з автоперспективи: усі гарячі клавіші та практика на 2 хвилини",
 

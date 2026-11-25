@@ -132,7 +132,7 @@ window.TYPER_WEB_STRINGS.pl = Object.assign(window.TYPER_WEB_STRINGS.pl || {}, {
   "With the Gradient tool ({G}), drag from the top of the sky to its bottom, across the text: the sky's gradient is drawn again under it.": "Narzędziem Gradient ({G}) przeciągnij od góry nieba do dołu, przez tekst: gradient nieba zostanie pod nim narysowany od nowa.",
   // Auto Perspective's guide (perspective-guide.js)
   "Make a zone": "Utwórz strefę",
-  "With Auto Perspective (P), on the page": "Automatyczną perspektywą (P), na stronie",
+  "With Auto Perspective (A), on the page": "Automatyczną perspektywą (A), na stronie",
   "The zone": "Strefa",
   "Once its handles show": "Gdy widać jej uchwyty",
   "A text on the zone": "Tekst na strefie",
@@ -162,7 +162,7 @@ window.TYPER_WEB_STRINGS.pl = Object.assign(window.TYPER_WEB_STRINGS.pl || {}, {
   "You know Auto Perspective. Every shortcut stays in Help → Auto Perspective Guide, and behind the ? of the options bar.": "Znasz już Automatyczną perspektywę. Wszystkie skróty zostają w Pomoc → Przewodnik Automatyczna perspektywa i pod ? na pasku opcji.",
   "New: Auto Perspective": "Nowość: Automatyczna perspektywa",
   "Learn it in 2 minutes, on a page of its own? Eight short steps, each passed by doing it.": "Poznać ją w 2 minuty, na osobnej stronie? Osiem krótkich kroków, każdy zaliczany przez wykonanie.",
-  "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Wszystkie skróty Automatycznej perspektywy (P). Jej pasek opcji ma też Szerokość % dla szerszych lub węższych liter, Wykryj ponownie i Resetuj. Cofanie jak wszędzie: Cmd + Z.",
+  "Every shortcut of Auto Perspective (A). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Wszystkie skróty Automatycznej perspektywy (A). Jej pasek opcji ma też Szerokość % dla szerszych lub węższych liter, Wykryj ponownie i Resetuj. Cofanie jak wszędzie: Cmd + Z.",
   "Perspective practice": "Ćwiczenie perspektywy",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Przewodnik Automatyczna perspektywa: wszystkie skróty i 2-minutowe ćwiczenie",
 
