@@ -111,6 +111,7 @@
     reshape: SVG('<path d="M7.04 15.84A7 7 0 1 0 3.66 12.46L2.2 17.3Z"/><path d="m15.4 14 6.4 2.5-2.8 1.1-1.1 2.8Z"/>'),
     // A wall going away: its edges and its lines, running to where they would meet
     perspective: SVG('<path d="M3 4.500 21 8v8L3 19.500Z"/><path d="M3 12h18"/><path d="M9 5.700v12.600"/><path d="M15 6.800v10.400"/>'),
+    pen: SVG('<path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z"/> <path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18"/> <path d="m2.3 2.3 7.286 7.286"/> <circle cx="11" cy="11" r="2"/>'),
     eyedropper: SVG('<path d="m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12"/> <path d="m18 9 .4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4 3.4-3.4a1 1 0 1 1 3 3z"/> <path d="m2 22 .414-.414"/>'),
     text: SVG('<path d="M12 4v16"/> <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"/> <path d="M9 20h6"/>'),
     sfx: SVG('<g transform="rotate(-14 10 14)"><path d="M14.600 15H5.400M3 20 9.600 6.300a.450.450 0 0 1 .800 0L17 20"/></g><path d="M13.38 3.64L14.51 1.52M16.53 6.53L19.01 5.21M17.56 10.79L20.14 11.07"/>'),
@@ -2454,6 +2455,9 @@
     // name and its hint. U, Photoshop's shapes, since Shift+J is the Spot Healing Brush's.
     ["reshape", "Bubble Reshaper (experimental)", "U"],
     ["eyedropper", "Eyedropper", "I"],
+    // The Pen (pen.js). Photoshop's P is Auto Perspective's here: A, which Photoshop gives its
+    // two arrows for paths, and which Keyboard Shortcuts can change.
+    ["pen", "Pen", "A"],
     ["text", "Type", "T"],
     ["sfx", "SFX", "K"],
     // Auto Perspective (perspective.js, perspective-tool.js): P, which Photoshop gives its Pen;
@@ -2489,6 +2493,7 @@
     clean: "Click a bubble: its text goes, painted over in the bubble's own colours, whatever they are. Drag a box, a lasso or a polygon: only inside it, for text on a plain background. Ctrl: lasso, Alt: polygonal lasso, Shift: box, held or pressed once.",
     reshape: "Click a bubble, then drag its handles: its line keeps its thickness and its tail keeps pointing. Drag the outline to push or pull it (Alt: a smaller part), the ● at the tail to move its tip. Just outside the frame, or the ● above it: turn it (Shift: 15° steps). Shift: keep the proportions, Alt: from the middle. Enter: apply. Esc: cancel.",
     eyedropper: "Click to pick the foreground colour. Alt: the background colour.",
+    pen: "Click: a corner point. Drag: a curve. Shift: 45°. Click the first point: close the path. On a segment: add a point, on a point: remove it. Alt: convert a point, or move one handle. Cmd held: move points and handles. Backspace: remove the last point. Enter or Esc: end the path. Cmd+Enter: make it a selection (Shift: add, Alt: subtract).",
     text: "Click a text to edit it, click elsewhere to add one, drag to draw a text box. Esc or Cmd+Enter to finish.",
     sfx: "Click: an SFX there. Drag: along a line. Alt + drag: along a path you draw. Shift + click: fill a bubble. On an SFX: drag a letter, its ● turns it, its corner resizes it.",
     perspective: "Drag over a surface drawn on the page, a board, a wall, a sign: it becomes a perspective zone, and the texts in it take its perspective, the ones typed or moved there later too. The corners of the zone set its perspective, its sides how far it goes. A selected text: drag to move it, a corner to resize it, a side to stretch it. Enter or Alt+click: a text off its zone, or back on it. Delete: remove the zone.",
@@ -2588,6 +2593,7 @@
     if (window.TypeRSFX) window.TypeRSFX.toolChosen(tool);
     if (window.TypeRReshapeTool) window.TypeRReshapeTool.toolChosen(tool);
     if (window.TypeRPerspectiveTool) window.TypeRPerspectiveTool.toolChosen(tool);
+    if (window.TypeRPen) window.TypeRPen.toolChosen(tool);
     if (window.TypeRRetouch) window.TypeRRetouch.toolChosen(tool);
     renderOptions();
     renderStatus();
@@ -2978,7 +2984,7 @@
   const PHOTOSHOP_TOOLS = {
     arwT: "move", rgmt: "rectangle", elmt: "ellipse", laso: "lasso", pgon: "polygon", wand: "wand", crop: "crop",
     pntb: "brush", eras: "eraser", mera: "magicEraser", bndT: "gradient", stam: "stamp", sphB: "heal",
-    blur: "blur", shar: "sharpen", smud: "smudge", eyed: "eyedropper", txBx: "text", hand: "hand", zoom: "zoom",
+    blur: "blur", shar: "sharpen", smud: "smudge", eyed: "eyedropper", penT: "pen", txBx: "text", hand: "hand", zoom: "zoom",
   };
   const readDescriptor = (buffer) => {
     const view = new DataView(buffer);
@@ -7400,6 +7406,7 @@
     if (tool === "sfx" && window.TypeRSFX) window.TypeRSFX.options(bar);
     if (tool === "reshape" && window.TypeRReshapeTool) window.TypeRReshapeTool.options(bar);
     if (tool === "perspective" && window.TypeRPerspectiveTool) window.TypeRPerspectiveTool.options(bar);
+    if (tool === "pen" && window.TypeRPen) window.TypeRPen.options(bar);
     if (SELECTION_TOOLS.has(tool)) {
       const modes = document.createElement("span");
       modes.className = "obar__group";
@@ -7604,7 +7611,7 @@
   // and fingers pan.
   let multi = null;
   let penSeen = false;
-  const DRAWN_TOOLS = new Set(["brush", "eraser", "rectangle", "ellipse", "lasso", "polygon", "heal", "gradient", "blur", "sharpen", "smudge"]);
+  const DRAWN_TOOLS = new Set(["brush", "eraser", "rectangle", "ellipse", "lasso", "polygon", "heal", "gradient", "blur", "sharpen", "smudge", "pen"]);
   const isFinger = (event) => Shell.touch && event.pointerType !== "mouse";
 
   const selectionMode = (event) => {
@@ -8479,6 +8486,15 @@
       event.preventDefault();
       return;
     }
+    if (tool === "pen" && window.TypeRPen) {
+      const made = window.TypeRPen.down(event, point, base);
+      if (made) {
+        gesture = made;
+        ui.stage.setPointerCapture(event.pointerId);
+      }
+      event.preventDefault();
+      return;
+    }
     if (tool === "sfx" && window.TypeRSFX) {
       const made = window.TypeRSFX.down(event, point, base);
       if (made) {
@@ -8675,6 +8691,7 @@
     if (tool === "reshape" && !gesture && app.doc && window.TypeRReshapeTool) window.TypeRReshapeTool.hover(event, toDoc(event));
     if (tool === "perspective" && !gesture && app.doc && window.TypeRPerspectiveTool) window.TypeRPerspectiveTool.hover(event, toDoc(event));
     if (tool === "gradient" && !gesture && app.doc && window.TypeRRetouch) window.TypeRRetouch.hover(event, toDoc(event));
+    if (tool === "pen" && !gesture && !pinch && app.doc && ui.editor.hidden && window.TypeRPen) window.TypeRPen.hover(event, toDoc(event));
     if (!gesture || event.pointerId !== gesture.id) {
       const adding = app.selectionMode === "add" || app.selectionMode === "subtract";
       if (SELECTION_TOOLS.has(tool) && app.doc && !event.shiftKey && !event.altKey && (app.selectionMode === "new" || (adding && LEAVE_TOOLS.has(tool)))) {
@@ -8695,6 +8712,11 @@
     if (current.kind === "perspective") {
       if (Math.hypot(event.clientX - current.x, event.clientY - current.y) > current.slop) current.moved = true;
       if (current.moved) window.TypeRPerspectiveTool.move(current, event, toDoc(event));
+      return;
+    }
+    if (current.kind === "pen") {
+      if (Math.hypot(event.clientX - current.x, event.clientY - current.y) > current.slop) current.moved = true;
+      if (current.moved) window.TypeRPen.move(current, event, toDoc(event));
       return;
     }
     if (current.kind === "sfx") {
@@ -8986,6 +9008,10 @@
       window.TypeRPerspectiveTool.up(current, event, point, cancelled);
       return;
     }
+    if (kind === "pen") {
+      window.TypeRPen.up(current, event, point, cancelled);
+      return;
+    }
     if (kind === "sfx") {
       window.TypeRSFX.up(current, event, point, cancelled);
       return;
@@ -9124,6 +9150,8 @@
       openBrushPicker(event.clientX, event.clientY);
       return;
     }
+    // With the Pen, on a page that has a path: what the path can become
+    if (app.tool === "pen" && !gesture && window.TypeRPen && window.TypeRPen.contextMenu(event)) return;
     const point = toDoc(event);
     const hit = ops.hitLayer(point[0], point[1]);
     if (hit && !app.doc.state.activeIds.includes(hit.id)) ops.selectLayer(hit.id);
@@ -16278,6 +16306,8 @@
   /* --------------------------------- menus -------------------------------- */
 
   const hasDoc = () => Boolean(app.doc);
+  // The page has a work path (pen.js)
+  const hasPath = () => Boolean(app.doc && app.doc.state.workPath && window.TypeRPen);
   const hasSelection = () => Boolean(app.doc && app.doc.state.selection);
   // With a selection on a pixel layer, as Photoshop's Cmd+J: only what is selected is copied
   const duplicateLayer = () => {
@@ -19007,6 +19037,16 @@
       { label: "Generative Fill…", enabled: () => Boolean(Gen) && hasSelection(), action: openGenerative },
       ...(TextMask ? [{ label: "Remove Text on Several Pages…", enabled: hasDoc, action: startTextBatch }] : []),
       { label: "Clear", keys: "Backspace", enabled: () => hasSelection() || hasLayer(), action: () => clearOrDelete() },
+      // What the Pen's path becomes (pen.js): also in the Pen's options bar, and on a right click
+      // with it. Cmd+Enter is Photoshop's, with the Pen: with any other tool, or no path, it stays
+      // the key that edits a text.
+      { label: "Path", submenu: [
+        { label: "Make Selection", keys: "Cmd+Enter", keysWhen: () => hasPath() && app.tool === "pen", enabled: hasPath, action: () => window.TypeRPen.makeSelection() },
+        { label: "Fill Path", enabled: hasPath, action: () => window.TypeRPen.fillPath() },
+        { label: "Stroke Path", enabled: hasPath, action: () => window.TypeRPen.strokePath() },
+        null,
+        { label: "Delete Path", enabled: hasPath, action: () => window.TypeRPen.deletePath() },
+      ] },
       null,
       // Photoshop's Search, here for the tools and commands. Not over TypeR's own dialogs: its
       // Settings have a search of their own on these keys.
@@ -19088,6 +19128,7 @@
         { label: "Reveal All", id: "Vector Mask: Reveal All", enabled: canAddVectorMask, action: () => ops.addVectorMask("revealAll") },
         { label: "Hide All", id: "Vector Mask: Hide All", enabled: canAddVectorMask, action: () => ops.addVectorMask("hideAll") },
         { label: "Current Selection", enabled: () => canAddVectorMask() && hasSelection(), action: () => ops.addVectorMask("selection") },
+        { label: "Current Path", id: "Vector Mask: Current Path", enabled: () => canAddVectorMask() && hasPath(), action: () => window.TypeRPen.maskFromPath() },
         null,
         { label: "Delete", id: "Vector Mask: Delete", enabled: () => Boolean(vectorLayer()), action: () => ops.deleteMask(vectorLayer().id, "vector") },
         { label: "Rasterize", id: "Vector Mask: Rasterize", enabled: () => Boolean(vectorLayer()), action: () => ops.rasterizeVectorMask(vectorLayer().id) },
@@ -20572,6 +20613,8 @@
         // not on a button just clicked, nor in TypeR's panel
         if ((item.keys === "Tab" || item.keys === "Shift+Tab") && active && active !== active.ownerDocument.body && active !== ui.stage && active.matches(":focus-visible")) return;
         // With nothing to act on, Cmd+D must not bookmark the page, but the browser's zoom can stay
+        // Keys that are this command's only at times, and mean something else otherwise: further down
+        if (item.keysWhen && !item.keysWhen()) break;
         if (item.enabled && !item.enabled()) {
           if (!item.browserWhenOff) event.preventDefault();
           return;
@@ -21713,7 +21756,7 @@
   // unless the user would rather not, what is being done on it, where it is in the chapter.
   // Null: nothing shown. Moving around or zooming doesn't change what was being done.
   const TYPESETTING = new Set(["text", "sfx", "wand", "perspective"]);
-  const CLEANING = new Set(["brush", "eraser", "magicEraser", "stamp", "clean", "heal", "reshape", "blur", "sharpen", "smudge"]);
+  const CLEANING = new Set(["brush", "eraser", "magicEraser", "stamp", "clean", "heal", "reshape", "blur", "sharpen", "smudge", "pen"]);
   let presenceWork = "";
   const presence = () => {
     if (settings.discord === "off") return null;
@@ -21857,6 +21900,9 @@
     // For the Spot Healing Brush and the Gradient tool (retouch.js)
     maskPainting,
     pixelsOnly,
+    // For Stroke Path (pen.js): what the Brush paints on, and with what
+    paintTarget,
+    strokeFields,
     schedule,
     hud,
     toDoc,

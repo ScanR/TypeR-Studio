@@ -1908,8 +1908,13 @@
     if (selection.mask) {
       const m = selection.mask;
       const image = ctx.createImageData(m.width, m.height);
-      for (let i = 0; i < m.data.length; i++) {
-        if (m.data[i]) image.data[i * 4 + 3] = 255;
+      // A selection made from a path has a soft edge (`alpha`, 0 to 255 a pixel): what is
+      // filled, cleared or painted through it gets it. Its outline is where it is half selected.
+      if (m.alpha) for (let i = 0; i < m.alpha.length; i++) image.data[i * 4 + 3] = m.alpha[i];
+      else {
+        for (let i = 0; i < m.data.length; i++) {
+          if (m.data[i]) image.data[i * 4 + 3] = 255;
+        }
       }
       ctx.putImageData(image, 0, 0);
     } else {
@@ -5487,6 +5492,76 @@
     return picture;
   };
 
+  // The work path's shape (see ops.setWorkPath) as an alpha picture of the page, { canvas, x,
+  // y }, or null when it covers nothing of it. A subpath left open is closed by a straight
+  // line, as Photoshop fills it. `antiAlias`: its edge as much there as the path covers each
+  // pixel, else on or off at half. `feather`: blurred that many pixels.
+  const pathAlpha = (doc, path, antiAlias, feather) => {
+    const box = vectorBounds(path, 0, 0);
+    if (!box) return null;
+    const pad = feather > 0 ? Math.ceil(feather * 3) : 0;
+    const left = Math.max(0, box.left - pad);
+    const top = Math.max(0, box.top - pad);
+    const right = Math.min(doc.width, box.right + pad);
+    const bottom = Math.min(doc.height, box.bottom + pad);
+    if (right - left < 1 || bottom - top < 1) return null;
+    const canvas = newCanvas(right - left, bottom - top);
+    const c = canvas.getContext("2d", { willReadFrequently: true });
+    vectorComponents(path).forEach(({ operation, paths }) => {
+      const shape = new Path2D();
+      tracePaths(shape, paths, -left, -top);
+      c.globalCompositeOperation = operation === "subtract" ? "destination-out" : operation === "intersect" ? "destination-in" : operation === "exclude" ? "xor" : "source-over";
+      c.fill(shape, paths[0].fillRule === "non-zero" ? "nonzero" : "evenodd");
+    });
+    if (!antiAlias) {
+      const image = c.getImageData(0, 0, canvas.width, canvas.height);
+      for (let i = 3; i < image.data.length; i += 4) image.data[i] = image.data[i] > 127 ? 255 : 0;
+      c.putImageData(image, 0, 0);
+    }
+    return { canvas: feather > 0 ? blurAlpha(canvas, feather) : canvas, x: left, y: top };
+  };
+  // A selection from an alpha picture of the page: selected where it is half there or more,
+  // and its soft edge kept beside (see selectionCanvas). null when nothing is.
+  const softSelection = (picture) => {
+    const { width, height } = picture.canvas;
+    const px = picture.canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, width, height).data;
+    let left = width;
+    let top = -1;
+    let right = -1;
+    let bottom = -1;
+    let any = false;
+    let soft = false;
+    for (let y = 0; y < height; y++) {
+      const row = y * width * 4 + 3;
+      for (let x = 0; x < width; x++) {
+        const a = px[row + x * 4];
+        if (!a) continue;
+        if (a > 127) any = true;
+        if (a < 255) soft = true;
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (top < 0) top = y;
+        bottom = y;
+      }
+    }
+    if (!any) return null;
+    const boxW = right - left + 1;
+    const boxH = bottom - top + 1;
+    const mask = new Uint8Array(boxW * boxH);
+    const alpha = new Uint8Array(boxW * boxH);
+    for (let y = 0; y < boxH; y++) {
+      const row = ((top + y) * width + left) * 4 + 3;
+      for (let x = 0; x < boxW; x++) {
+        const a = px[row + x * 4];
+        alpha[y * boxW + x] = a;
+        if (a > 127) mask[y * boxW + x] = 1;
+      }
+    }
+    const selection = makeSelection({ source: "mask", mask, boxW, boxH, left: picture.x + left, top: picture.y + top });
+    if (soft) selection.mask.alpha = alpha;
+    return selection;
+  };
+
   // A layer with a mask that stays put when the layer moves
   const looseMasks = (layer) => Boolean((maskOn(layer) && layer.mask.unlinked) || (vectorOn(layer) && layer.vectorMask.notLink));
   // Cuts a picture that sits at (x, y) of the page with a mask. `area`: only that rectangle of
@@ -6768,7 +6843,7 @@
 
   const newRaster = (name, fields) => Object.assign({ id: newId(), kind: "raster", name, visible: true, opacity: 1, blend: "normal", bitmap: null, left: 0, top: 0, dx: 0, dy: 0, paint: NONE, group: null }, fields);
 
-  const createDoc = ({ name, path, width, height, resolution, layers, handle, psd, stamp, idml, surfaces }) => {
+  const createDoc = ({ name, path, width, height, resolution, layers, handle, psd, stamp, idml, surfaces, workPath }) => {
     const doc = {
       id: newId(),
       name,
@@ -6791,6 +6866,8 @@
     };
     // The perspective zones its file kept
     if (surfaces && surfaces.length) doc.state.surfaces = surfaces.map((zone) => Object.assign({}, zone, { id: newId() }));
+    // Its work path (see ops.setWorkPath)
+    if (workPath && Array.isArray(workPath.paths) && workPath.paths.length) doc.state.workPath = { paths: workPath.paths };
     const top = doc.state.layers[doc.state.layers.length - 1];
     if (top) doc.state.activeIds = [top.id];
     pushHistory(doc, "Open");
@@ -9282,7 +9359,9 @@
     emit("selection", doc.state.selection);
   };
 
-  const resizeDoc = (doc, name, size, layers, change) => {
+  // `place`: where a point of the page goes, for the work path, which follows the page
+  const resizeDoc = (doc, name, size, layers, change, place) => {
+    if (place && doc.state.workPath) change = Object.assign({}, change, { workPath: mappedVector(doc.state.workPath, place) });
     const before = sizeOf(doc);
     // History from before sizes were kept, in a document from an older session
     doc.history.forEach((entry) => { if (!entry.size) entry.size = before; });
@@ -10673,7 +10752,7 @@
       if (!doc || (width === doc.width && height === doc.height)) return;
       const ox = Math.round((width - doc.width) * ax);
       const oy = Math.round((height - doc.height) * ay);
-      resizeDoc(doc, "Canvas Size", { width, height }, onNewCanvas(doc, width, height, ox, oy, fill), surfacesShifted(doc, ox, oy));
+      resizeDoc(doc, "Canvas Size", { width, height }, onNewCanvas(doc, width, height, ox, oy, fill), surfacesShifted(doc, ox, oy), (x, y) => [x + ox, y + oy]);
     },
     // What Free Transform works on: the active pixel layers and texts, and those in the active
     // folders (an SFX's letters with it)
@@ -10827,7 +10906,7 @@
           return withPixels(layer, bitmap, 0, 0, pageMask(layer, doc));
         });
       }
-      resizeDoc(doc, "Crop", { width, height }, layers, surfacesShifted(doc, -left, -top));
+      resizeDoc(doc, "Crop", { width, height }, layers, surfacesShifted(doc, -left, -top), (x, y) => [x - left, y - top]);
     },
     // An image dropped on a side of the page, for double pages: the page grows on that side
     // and the image goes there, on a layer of its own under everything that sits on the page.
@@ -10841,7 +10920,7 @@
       let at = layers[0] && layers[0].isBackground ? 1 : 0;
       while (layers[at] && layers[at].clipping) at++;
       layers.splice(at, 0, layer);
-      resizeDoc(doc, "Add Page", { width, height }, layers, Object.assign({ activeIds: [layer.id] }, surfacesShifted(doc, side === "left" ? bitmap.width : 0, 0)));
+      resizeDoc(doc, "Add Page", { width, height }, layers, Object.assign({ activeIds: [layer.id] }, surfacesShifted(doc, side === "left" ? bitmap.width : 0, 0)), (x, y) => [x + (side === "left" ? bitmap.width : 0), y]);
       firePanelEvent(EVENT_SELECT);
       return layer;
     },
@@ -10859,7 +10938,7 @@
         if (layer.kind === "group") return layer.mask || layer.vectorMask ? Object.assign({}, layer, scaledMasks(layer, doc, sx, sy)) : layer;
         return scaledRaster(layer, doc, sx, sy);
       });
-      resizeDoc(doc, "Image Size", { width, height, resolution }, layers, surfacesScaled(doc, sx, sy));
+      resizeDoc(doc, "Image Size", { width, height, resolution }, layers, surfacesScaled(doc, sx, sy), (x, y) => [x * sx, y * sy]);
     },
     // The Magic Eraser: what a click on the active pixel layer takes, as the Magic Wand would,
     // goes transparent. A Background becomes Layer 0 first, as in Photoshop: it can't be.
@@ -11792,6 +11871,89 @@
       const raster = newRaster(layer.name, { group: layer.group, opacity: layer.opacity, blend: layer.blend, visible: layer.visible, clipping: layer.clipping, mask: layer.mask || null, vectorMask: layer.vectorMask || null, bitmap: flattenLayers(doc, [Object.assign({}, layer, { opacity: 1, blend: "normal", mask: null, vectorMask: null })]) });
       commitState(doc, "Rasterize Layer", { layers: doc.state.layers.map((item) => (item.id === id ? raster : item)), activeIds: [raster.id] });
     },
+    /* ---- the work path (pen.js) ---- */
+    // A document's work path, Photoshop's, drawn with the Pen: { paths } in the page's pixels,
+    // each subpath as a vector mask has them (see tracePaths). Part of the history, and kept
+    // in the PSD where Photoshop keeps it. null: none.
+    setWorkPath(path, name, coalesce) {
+      const doc = app.doc;
+      if (!doc) return false;
+      const next = path && Array.isArray(path.paths) && path.paths.length ? { paths: path.paths } : null;
+      if (!next && !doc.state.workPath) return false;
+      // Nothing of the page's picture changes
+      commitState(doc, name || "Work Path", { workPath: next }, coalesce, false);
+      return true;
+    },
+    // Make Selection: the work path as a selection, anti-aliased and feathered as asked.
+    // `mode`: "add", "subtract" or "intersect" with the selection there is. Says whether the
+    // path covered anything.
+    selectPath(mode, { antiAlias = true, feather = 0 } = {}) {
+      const doc = app.doc;
+      const path = doc && doc.state.workPath;
+      if (!path) return false;
+      let picture = pathAlpha(doc, path, antiAlias, feather);
+      const current = doc.state.selection;
+      const combining = Boolean(mode && mode !== "new" && current);
+      if (!picture && !combining) return false;
+      if (combining) {
+        // Both as pictures, so that their edges stay soft where they meet
+        const a = selectionBox(doc, current);
+        const box = picture ? { left: Math.min(a.left, picture.x), top: Math.min(a.top, picture.y), right: Math.max(a.right, picture.x + picture.canvas.width), bottom: Math.max(a.bottom, picture.y + picture.canvas.height) } : a;
+        const canvas = newCanvas(box.right - box.left, box.bottom - box.top);
+        const c = canvas.getContext("2d", { willReadFrequently: true });
+        const clip = clipOf(current, box.left, box.top);
+        if (clip.canvas) c.drawImage(clip.canvas, clip.x, clip.y);
+        else c.fillRect(clip.x, clip.y, clip.width, clip.height);
+        if (picture) {
+          c.globalCompositeOperation = mode === "add" ? "source-over" : mode === "subtract" ? "destination-out" : "destination-in";
+          c.drawImage(picture.canvas, picture.x - box.left, picture.y - box.top);
+        } else if (mode === "intersect") c.clearRect(0, 0, canvas.width, canvas.height);
+        picture = { canvas, x: box.left, y: box.top };
+      }
+      const selection = softSelection(picture);
+      if (!selection) {
+        if (combining) ops.deselect();
+        return combining;
+      }
+      ops.quietSelection(selection, combining ? { add: "Add to Selection", subtract: "Subtract from Selection", intersect: "Intersect Selection" }[mode] : "Make Selection");
+      return true;
+    },
+    // Fill Path: the work path's shape in a colour on the active pixel layer (a new one when
+    // there is none), within the selection if there is one, as in Photoshop
+    fillPath(color, { antiAlias = true, feather = 0 } = {}) {
+      const doc = app.doc;
+      const path = doc && doc.state.workPath;
+      const picture = path && pathAlpha(doc, path, antiAlias, feather);
+      if (!picture) return false;
+      const selection = doc.state.selection;
+      if (selection) {
+        const c = picture.canvas.getContext("2d");
+        const clip = clipOf(selection, picture.x, picture.y);
+        c.globalCompositeOperation = "destination-in";
+        if (clip.canvas) c.drawImage(clip.canvas, clip.x, clip.y);
+        else c.fillRect(clip.x, clip.y, clip.width, clip.height);
+      }
+      const layer = activeRaster(doc) || ops.newLayer();
+      if (lockOf(layer, "pixels")) {
+        emit("layer-locked");
+        return false;
+      }
+      const op = { t: "fill", color, clip: { canvas: picture.canvas, x: picture.x - (layer.dx || 0), y: picture.y - (layer.dy || 0) } };
+      if (lockOf(layer, "transparency")) op.atop = true;
+      commitState(doc, "Fill Path", { layers: replaceLayer(doc, layer, { paint: (layer.paint || NONE).concat([op]) }) });
+      return true;
+    },
+    // The steps made since the one at `index` become a single one, under `name`: a path is
+    // stroked one subpath after the other, and undone at once
+    joinSteps(index, name) {
+      const doc = app.doc;
+      if (!doc || index < 0 || doc.historyIndex <= index || doc.historyIndex !== doc.history.length - 1) return;
+      const last = doc.history[doc.historyIndex];
+      doc.history.length = index + 1;
+      doc.history.push(Object.assign({}, last, { name, coalesce: null }));
+      doc.historyIndex = index + 1;
+      emit("history");
+    },
     /* ---- masks ---- */
     // What the brushes work on: the active layer's pixel or vector mask when its thumbnail is
     // targeted in the Layers panel, as in Photoshop. Not part of the history.
@@ -11881,12 +12043,14 @@
       firePanelEvent(EVENT_HISTORY);
       return true;
     },
-    // Layer > Vector Mask > Reveal All, Hide All, Current Selection (its outline, as paths)
+    // Layer > Vector Mask > Reveal All, Hide All, Current Selection (its outline, as paths),
+    // Current Path (the work path, its open subpaths closed)
     addVectorMask(kind, ids) {
       const doc = app.doc;
       if (!doc) return false;
       const selection = doc.state.selection;
       if (kind === "selection" && !selection) return false;
+      if (kind === "path" && !doc.state.workPath) return false;
       const wanted = new Set(ids || doc.state.activeIds);
       const chosen = doc.state.layers.filter((layer) => wanted.has(layer.id) && ops.canHaveMask(layer) && !layer.vectorMask);
       if (!chosen.length) return false;
@@ -11908,6 +12072,9 @@
         paths = [{ open: false, operation: "combine", fillRule: "even-odd", knots: [smooth(cx, top, -rx * k, 0), smooth(right, cy, 0, -ry * k), smooth(cx, bottom, rx * k, 0), smooth(left, cy, 0, ry * k)] }];
       } else if (kind === "selection") {
         paths = selection.rings.map((ring, index) => ({ open: false, operation: index ? undefined : "combine", fillRule: "even-odd", knots: ring.map(([x, y]) => corner(x, y)) }));
+      } else if (kind === "path") {
+        paths = doc.state.workPath.paths.filter((path) => path.knots.length > 1).map((path) => Object.assign({}, path, { open: false }));
+        if (!paths.length) return false;
       }
       const made = new Map();
       chosen.forEach((layer) => {
@@ -15398,6 +15565,7 @@
     newId,
     newCanvas,
     clipOf,
+    tracePaths,
     asCanvas,
     imageResolution,
     withResolution,

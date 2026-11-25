@@ -717,6 +717,13 @@
     .filter((zone) => zone && Array.isArray(zone.corners) && zone.corners.length === 4 && zone.corners.every((corner) => Array.isArray(corner) && corner.length === 2 && corner.every(Number.isFinite))
       && Array.isArray(zone.unit) && zone.unit.length === 2 && zone.unit.every((value) => value > 0))
     .map(({ corners, unit, wide, found }) => ({ corners, unit, wide: wide > 0 ? wide : 1, found: { across: Boolean(found && found.across), down: Boolean(found && found.down) } }));
+  // The work path of a page (see ops.setWorkPath in photoshop.js), where Photoshop keeps its
+  // own and in the same form: it shows in Photoshop's Paths panel, and Photoshop's shows here
+  const soundPaths = (paths) => (Array.isArray(paths) ? paths.filter((path) => path && Array.isArray(path.knots) && path.knots.length && path.knots.every((knot) => knot && Array.isArray(knot.points) && knot.points.length === 6 && knot.points.every(Number.isFinite))) : []);
+  const workPathOf = (resources) => {
+    const paths = soundPaths(resources && resources.workPath && resources.workPath.paths);
+    return paths.length ? { paths } : null;
+  };
   const attachOffSurface = (layers, xmp) => {
     const taken = new Set();
     listOfXmp(xmp, "offsurface").forEach((entry) => {
@@ -1216,7 +1223,7 @@
     delete source.children;
     delete source.canvas;
     delete source.imageData;
-    return { width: psd.width, height: psd.height, resolution, layers, psd: { source }, missingFonts: missing, notes, surfaces: surfacesOfXmp(psd.imageResources && psd.imageResources.xmpMetadata) };
+    return { width: psd.width, height: psd.height, resolution, layers, psd: { source }, missingFonts: missing, notes, surfaces: surfacesOfXmp(psd.imageResources && psd.imageResources.xmpMetadata), workPath: workPathOf(psd.imageResources) };
   };
 
   // What FontScanR wants from a file: its text layers, without decoding a single pixel.
@@ -1903,6 +1910,9 @@
     });
     delete imageResources.thumbnail;
     delete imageResources.thumbnailRaw;
+    // The work path as it is now; the paths Photoshop saved under a name stay as they came
+    if (doc.state.workPath) imageResources.workPath = { paths: doc.state.workPath.paths };
+    else delete imageResources.workPath;
     const sfx = window.TypeRSFX ? window.TypeRSFX.recipesForSave(doc) : [];
     const xmp = xmpWithList(xmpWithList(xmpWithList(xmpWithList(xmpWithList(xmpWithSfx(imageResources.xmpMetadata, sfx), "warps", warpsForSave(doc)), "surfaces", surfacesForSave(doc)), "offsurface", offSurfaceForSave(doc)), "across", acrossForSave(doc)), "letters", lettersForSave(doc));
     if (xmp === undefined) delete imageResources.xmpMetadata;

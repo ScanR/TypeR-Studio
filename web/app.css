@@ -277,7 +277,7 @@ input[type="range"]:disabled::-moz-range-thumb { background: var(--muted); }
 .stage.is-spacing.is-marquee { cursor: move; }
 .stage[data-tool="zoom"] { cursor: zoom-in; }
 .stage[data-tool="brush"], .stage[data-tool="eraser"], .stage[data-tool="stamp"], .stage[data-tool="heal"] { cursor: none; }
-.stage[data-tool="gradient"] { cursor: crosshair; }
+.stage[data-tool="gradient"], .stage[data-tool="pen"] { cursor: crosshair; }
 /* Held, Ctrl or Cmd with Space wins over what the tool shows, the brush's ring as well */
 .stage.is-zoom-hold { cursor: zoom-in !important; }
 .stage.is-zoom-hold .brush-ring { display: none; }
@@ -327,6 +327,17 @@ input[type="range"]:disabled::-moz-range-thumb { background: var(--muted); }
 .persp-zone--drawn { stroke-dasharray: 5 3; shape-rendering: crispEdges; opacity: 1; }
 .persp-grid { fill: none; stroke: var(--blue); stroke-width: 1px; opacity: 0.3; }
 .handle__plus { stroke: #d32f2f; stroke-width: 1px; shape-rendering: crispEdges; }
+/* The Pen's path (pen.js): a line that shows on white as on black, its points, their handles,
+   and the segment to come. At rest, the line alone, lighter. */
+.pen-line { fill: none; stroke: var(--blue); stroke-width: 1.25px; }
+.pen-line--shade { stroke: #fff; stroke-width: 3px; opacity: 0.6; }
+.pen-line.is-rest { stroke-width: 1px; opacity: 0.7; stroke-dasharray: 2 4; }
+.pen-band { fill: none; stroke: var(--blue); stroke-width: 1px; opacity: 0.55; }
+.pen-arm { fill: none; stroke: var(--blue); stroke-width: 1px; }
+.pen-knot { fill: #fff; stroke: var(--blue); stroke-width: 1px; shape-rendering: crispEdges; }
+.pen-knot.is-picked { fill: var(--blue); stroke: #fff; }
+.pen-handle { fill: var(--blue); stroke: #fff; stroke-width: 1px; }
+.pen-box { fill: none; stroke: var(--blue); stroke-width: 1px; stroke-dasharray: 3 3; shape-rendering: crispEdges; }
 /* White with a dark line around it: seen on a white page as on a black one, with no blending */
 .brush-ring { fill: none; stroke: #fff; stroke-width: 1px; }
 .brush-ring--shade { stroke: rgb(0 0 0 / 0.75); }
