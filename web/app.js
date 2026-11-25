@@ -249,6 +249,7 @@
     modal.className = "modal";
     modal.onkeydown = null;
     modal.onpointerdown = null;
+    modal.onpointermove = null;
     const head = document.createElement("div");
     head.className = "modal__head";
     head.textContent = title;
@@ -518,10 +519,15 @@
     hexField.addEventListener("blur", () => show());
 
     const right = make("div", "picker__right", body);
+    // A drag picking the page's colour, to end when the window closes under it (Escape)
+    let stopPicking = null;
     const done = (keep) => {
-      modal.classList.remove("modal--picker");
+      if (stopPicking) stopPicking();
+      modal.classList.remove("modal--picker", "is-over-page");
       modal.style.transform = "";
       modal.onkeydown = null;
+      modal.onpointerdown = null;
+      modal.onpointermove = null;
       modal.close();
       cancelAnimationFrame(frame);
       frame = 0;
@@ -672,6 +678,52 @@
       head.addEventListener("pointerup", end);
     });
 
+    // As Layer Style's: outside the window, over the page, the pointer is the eyedropper. A
+    // click there takes the page's colour, a drag goes on picking. Only where the page itself
+    // shows: not beside it, nor under a window or a panel lying over it (Layer Style's, which
+    // this one opens over).
+    const onPage = (event) => {
+      const doc = app.doc;
+      if (!doc) return false;
+      const inside = (box) => event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom;
+      if (inside(modal.getBoundingClientRect()) || !inside(ui.stage.getBoundingClientRect())) return false;
+      const over = document.querySelectorAll("dialog[open], .work .is-floating, .ctxbar");
+      for (let i = 0; i < over.length; i++) if (over[i] !== modal && !over[i].hidden && inside(over[i].getBoundingClientRect())) return false;
+      const [x, y] = toDoc(event);
+      return x >= 0 && y >= 0 && x < doc.width && y < doc.height;
+    };
+    // What the Eyedropper tool takes: the page as it shows, its texts too
+    const pickAt = (event) => {
+      const [x, y] = toDoc(event);
+      const color = ops.pickColor(x, y);
+      if (!color) return;
+      setRgb(color.r, color.g, color.b);
+      changed();
+    };
+    modal.onpointermove = (event) => {
+      if (event.target === modal) modal.classList.toggle("is-over-page", onPage(event));
+      else modal.classList.remove("is-over-page");
+    };
+    modal.onpointerdown = (event) => {
+      if (event.target !== modal || event.button !== 0 || !onPage(event)) return;
+      event.preventDefault();
+      // A field being typed in would keep showing what was typed, not the colour picked
+      if (modal.contains(document.activeElement) && document.activeElement.tagName === "INPUT") document.activeElement.blur();
+      modal.setPointerCapture(event.pointerId);
+      const move = (e) => pickAt(e);
+      const stop = () => {
+        stopPicking = null;
+        modal.removeEventListener("pointermove", move);
+        modal.removeEventListener("pointerup", stop);
+        modal.removeEventListener("pointercancel", stop);
+        if (modal.hasPointerCapture(event.pointerId)) modal.releasePointerCapture(event.pointerId);
+      };
+      stopPicking = stop;
+      modal.addEventListener("pointermove", move);
+      modal.addEventListener("pointerup", stop);
+      modal.addEventListener("pointercancel", stop);
+      pickAt(event);
+    };
     modal.oncancel = (event) => {
       event.preventDefault();
       done(false);
@@ -997,6 +1049,7 @@
       docCanvas.height = 1;
     }
     blit();
+    placeScrollbars();
     drawOverlay();
     placeTaskBar();
     placeReview();
@@ -1025,6 +1078,144 @@
     placeEditor();
     PS.announce("view");
     if (Flow) Flow.rested();
+  };
+
+  /* ----------------------------- the scroll bars --------------------------- */
+
+  // Along the stage's right and bottom edges, as in Photoshop: how much of the page (in Flow,
+  // of every page) is on screen, and a way to move over it. They move the view as the Hand
+  // does, so Flow follows: the page in the middle of the screen comes in front once it rests.
+  const SCROLL_MARGIN = 16;
+  // The bars' width and padding, as app.css gives them
+  const SCROLL_BAR = 12;
+  const SCROLL_PAD = 2;
+  const scrollbars = { v: null, h: null, key: "" };
+  const scrollAxis = (axis) => (axis === "v" ? { a: "y", len: "height", view: () => stageH } : { a: "x", len: "width", view: () => stageW });
+  // The pages on screen, in pixels of the screen
+  const scrollPages = () => {
+    const doc = app.doc;
+    if (!doc) return [];
+    const flowing = Flow && flowOn() ? Flow.pages() : null;
+    if (flowing && flowing.length) return flowing;
+    const v = doc.view;
+    return [{ x: v.x, y: v.y, width: doc.width * v.zoom, height: doc.height * v.zoom }];
+  };
+  // One axis measured: how far the view can go (the pages with a margin, and the screen itself),
+  // and how far it may still be moved each way before the pages' end is on screen: back (to
+  // their start, a pan above 0) and on (to their end, a pan under 0)
+  const scrollExtent = (axis, pages) => {
+    const { a, len, view } = scrollAxis(axis);
+    const V = view();
+    const start = Math.min(...pages.map((page) => page[a])) - SCROLL_MARGIN;
+    const end = Math.max(...pages.map((page) => page[a] + page[len])) + SCROLL_MARGIN;
+    return { V, from: Math.min(0, start), to: Math.max(V, end), back: Math.max(0, -start), on: Math.min(0, V - end) };
+  };
+  // The thumb in its track: the bar goes along the stage's whole edge, less the corner where
+  // both bars show (short) and its own padding
+  const scrollThumb = (extent, short) => {
+    const track = Math.max(1, extent.V - (short ? SCROLL_BAR : 0) - SCROLL_PAD * 2);
+    const total = extent.to - extent.from;
+    const size = Math.max(24, Math.min(track, (track * extent.V) / total));
+    return { track, size, total, at: Math.max(0, Math.min(track - size, (-extent.from / Math.max(1, total - extent.V)) * (track - size))) };
+  };
+  const makeScrollbar = (axis) => {
+    const bar = document.createElement("div");
+    bar.className = `scrollbar scrollbar--${axis}`;
+    bar.hidden = true;
+    bar.setAttribute("aria-hidden", "true");
+    const thumb = document.createElement("div");
+    thumb.className = "scrollbar__thumb";
+    bar.appendChild(thumb);
+    const pan = (amount) => (axis === "v" ? panBy(0, amount) : panBy(amount, 0));
+    // A press on the bar is the bar's: no tool acts on the page under it
+    bar.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+      if (event.button !== 0 || !app.doc) return;
+      event.preventDefault();
+      // The view stops where the pages do: neither the thumb nor the track takes it past them
+      const extent = scrollExtent(axis, scrollPages());
+      const within = (amount) => Math.max(extent.on, Math.min(extent.back, amount));
+      const rect = thumb.getBoundingClientRect();
+      const at = axis === "v" ? event.clientY : event.clientX;
+      if (event.target !== thumb) {
+        // On the track: a screen towards the press
+        const forward = at > (axis === "v" ? rect.bottom : rect.right);
+        const amount = within((forward ? -1 : 1) * Math.max(20, extent.V - SCROLL_MARGIN * 4));
+        if (amount) pan(amount);
+        return;
+      }
+      // The thumb dragged: the view follows it, the thumb staying under the pointer
+      const { track, size, total } = scrollThumb(extent, bar.classList.contains("is-short"));
+      const ratio = (total - extent.V) / Math.max(1, track - size);
+      const drag = { done: 0, start: at };
+      bar.classList.add("is-dragging");
+      bar.setPointerCapture(event.pointerId);
+      const move = (e) => {
+        if (!app.doc) return;
+        const to = within(-((axis === "v" ? e.clientY : e.clientX) - drag.start) * ratio);
+        if (Math.abs(to - drag.done) < 0.01) return;
+        pan(to - drag.done);
+        drag.done = to;
+        movingQuickly();
+      };
+      const up = () => {
+        bar.removeEventListener("pointermove", move);
+        bar.removeEventListener("pointerup", up);
+        bar.removeEventListener("pointercancel", up);
+        bar.classList.remove("is-dragging");
+        schedule(false);
+      };
+      bar.addEventListener("pointermove", move);
+      bar.addEventListener("pointerup", up);
+      bar.addEventListener("pointercancel", up);
+    });
+    // Nor does a double-click on it
+    bar.addEventListener("dblclick", (event) => event.stopPropagation());
+    ui.stage.appendChild(bar);
+    return { bar, thumb };
+  };
+  const placeScrollbars = () => {
+    if (Shell.touch) {
+      // The touch interface has none: those made before it was chosen go
+      if (scrollbars.v && scrollbars.key !== "touch") {
+        scrollbars.v.bar.hidden = true;
+        scrollbars.h.bar.hidden = true;
+        scrollbars.key = "touch";
+      }
+      return;
+    }
+    if (!scrollbars.v) {
+      scrollbars.v = makeScrollbar("v");
+      scrollbars.h = makeScrollbar("h");
+    }
+    const pages = app.doc ? scrollPages() : [];
+    const extents = {};
+    const shown = {};
+    ["v", "h"].forEach((axis) => {
+      extents[axis] = pages.length ? scrollExtent(axis, pages) : null;
+      shown[axis] = Boolean(extents[axis] && extents[axis].to - extents[axis].from > extents[axis].V + 1);
+    });
+    // This runs at every frame painted (a pan, a zoom, a stroke of the brush): nothing is read
+    // from the page here, which would lay it out again each time, and nothing is written when
+    // the bars would be where they are
+    const key = ["v", "h"].map((axis) => (shown[axis] ? `${extents[axis].from},${extents[axis].to},${extents[axis].V}` : "-")).join("|");
+    if (key === scrollbars.key) return;
+    scrollbars.key = key;
+    ["v", "h"].forEach((axis) => {
+      const { bar, thumb } = scrollbars[axis];
+      const on = shown[axis];
+      if (bar.hidden !== !on) bar.hidden = !on;
+      // Where both show, they leave each other the corner
+      const short = on && shown[axis === "v" ? "h" : "v"];
+      bar.classList.toggle("is-short", short);
+      if (!on) return;
+      const { size, at } = scrollThumb(extents[axis], short);
+      const length = `${Math.round(size)}px`;
+      const offset = `translate${axis === "v" ? "Y" : "X"}(${Math.round(at)}px)`;
+      if (axis === "v" && thumb.style.height !== length) thumb.style.height = length;
+      if (axis === "h" && thumb.style.width !== length) thumb.style.width = length;
+      if (thumb.style.transform !== offset) thumb.style.transform = offset;
+    });
   };
 
   /* ------------------------------ the overlay ----------------------------- */
@@ -4112,6 +4303,7 @@
     if (saved.hyphenate === true) app.textDefaults.hyphenate = true;
     if (saved.autoKern === "manual" || saved.autoKern === "opticalKern") app.textDefaults.autoKern = saved.autoKern;
     if (saved.textOnTop === true) app.textDefaults.textOnTop = true;
+    if (saved.typeUnit === "pixels") app.textDefaults.typeUnit = "pixels";
     if (saved.smartGuides === false) settings.smartGuides = false;
     if (saved.snapText === true) settings.snapText = true;
     if (saved.spellcheck === false) settings.spellcheck = false;
@@ -4143,7 +4335,7 @@
     const d = app.textDefaults;
     try {
       // A language nobody chose keeps following the interface
-      window.localStorage.setItem(STORE_SETTINGS, JSON.stringify({ spellcheck: settings.spellcheck ? undefined : false, wheel: settings.wheel, zoomSpeed: settings.zoomSpeed === "normal" ? undefined : settings.zoomSpeed, wheelSpeed: settings.wheelSpeed === "normal" ? undefined : settings.wheelSpeed, smartGuides: settings.smartGuides, snapText: settings.snapText || undefined, transformControls: settings.transformControls ? undefined : false, bubbleRoom: settings.bubbleRoom ? undefined : false, taskBar: settings.taskBar ? undefined : false, taskBarPlace: settings.taskBarPlace || undefined, hiddenChars: settings.hiddenChars || undefined, discord: settings.discord === "page" ? undefined : settings.discord, sizeStep: settings.sizeStep === 2 ? undefined : settings.sizeStep, workspace: settings.workspace === "flow" ? "flow" : undefined, flowDirection: settings.flowDirection === "rtl" ? undefined : settings.flowDirection, flowGap: settings.flowGap === 80 ? undefined : settings.flowGap, flowGapDown: settings.flowGapDown || undefined, flowPerRow: settings.flowPerRow || undefined, flowPairs: settings.flowPairs || undefined, flowPairsShift: settings.flowPairsShift || undefined, ligature: d.ligature, hyphenate: d.hyphenate || undefined, autoKern: d.autoKern === "manual" || d.autoKern === "opticalKern" ? d.autoKern : undefined, textOnTop: d.textOnTop || undefined, language: d.language === PS.DEFAULT_TEXT_LANGUAGE ? undefined : d.language }));
+      window.localStorage.setItem(STORE_SETTINGS, JSON.stringify({ spellcheck: settings.spellcheck ? undefined : false, wheel: settings.wheel, zoomSpeed: settings.zoomSpeed === "normal" ? undefined : settings.zoomSpeed, wheelSpeed: settings.wheelSpeed === "normal" ? undefined : settings.wheelSpeed, smartGuides: settings.smartGuides, snapText: settings.snapText || undefined, transformControls: settings.transformControls ? undefined : false, bubbleRoom: settings.bubbleRoom ? undefined : false, taskBar: settings.taskBar ? undefined : false, taskBarPlace: settings.taskBarPlace || undefined, hiddenChars: settings.hiddenChars || undefined, discord: settings.discord === "page" ? undefined : settings.discord, sizeStep: settings.sizeStep === 2 ? undefined : settings.sizeStep, workspace: settings.workspace === "flow" ? "flow" : undefined, flowDirection: settings.flowDirection === "rtl" ? undefined : settings.flowDirection, flowGap: settings.flowGap === 80 ? undefined : settings.flowGap, flowGapDown: settings.flowGapDown || undefined, flowPerRow: settings.flowPerRow || undefined, flowPairs: settings.flowPairs || undefined, flowPairsShift: settings.flowPairsShift || undefined, ligature: d.ligature, hyphenate: d.hyphenate || undefined, autoKern: d.autoKern === "manual" || d.autoKern === "opticalKern" ? d.autoKern : undefined, textOnTop: d.textOnTop || undefined, typeUnit: d.typeUnit === "pixels" ? "pixels" : undefined, language: d.language === PS.DEFAULT_TEXT_LANGUAGE ? undefined : d.language }));
     } catch (error) {
       console.warn("TypeR web: could not keep the settings", error);
     }
@@ -4611,7 +4803,7 @@
         };
         const general = document.createElement("div");
         general.className = "settings__pane";
-        general.append(heading(T("General")), card("lang", ...(Shell.touch ? [] : ["wheel", "wheelSpeed", "zoomSpeed"]), ...(discord ? ["discord"] : [])), ...(Flow && !Shell.touch ? [card("workspace", "flowDirection", "flowPairs", "flowGap", "flowPerRow")] : []), card("language", "ligature", "hyphenate", "textOnTop", ...(Shell.touch ? [] : ["sizeStep"])));
+        general.append(heading(T("General")), card("lang", ...(Shell.touch ? [] : ["wheel", "wheelSpeed", "zoomSpeed"]), ...(discord ? ["discord"] : [])), ...(Flow && !Shell.touch ? [card("workspace", "flowDirection", "flowPairs", "flowGap", "flowPerRow")] : []), card("language", "ligature", "hyphenate", "textOnTop", "typeUnit", ...(Shell.touch ? [] : ["sizeStep"])));
         if (canChooseFolder) general.appendChild(folderCard());
         // The statistics last, on their own: a choice made once, not a setting of the work
         if (Stats) general.appendChild(card("stats"));
@@ -4701,6 +4893,7 @@
         { id: "ligature", label: T("Standard ligatures in new text"), type: "checkbox", checked: d.ligature },
         { id: "hyphenate", label: T("Hyphenate new paragraph text"), type: "checkbox", checked: Boolean(d.hyphenate), hint: () => T("Long words are cut at a syllable, with a hyphen, at the end of a line: in paragraph text, and in the text TypeR fits in a bubble.") },
         { id: "textOnTop", label: T("Always place new text on top"), type: "checkbox", checked: Boolean(d.textOnTop), hint: () => T("When off, new text goes right above the selected layer, as in Photoshop.") },
+        { id: "typeUnit", label: T("Type units"), value: d.typeUnit === "pixels" ? "pixels" : "points", options: [["points", T("Points (pt)")], ["pixels", T("Pixels (px)")]], hint: (value) => (value === "pixels" ? T("Text sizes, leading and baseline shift are shown and typed in pixels of the page. Your texts and your styles stay as they are.") : T("Text sizes, leading and baseline shift are shown and typed in points, as in Photoshop. A point is a pixel at 72 ppi.")) },
         { id: "sizeStep", label: T("Text size step"), value: settings.sizeStep, type: "number", min: 0.1, step: "any", hint: () => T("How much Ctrl + Shift + < and > change the size of the text. With Alt, five times as much.") },
       ],
     });
@@ -4723,6 +4916,8 @@
     d.ligature = answer.ligature;
     d.hyphenate = answer.hyphenate;
     d.textOnTop = answer.textOnTop;
+    const retyped = (answer.typeUnit === "pixels" ? "pixels" : "points") !== (d.typeUnit === "pixels" ? "pixels" : "points");
+    d.typeUnit = answer.typeUnit === "pixels" ? "pixels" : undefined;
     const step = Math.round(parseFloat(String(answer.sizeStep).replace(",", ".")) * 100) / 100;
     if (step > 0 && step <= 100) settings.sizeStep = step;
     keepSettings();
@@ -4731,6 +4926,13 @@
     appearance.save();
     characterKey = "";
     renderCharacter();
+    // Every size on screen is in the unit chosen at once, and TypeR's panel reads the text again
+    if (retyped) {
+      renderOptions();
+      schedule(false);
+      PS.announce("selection");
+      ops.typeUnitChanged();
+    }
     if (relanguage) Fonts.refresh();
     if (answer.lang !== lang) {
       const url = new URL(window.location.href);
@@ -4764,6 +4966,31 @@
       window.localStorage.setItem(STORE_TEXT_TOOL, JSON.stringify({ font: d.font, family: d.family, style: d.style, size: d.size, antiAlias: d.antiAlias }));
     } catch (error) {
       console.warn("TypeR web: could not keep the Type tool's settings", error);
+    }
+  };
+  // The Magic Wand's and the Magic Eraser's options come back after a reload too, as in Photoshop
+  const STORE_WAND = "typer.web.wand";
+  const WAND_FIELDS = { tolerance: "number", contiguous: "boolean", sampleAll: "boolean", magicTolerance: "number", magicAntiAlias: "boolean", magicContiguous: "boolean", magicSampleAll: "boolean" };
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(STORE_WAND)) || {};
+    Object.keys(WAND_FIELDS).forEach((field) => {
+      const value = saved[field];
+      if (typeof value !== WAND_FIELDS[field]) return;
+      if (typeof value === "number" && !(value >= 0 && value <= 255)) return;
+      app[field] = value;
+    });
+  } catch (error) {
+    console.warn("TypeR web: could not read the Magic Wand's settings", error);
+  }
+  const keepWand = () => {
+    const out = {};
+    Object.keys(WAND_FIELDS).forEach((field) => {
+      if (typeof app[field] === WAND_FIELDS[field]) out[field] = app[field];
+    });
+    try {
+      window.localStorage.setItem(STORE_WAND, JSON.stringify(out));
+    } catch (error) {
+      console.warn("TypeR web: could not keep the Magic Wand's settings", error);
     }
   };
   // A font kept from last time that is no longer on this computer gives way to the first one.
@@ -4925,6 +5152,16 @@
 
   const ANTI_ALIAS_NAMES = [["antiAliasNone", "None"], ["antiAliasSharp", "Sharp"], ["antiAliasCrisp", "Crisp"], ["antiAliasStrong", "Strong"], ["antiAliasSmooth", "Smooth"]];
 
+  // Settings > Type units, as Photoshop's Preferences > Units > Type: the sizes shown and typed,
+  // in points or in the page's pixels. Only what is shown changes: a text keeps its sizes in
+  // points (a point is a pixel at 72 ppi), and a style of TypeR's the unit it was saved with.
+  const typePixelsPerPoint = () => (app.textDefaults.typeUnit === "pixels" ? ((app.doc && app.doc.resolution) || 72) / 72 : 1);
+  const typeUnitName = () => (app.textDefaults.typeUnit === "pixels" ? "px" : "pt");
+  // A length in points after a step, a round number (to the hundredth) of the unit shown
+  const roundInTypeUnit = (points) => {
+    const perPoint = typePixelsPerPoint();
+    return Math.round(points * perPoint * 100) / 100 / perPoint;
+  };
   // The sizes Photoshop lists under its Size field
   const SIZE_PRESETS = [6, 7, 8, 9, 10, 11, 12, 14, 18, 24, 30, 36, 48, 60, 72];
   const textControls = (host, compact) => {
@@ -4978,12 +5215,15 @@
       keepTextTool();
       Fonts.ensure(face.postScriptName).then(() => applyTextPatch({ fontPostScriptName: face.postScriptName, fontName: face.family, fontStyleName: face.style }, null, "font"));
     });
-    const size = numberInput(style ? Math.round((style.impliedFontSize || style.size) * 10) / 10 : d.size, 1, 2000, (value) => {
+    const perPoint = typePixelsPerPoint();
+    const size = numberInput(Math.round((style ? style.impliedFontSize || style.size : d.size) * perPoint * 10) / 10, 1, Math.round(2000 * perPoint), (value) => {
       if (!value) return;
-      d.size = value;
+      const points = value / perPoint;
+      d.size = points;
       keepTextTool();
-      applyTextPatch({ size: value }, null, "size");
+      applyTextPatch({ size: points }, null, "size");
     });
+    size.title = `${T("Size")} (${typeUnitName()})`;
     size.title = T("Size");
     // Photoshop's sizes, in a list beside the field, opened as Leading's is
     const sizeBox = document.createElement("span");
@@ -5014,7 +5254,7 @@
       event.preventDefault();
       openSizes(true);
     });
-    sizeBox.append(withUnit(size, "pt"), sizeOpener);
+    sizeBox.append(withUnit(size, typeUnitName()), sizeOpener);
     const color = document.createElement("input");
     color.type = "color";
     color.title = T("Text colour");
@@ -5464,7 +5704,7 @@
       return;
     }
     const layer = texts[0];
-    const key = JSON.stringify([texts.map((item) => item.id), styleShown(layer), layer.params.layerText.paragraphStyleRange[0].paragraphStyle.alignment, Fonts.generation, recentGradientsSeen, gradientOn(layer)]);
+    const key = JSON.stringify([texts.map((item) => item.id), styleShown(layer), layer.params.layerText.paragraphStyleRange[0].paragraphStyle.alignment, Fonts.generation, recentGradientsSeen, gradientOn(layer), typePixelsPerPoint()]);
     const busy = scrubbing || (taskBar.contains(document.activeElement) && document.activeElement.tagName === "INPUT");
     if (key !== taskBarKey && !busy) {
       taskBarKey = key;
@@ -7739,7 +7979,7 @@
     // A transform or a warp under way: the bar shows its numbers, built again every time as before
     if (transform || warpedLayer()) return "live:" + nextToken++;
     const active = doc ? doc.state.layers.filter((layer) => doc.state.activeIds.includes(layer.id)) : [];
-    return [app.tool, doc ? doc.id : "", Fonts.generation, settings.hiddenChars ? 1 : 0, recentGradientsSeen, editing ? editing.id + ":" + (editRange() || []).join("-") : "", active.map((layer) => layer.id + ":" + tokenOf(layer)).join(","), tokenOf(app.textDefaults)].join("|");
+    return [app.tool, doc ? doc.id : "", Fonts.generation, settings.hiddenChars ? 1 : 0, recentGradientsSeen, editing ? editing.id + ":" + (editRange() || []).join("-") : "", active.map((layer) => layer.id + ":" + tokenOf(layer)).join(","), tokenOf(app.textDefaults), typePixelsPerPoint()].join("|");
   };
   const renderOptions = () => {
     const bar = ui.options;
@@ -7783,16 +8023,16 @@
       if (TextMask && (tool === "rectangle" || tool === "ellipse")) bar.appendChild(selectTextButton());
     }
     if (tool === "wand") {
-      bar.appendChild(scrubbed(T("Tolerance"), numberInput(app.tolerance, 0, 255, (value) => { app.tolerance = Math.max(0, Math.min(255, value)); })));
-      bar.appendChild(checkbox(T("Contiguous"), app.contiguous !== false, (on) => { app.contiguous = on; }));
-      bar.appendChild(checkbox(T("Sample all layers"), app.sampleAll, (on) => { app.sampleAll = on; }));
+      bar.appendChild(scrubbed(T("Tolerance"), numberInput(app.tolerance, 0, 255, (value) => { app.tolerance = Math.max(0, Math.min(255, value)); keepWand(); })));
+      bar.appendChild(checkbox(T("Contiguous"), app.contiguous !== false, (on) => { app.contiguous = on; keepWand(); }));
+      bar.appendChild(checkbox(T("Sample all layers"), app.sampleAll, (on) => { app.sampleAll = on; keepWand(); }));
     }
     if (tool === "quickSelect" && window.TypeRQuickSelect) window.TypeRQuickSelect.options(bar);
     if (tool === "magicEraser") {
-      bar.appendChild(scrubbed(T("Tolerance"), numberInput(app.magicTolerance, 0, 255, (value) => { app.magicTolerance = Math.max(0, Math.min(255, value)); })));
-      bar.appendChild(checkbox(T("Anti-alias"), app.magicAntiAlias !== false, (on) => { app.magicAntiAlias = on; }));
-      bar.appendChild(checkbox(T("Contiguous"), app.magicContiguous !== false, (on) => { app.magicContiguous = on; }));
-      bar.appendChild(checkbox(T("Sample all layers"), app.magicSampleAll, (on) => { app.magicSampleAll = on; }));
+      bar.appendChild(scrubbed(T("Tolerance"), numberInput(app.magicTolerance, 0, 255, (value) => { app.magicTolerance = Math.max(0, Math.min(255, value)); keepWand(); })));
+      bar.appendChild(checkbox(T("Anti-alias"), app.magicAntiAlias !== false, (on) => { app.magicAntiAlias = on; keepWand(); }));
+      bar.appendChild(checkbox(T("Contiguous"), app.magicContiguous !== false, (on) => { app.magicContiguous = on; keepWand(); }));
+      bar.appendChild(checkbox(T("Sample all layers"), app.magicSampleAll, (on) => { app.magicSampleAll = on; keepWand(); }));
     }
     if (tool === "clean") {
       const shapes = document.createElement("span");
@@ -10184,14 +10424,15 @@
   // letters selected in the editor, else on the whole of the selected texts. Auto leading
   // starts from the leading it gives, as the Leading field's own steps do.
   const stepLeading = (direction, large) => {
-    const delta = direction * (large ? 10 : 2);
+    // 2 and 10 of the unit shown (Settings > Type units); the text's own leading is in points
+    const delta = (direction * (large ? 10 : 2)) / typePixelsPerPoint();
     const range = editRange();
     const layers = range ? app.doc.state.layers.filter((layer) => layer.id === editing.id) : activeTexts();
     layers.forEach((layer) => {
       const paragraph = layer.params.layerText.paragraphStyleRange[0].paragraphStyle || {};
       const change = (style) => {
         const from = style.autoLeading === false && style.leading > 0 ? style.leading : (style.impliedFontSize || style.size || 12) * (paragraph.autoLeadingPercentage || 1.2);
-        return { autoLeading: false, leading: Math.max(0.1, Math.min(5000, Math.round((from + delta) * 100) / 100)) };
+        return { autoLeading: false, leading: Math.max(0.1, Math.min(5000, roundInTypeUnit(from + delta))) };
       };
       ops.setTextStyle([layer.id], change, null, "leading", range || undefined);
     });
@@ -10200,8 +10441,9 @@
     if (!ui.editor.hidden) placeEditor();
   };
   const shiftBaseline = (direction, large) => {
-    const delta = direction * (large ? 10 : 2);
-    applyTextPatch((style) => ({ baselineShift: Math.max(-1000, Math.min(1000, Math.round((((style.impliedBaselineShift !== undefined ? style.impliedBaselineShift : style.baselineShift) || 0) + delta) * 100) / 100)) }), null, "baseline");
+    // 2 and 10 of the unit shown (Settings > Type units); the text's own shift is in points
+    const delta = (direction * (large ? 10 : 2)) / typePixelsPerPoint();
+    applyTextPatch((style) => ({ baselineShift: Math.max(-1000, Math.min(1000, roundInTypeUnit(((style.impliedBaselineShift !== undefined ? style.impliedBaselineShift : style.baselineShift) || 0) + delta))) }), null, "baseline");
     characterKey = "";
     renderCharacter();
     if (!ui.editor.hidden) placeEditor();
@@ -12106,18 +12348,20 @@
   window.addEventListener("resize", () => closeLeadingMenu());
   const leadingField = (layer, style) => {
     const manual = style.autoLeading === false && style.leading > 0;
+    // Shown and typed in the unit of Settings > Type units, kept in points
+    const perPoint = typePixelsPerPoint();
     const shown = (value) => String(Math.round(value * 100) / 100);
     const autoValue = () => {
       const paragraph = layer.params.layerText.paragraphStyleRange[0].paragraphStyle || {};
-      return (style.impliedFontSize || style.size || 12) * (paragraph.autoLeadingPercentage || 1.2);
+      return (style.impliedFontSize || style.size || 12) * (paragraph.autoLeadingPercentage || 1.2) * perPoint;
     };
     const box = document.createElement("span");
     box.className = "combo";
     const input = document.createElement("input");
     input.type = "text";
-    input.title = T("Leading");
+    input.title = `${T("Leading")} (${typeUnitName()})`;
     input.setAttribute("aria-label", T("Leading"));
-    input.value = manual ? shown(style.leading) : T("Auto");
+    input.value = manual ? shown(style.leading * perPoint) : T("Auto");
     // Dragged on its name, it goes from these limits, and from what Auto gives
     input.min = "0.1";
     input.max = "5000";
@@ -12128,7 +12372,7 @@
         applyTextPatch({ autoLeading: true }, null, "leading");
       } else {
         input.value = shown(value);
-        applyTextPatch({ autoLeading: false, leading: value }, null, "leading");
+        applyTextPatch({ autoLeading: false, leading: value / perPoint }, null, "leading");
       }
       last = input.value;
     };
@@ -12271,7 +12515,7 @@
     if (scrubbing) return;
     if (host.contains(document.activeElement) && document.activeElement.tagName === "INPUT" && document.activeElement.type !== "checkbox" && document.activeElement.type !== "color") return;
     const layer = activeTexts()[0];
-    const key = layer ? JSON.stringify([layer.id, styleShown(layer), kerningShown(layer), layer.params.layerText.paragraphStyleRange[0], layer.params.layerText.antiAlias, layer.params.layerText.textShape, Boolean(layer.warp), layer.stroke, layer.effects || null, inSfx(layer), Fonts.generation]) : "none";
+    const key = layer ? JSON.stringify([layer.id, styleShown(layer), kerningShown(layer), layer.params.layerText.paragraphStyleRange[0], layer.params.layerText.antiAlias, layer.params.layerText.textShape, Boolean(layer.warp), layer.stroke, layer.effects || null, inSfx(layer), Fonts.generation, typePixelsPerPoint()]) : "none";
     if (key === characterKey) return;
     characterKey = key;
     closeLeadingMenu();
@@ -12457,8 +12701,9 @@
     }
     const height = numberInput(style.verticalScale === undefined ? 100 : style.verticalScale, 10, 500, (value) => applyTextPatch({ verticalScale: value }, null, "scale"));
     host.append(scrubbed(T("Height %"), height, withSteps(height)));
-    const baseline = numberInput(style.impliedBaselineShift !== undefined ? style.impliedBaselineShift : style.baselineShift || 0, -1000, 1000, (value) => applyTextPatch({ baselineShift: value }, null, "baseline"));
-    baseline.title = T("Baseline shift");
+    const perPoint = typePixelsPerPoint();
+    const baseline = numberInput(Math.round((style.impliedBaselineShift !== undefined ? style.impliedBaselineShift : style.baselineShift || 0) * perPoint * 100) / 100, Math.round(-1000 * perPoint), Math.round(1000 * perPoint), (value) => applyTextPatch({ baselineShift: value / perPoint }, null, "baseline"));
+    baseline.title = `${T("Baseline shift")} (${typeUnitName()})`;
     host.append(scrubbed(T("Baseline"), baseline, withSteps(baseline)));
     const kerning = kerningField(layer);
     const kerningRow = labelled(T("Kerning"), kerning.box);
@@ -16621,8 +16866,10 @@
 
   // Photoshop's steps: 2 points, and 10 with Alt. The step can be changed in the settings.
   const stepTextSize = (direction, large) => {
-    const step = settings.sizeStep * (large ? 5 : 1);
-    applyTextPatch((style) => ({ size: Math.max(1, Math.round(((style.impliedFontSize || style.size || 12) + direction * step) * 100) / 100) }), null, "text-size");
+    // The step is in the unit the panels show (Settings > Type units); the text's size in points
+    const perPoint = typePixelsPerPoint();
+    const step = (settings.sizeStep * (large ? 5 : 1)) / perPoint;
+    applyTextPatch((style) => ({ size: Math.max(1 / perPoint, roundInTypeUnit((style.impliedFontSize || style.size || 12) + direction * step)) }), null, "text-size");
     characterKey = "";
     renderCharacter();
     if (!ui.editor.hidden) placeEditor();
@@ -22496,6 +22743,8 @@
     applyTextPatch,
     // The swatches the Color Picker and the Swatches panel share (swatches.js)
     swatches: { read: readSwatches, write: writeSwatches, add: addSwatch, max: MAX_SWATCHES },
+    // How many of the unit shown a point is (Settings > Type units): 1 in points
+    typePixelsPerPoint,
     openFontMenu,
     scrubbed,
     scrubs,

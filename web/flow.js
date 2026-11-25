@@ -1383,6 +1383,13 @@
         host.schedule();
         return pairing.chosen;
       },
+      // Where every page is on screen, while Flow is on: [{ x, y, width, height }] (the scroll bars)
+      pages: () => {
+        if (!host.on() || !app.doc) return null;
+        ensure();
+        const w = world();
+        return w ? slots.map((slot) => boxOf(slot, w)) : null;
+      },
       // Whether a page was put somewhere by hand
       moved: () => slots.some((slot) => slot.place),
       // The page lying right under an open page (`step` 1) or right above it (-1), against it
