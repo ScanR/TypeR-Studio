@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.fr = Object.assign(window.TYPER_WEB_STRINGS.fr || {}, {
   "Page Down": "Page suiv.",
@@ -166,4 +166,41 @@ window.TYPER_WEB_STRINGS.fr = Object.assign(window.TYPER_WEB_STRINGS.fr || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Tous les raccourcis de la Perspective automatique (P). Sa barre d’options a aussi Largeur %, pour des lettres plus larges ou plus étroites, Détecter à nouveau et Réinitialiser. Pour annuler, comme partout : Cmd + Z.",
   "Perspective practice": "Entraînement perspective",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Guide Perspective automatique : tous les raccourcis, et un entraînement de 2 minutes",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "clic droit",
+  "hover": "survol",
+  "Guide and practice": "Guide et entraînement",
+  "Line Breaks Guide": "Guide Retours à la ligne",
+  "Line Breaks practice": "Entraînement retours à la ligne",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "On n’aurait jamais cru\rrentrer à la maison\rensemble, après tout ce temps.",
+  "In the panel's text": "Dans le texte du panneau",
+  "The Line Breaks panel (Window menu), a text picked on the page": "Le panneau Retours à la ligne (menu Fenêtre), un texte choisi sur la page",
+  "Over the text: the page shows the break before any click": "Sur le texte : la page montre le retour avant tout clic",
+  "Between two words: the line breaks there": "Entre deux mots : la ligne se coupe là",
+  "Inside a word: at a syllable, with its hyphen": "Dans un mot : à une syllabe, avec son trait d’union",
+  "Anywhere, between any two letters": "N’importe où, entre deux lettres",
+  "A break": "Un retour",
+  "Its ↵, at the end of the line": "Son ↵, au bout de la ligne",
+  "Joins the two lines again": "Rejoint les deux lignes",
+  "Moves the break, shown on the page as you drag": "Déplace le retour, montré sur la page pendant le glissement",
+  "On the first word of a line: joins it to the one above": "Sur le premier mot d’une ligne : la rejoint à la précédente",
+  "The whole text": "Tout le texte",
+  "From the top of the panel, or the keys with the panel closed": "En haut du panneau, ou au clavier, panneau fermé",
+  "One line less, balanced": "Une ligne de moins, équilibrée",
+  "One line more, balanced": "Une ligne de plus, équilibrée",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Équilibrer (≡) : autant de lignes, plus pleines au milieu, comme une bulle",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "Dans le panneau Retours à la ligne, passez le pointeur sur le texte : la page montre où la ligne se couperait, avant tout clic.",
+  "Click between two words: the line breaks there.": "Cliquez entre deux mots : la ligne se coupe là.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Cliquez dans un mot long : il se coupe à une syllabe, avec son trait d’union.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Cliquez sur un ↵ au bout d’une ligne : les deux lignes se rejoignent.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Faites glisser un ↵ ailleurs : le retour se déplace, et la page le montre pendant le glissement.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "Maintenez {Alt} et cliquez entre deux lettres : la ligne se coupe juste là, syllabe ou non.",
+  "Right-click the first word of a line: it joins the line above.": "Clic droit sur le premier mot d’une ligne : elle rejoint la précédente.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "Une ligne de moins : {Alt}{Cmd}{-}, ou le − en haut du panneau. Une ligne de plus : {Alt}{Cmd}{=}, ou le +. Dans les deux cas, les lignes sont équilibrées.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Dernière : cliquez sur Équilibrer (≡), en haut du panneau : autant de lignes, plus pleines au milieu, comme une bulle.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Tous les gestes du panneau Retours à la ligne (menu Fenêtre) : il montre les lignes du texte choisi, et la page suit ce que vous y faites. Son menu règle la langue des césures, qu’Auto trouve dans le texte. Pour annuler, comme partout : Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Vous connaissez les Retours à la ligne. Tous les gestes restent dans Aide → Guide Retours à la ligne, et sous le ? du panneau.",
+  "Line Breaks in 2 minutes": "Les Retours à la ligne en 2 minutes",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Apprendre le panneau sur une page à part ? Neuf courtes étapes, chacune validée en la faisant.",
 });

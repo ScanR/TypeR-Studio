@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.id = Object.assign(window.TYPER_WEB_STRINGS.id || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.id = Object.assign(window.TYPER_WEB_STRINGS.id || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Semua pintasan Perspektif Otomatis (P). Bilah opsinya juga punya Lebar %, untuk huruf yang lebih lebar atau lebih sempit, Deteksi lagi, dan Atur ulang. Urungkan seperti biasa: Cmd + Z.",
   "Perspective practice": "Latihan perspektif",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Panduan Perspektif Otomatis: semua pintasan, dan latihan 2 menit",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "klik kanan",
+  "hover": "arahkan",
+  "Guide and practice": "Panduan dan latihan",
+  "Line Breaks Guide": "Panduan Pemisah Baris",
+  "Line Breaks practice": "Latihan pemisah baris",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "We never thought\rwe'd make it back home\rtogether, after all this time.",
+  "In the panel's text": "Di teks panel",
+  "The Line Breaks panel (Window menu), a text picked on the page": "Panel Pemisah Baris (menu Jendela), teks yang dipilih di halaman",
+  "Over the text: the page shows the break before any click": "Di atas teks: halaman menampilkan pemisahnya sebelum diklik",
+  "Between two words: the line breaks there": "Di antara dua kata: baris terpisah di situ",
+  "Inside a word: at a syllable, with its hyphen": "Di dalam kata: pada suku kata, dengan tanda hubungnya",
+  "Anywhere, between any two letters": "Di mana saja, di antara dua huruf",
+  "A break": "Pemisah",
+  "Its ↵, at the end of the line": "Tanda ↵-nya, di akhir baris",
+  "Joins the two lines again": "Menggabungkan kembali kedua baris",
+  "Moves the break, shown on the page as you drag": "Memindahkan pemisah, tampil di halaman selagi diseret",
+  "On the first word of a line: joins it to the one above": "Pada kata pertama baris: menggabungkannya dengan baris sebelumnya",
+  "The whole text": "Seluruh teks",
+  "From the top of the panel, or the keys with the panel closed": "Dari bagian atas panel, atau dengan tombol saat panel tertutup",
+  "One line less, balanced": "Kurangi satu baris, seimbang",
+  "One line more, balanced": "Tambah satu baris, seimbang",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Seimbangkan (≡): jumlah baris sama, lebih penuh di tengah, seperti balon kata",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "Di panel Pemisah Baris, arahkan penunjuk ke teks: halaman menampilkan di mana baris akan terpisah, sebelum Anda mengeklik.",
+  "Click between two words: the line breaks there.": "Klik di antara dua kata: baris terpisah di situ.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Klik di dalam kata panjang: kata terpisah pada suku kata, dan mendapat tanda hubungnya.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Klik ↵ di akhir baris: kedua baris tergabung kembali.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Seret ↵ ke tempat lain: pemisah berpindah, dan halaman menampilkannya selagi Anda menyeret.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "Tahan {Alt} dan klik di antara dua huruf mana saja: baris terpisah tepat di situ, suku kata atau bukan.",
+  "Right-click the first word of a line: it joins the line above.": "Klik kanan kata pertama sebuah baris: baris itu bergabung dengan baris sebelumnya.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "Kurangi satu baris: {Alt}{Cmd}{-}, atau − di bagian atas panel. Tambah satu baris: {Alt}{Cmd}{=}, atau +. Keduanya menyeimbangkan baris.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Terakhir: klik Seimbangkan (≡) di bagian atas panel: jumlah baris sama, lebih penuh di tengah, seperti balon kata.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Semua gerakan panel Pemisah Baris (menu Jendela): panel ini menampilkan baris-baris teks terpilih, dan halaman mengikuti apa yang Anda lakukan di sana. Menunya mengatur bahasa pemenggalan kata, yang dideteksi Otomatis dari teks. Urungkan seperti biasa: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Anda sudah menguasai Pemisah Baris. Semua gerakan tetap ada di Bantuan → Panduan Pemisah Baris, dan di balik ? pada panel.",
+  "Line Breaks in 2 minutes": "Pemisah Baris dalam 2 menit",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Pelajari panel ini di halaman tersendiri? Sembilan langkah singkat, masing-masing lulus dengan melakukannya.",
 });

@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.vi = Object.assign(window.TYPER_WEB_STRINGS.vi || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.vi = Object.assign(window.TYPER_WEB_STRINGS.vi || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Mọi phím tắt của Phối cảnh tự động (P). Thanh tùy chọn còn có Chiều rộng %, cho chữ rộng hơn hoặc hẹp hơn, Dò lại và Đặt lại. Hoàn tác như mọi nơi: Cmd + Z.",
   "Perspective practice": "Luyện tập phối cảnh",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Hướng dẫn Phối cảnh tự động: mọi phím tắt, và 2 phút luyện tập",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "nhấp phải",
+  "hover": "di chuột",
+  "Guide and practice": "Hướng dẫn và luyện tập",
+  "Line Breaks Guide": "Hướng dẫn Ngắt dòng",
+  "Line Breaks practice": "Luyện tập ngắt dòng",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "We never thought\rwe'd make it back home\rtogether, after all this time.",
+  "In the panel's text": "Trên chữ trong bảng",
+  "The Line Breaks panel (Window menu), a text picked on the page": "Bảng Ngắt dòng (menu Cửa sổ), một đoạn chữ được chọn trên trang",
+  "Over the text: the page shows the break before any click": "Trên chữ: trang hiện chỗ ngắt trước khi bạn nhấp",
+  "Between two words: the line breaks there": "Giữa hai từ: dòng ngắt ở đó",
+  "Inside a word: at a syllable, with its hyphen": "Trong một từ: tại một âm tiết, kèm dấu gạch nối",
+  "Anywhere, between any two letters": "Bất kỳ đâu, giữa hai chữ cái bất kỳ",
+  "A break": "Một chỗ ngắt",
+  "Its ↵, at the end of the line": "Dấu ↵ của nó, ở cuối dòng",
+  "Joins the two lines again": "Nối hai dòng lại",
+  "Moves the break, shown on the page as you drag": "Dời chỗ ngắt, trang hiện ngay khi bạn kéo",
+  "On the first word of a line: joins it to the one above": "Trên từ đầu tiên của dòng: nối dòng đó với dòng trên",
+  "The whole text": "Toàn bộ chữ",
+  "From the top of the panel, or the keys with the panel closed": "Ở đầu bảng, hoặc bằng phím khi bảng đóng",
+  "One line less, balanced": "Bớt một dòng, cân bằng",
+  "One line more, balanced": "Thêm một dòng, cân bằng",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Cân bằng (≡): giữ số dòng, đầy hơn ở giữa, như một bong bóng thoại",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "Trong bảng Ngắt dòng, di con trỏ trên chữ: trang hiện chỗ dòng sẽ ngắt, trước khi bạn nhấp.",
+  "Click between two words: the line breaks there.": "Nhấp giữa hai từ: dòng ngắt ở đó.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Nhấp vào giữa một từ dài: từ được ngắt tại một âm tiết, kèm dấu gạch nối.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Nhấp vào một ↵ ở cuối dòng: hai dòng được nối lại.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Kéo một ↵ sang chỗ khác: chỗ ngắt dời theo, và trang hiện nó ngay khi bạn kéo.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "Giữ {Alt} và nhấp giữa hai chữ cái bất kỳ: dòng ngắt đúng chỗ đó, dù có phải âm tiết hay không.",
+  "Right-click the first word of a line: it joins the line above.": "Nhấp phải vào từ đầu tiên của một dòng: dòng đó nối vào dòng trên.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "Bớt một dòng: {Alt}{Cmd}{-}, hoặc nút − ở đầu bảng. Thêm một dòng: {Alt}{Cmd}{=}, hoặc nút +. Cách nào thì các dòng cũng được cân bằng.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Bước cuối: nhấp Cân bằng (≡) ở đầu bảng: giữ số dòng, đầy hơn ở giữa, như một bong bóng thoại.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Mọi thao tác của bảng Ngắt dòng (menu Cửa sổ): bảng hiện các dòng của chữ đang chọn, và trang làm theo những gì bạn làm ở đó. Menu của bảng đặt ngôn ngữ ngắt từ, mà Tự động tìm ra từ chữ. Hoàn tác như mọi nơi: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Bạn đã nắm được Ngắt dòng. Mọi thao tác luôn có trong Trợ giúp → Hướng dẫn Ngắt dòng, và dưới dấu ? của bảng.",
+  "Line Breaks in 2 minutes": "Ngắt dòng trong 2 phút",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Học bảng này trên một trang riêng? Chín bước ngắn, mỗi bước qua khi bạn làm được.",
 });

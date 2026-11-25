@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.it = Object.assign(window.TYPER_WEB_STRINGS.it || {}, {
   "Page Down": "Pag giù",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.it = Object.assign(window.TYPER_WEB_STRINGS.it || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Tutte le scorciatoie della Prospettiva automatica (P). La sua barra delle opzioni ha anche Larghezza %, per lettere più larghe o più strette, Rileva di nuovo e Ripristina. Per annullare, come ovunque: Cmd + Z.",
   "Perspective practice": "Esercizio prospettiva",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Guida Prospettiva automatica: tutte le scorciatoie e un esercizio di 2 minuti",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "clic destro",
+  "hover": "passa sopra",
+  "Guide and practice": "Guida ed esercizio",
+  "Line Breaks Guide": "Guida Interruzioni di riga",
+  "Line Breaks practice": "Esercizio interruzioni di riga",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "Non avremmo mai immaginato\rdi tornare a casa\rinsieme, dopo tutto questo tempo.",
+  "In the panel's text": "Nel testo del pannello",
+  "The Line Breaks panel (Window menu), a text picked on the page": "Il pannello Interruzioni di riga (menu Finestra), un testo scelto sulla pagina",
+  "Over the text: the page shows the break before any click": "Sul testo: la pagina mostra l’interruzione prima di ogni clic",
+  "Between two words: the line breaks there": "Tra due parole: la riga si spezza lì",
+  "Inside a word: at a syllable, with its hyphen": "In una parola: a una sillaba, con il suo trattino",
+  "Anywhere, between any two letters": "Ovunque, tra due lettere qualsiasi",
+  "A break": "Un’interruzione",
+  "Its ↵, at the end of the line": "Il suo ↵, a fine riga",
+  "Joins the two lines again": "Riunisce le due righe",
+  "Moves the break, shown on the page as you drag": "Sposta l’interruzione, mostrata sulla pagina mentre trascini",
+  "On the first word of a line: joins it to the one above": "Sulla prima parola di una riga: la unisce alla precedente",
+  "The whole text": "Tutto il testo",
+  "From the top of the panel, or the keys with the panel closed": "In cima al pannello, o da tastiera a pannello chiuso",
+  "One line less, balanced": "Una riga in meno, bilanciata",
+  "One line more, balanced": "Una riga in più, bilanciata",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Bilancia (≡): lo stesso numero di righe, più piene al centro, come una nuvoletta",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "Nel pannello Interruzioni di riga, passa il puntatore sul testo: la pagina mostra dove si spezzerebbe la riga, prima di ogni clic.",
+  "Click between two words: the line breaks there.": "Fai clic tra due parole: la riga si spezza lì.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Fai clic dentro una parola lunga: si spezza a una sillaba, con il suo trattino.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Fai clic su un ↵ a fine riga: le due righe si riuniscono.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Trascina un ↵ in un altro punto: l’interruzione si sposta, e la pagina la mostra mentre trascini.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "Tieni premuto {Alt} e fai clic tra due lettere qualsiasi: la riga si spezza proprio lì, sillaba o no.",
+  "Right-click the first word of a line: it joins the line above.": "Clic destro sulla prima parola di una riga: si unisce alla riga precedente.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "Una riga in meno: {Alt}{Cmd}{-}, o il − in cima al pannello. Una riga in più: {Alt}{Cmd}{=}, o il +. In entrambi i casi, le righe vengono bilanciate.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Ultimo passaggio: fai clic su Bilancia (≡), in cima al pannello: lo stesso numero di righe, più piene al centro, come una nuvoletta.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Tutti i gesti del pannello Interruzioni di riga (menu Finestra): mostra le righe del testo scelto, e la pagina segue quello che fai lì. Il suo menu imposta la lingua di sillabazione, che Auto rileva nel testo. Per annullare, come ovunque: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Ora conosci le Interruzioni di riga. Tutti i gesti restano in Aiuto → Guida Interruzioni di riga, e sotto il ? del pannello.",
+  "Line Breaks in 2 minutes": "Le Interruzioni di riga in 2 minuti",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Imparare il pannello su una pagina a parte? Nove brevi passi, ognuno superato facendolo.",
 });

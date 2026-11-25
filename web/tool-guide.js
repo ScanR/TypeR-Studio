@@ -1,8 +1,9 @@
 // A tool's guide: every shortcut on one card, each shown by a small looping drawing, and a
 // practice of a few steps on a page of its own, each step passed by doing it. The practice is
-// offered once, the first time the tool is picked; the Help menu and the ? of the options bar
-// bring both back. Each tool says what is its own (sfx-guide.js, perspective-guide.js): its
-// drawings, its shortcuts, its steps and its practice page. This is the rest.
+// offered once, the first time the tool is picked (a panel offers it in itself: see offer);
+// the Help menu and the ? of the options bar bring both back. Each tool says what is its own (sfx-guide.js,
+// perspective-guide.js, breaks-guide.js): its drawings, its shortcuts, its steps and its
+// practice page. This is the rest.
 
 (function () {
   "use strict";
@@ -26,7 +27,7 @@
   /* ------------------------------- the keys ------------------------------- */
 
   // A key as this computer names it; the mouse's part in words
-  const MOUSE = { click: "click", drag: "drag", dblclick: "double-click" };
+  const MOUSE = { click: "click", drag: "drag", dblclick: "double-click", rclick: "right-click", hover: "hover" };
   const capOf = (token) => {
     if (token === "Cmd") return IS_MAC ? "⌘" : "Ctrl";
     if (token === "Alt") return IS_MAC ? "⌥" : "Alt";
@@ -330,7 +331,16 @@
       }, 350);
     };
 
-    return { show, practise, toolChosen, rows, capsInto, endPractice };
+    // For a panel, which shows its offer in itself, without a dialog: its words, whether it is
+    // still to be made, and its answer "not now", for good
+    const offer = {
+      title: () => T(spec.offerTitle),
+      body: () => T(spec.offerBody),
+      pending: () => !remembered() && !coach,
+      decline: () => remember("offered"),
+    };
+
+    return { show, practise, toolChosen, offer, rows, capsInto, endPractice };
   };
 
   window.TypeRToolGuide = { make, el, capOf, capsInto, keysText, sentence, demo, pointer, ease, lerp, phase, notches, between, n1, W, H, endPractice };

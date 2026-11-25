@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.ko = Object.assign(window.TYPER_WEB_STRINGS.ko || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.ko = Object.assign(window.TYPER_WEB_STRINGS.ko || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "자동 원근 (P)의 모든 단축키. 옵션 바에는 글자를 넓히거나 좁히는 폭 %, 다시 감지, 재설정도 있습니다. 실행 취소는 어디서나처럼 Cmd + Z.",
   "Perspective practice": "원근 연습",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "자동 원근 가이드: 모든 단축키와 2분 연습",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "오른쪽 클릭",
+  "hover": "마우스 오버",
+  "Guide and practice": "가이드 및 연습",
+  "Line Breaks Guide": "줄 바꿈 가이드",
+  "Line Breaks practice": "줄 바꿈 연습",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "We never thought\rwe'd make it back home\rtogether, after all this time.",
+  "In the panel's text": "패널의 텍스트에서",
+  "The Line Breaks panel (Window menu), a text picked on the page": "줄 바꿈 패널 (창 메뉴), 페이지에서 고른 텍스트",
+  "Over the text: the page shows the break before any click": "텍스트 위: 클릭하기 전에 페이지에 줄 바꿈이 보입니다",
+  "Between two words: the line breaks there": "두 단어 사이: 거기서 줄이 바뀝니다",
+  "Inside a word: at a syllable, with its hyphen": "단어 안: 음절에서, 하이픈과 함께",
+  "Anywhere, between any two letters": "어디서나, 아무 두 글자 사이",
+  "A break": "줄 바꿈 하나",
+  "Its ↵, at the end of the line": "줄 끝의 ↵",
+  "Joins the two lines again": "두 줄을 다시 합칩니다",
+  "Moves the break, shown on the page as you drag": "줄 바꿈을 옮깁니다. 드래그하는 동안 페이지에 보입니다",
+  "On the first word of a line: joins it to the one above": "줄의 첫 단어 위: 이전 줄과 합칩니다",
+  "The whole text": "텍스트 전체",
+  "From the top of the panel, or the keys with the panel closed": "패널 상단에서, 또는 패널이 닫혀 있을 때 키로",
+  "One line less, balanced": "한 줄 줄이기, 균형 맞춤",
+  "One line more, balanced": "한 줄 늘리기, 균형 맞춤",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "균형 맞추기 (≡): 줄 수는 그대로, 말풍선처럼 가운데를 더 길게",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "줄 바꿈 패널에서 텍스트 위로 포인터를 움직이세요. 클릭하기 전에 어디서 줄이 바뀔지 페이지에 보입니다.",
+  "Click between two words: the line breaks there.": "두 단어 사이를 클릭하세요. 거기서 줄이 바뀝니다.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "긴 단어 안을 클릭하세요. 음절에서 나뉘고 하이픈이 붙습니다.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "줄 끝의 ↵를 클릭하세요. 두 줄이 다시 합쳐집니다.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "↵를 다른 곳으로 드래그하세요. 줄 바꿈이 옮겨지고, 드래그하는 동안 페이지에 보입니다.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "{Alt}를 누른 채 아무 두 글자 사이를 클릭하세요. 음절이든 아니든 바로 거기서 줄이 바뀝니다.",
+  "Right-click the first word of a line: it joins the line above.": "줄의 첫 단어를 오른쪽 클릭하세요. 이전 줄과 합쳐집니다.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "한 줄 줄이기: {Alt}{Cmd}{-} 또는 패널 상단의 −. 한 줄 늘리기: {Alt}{Cmd}{=} 또는 +. 어느 쪽이든 줄의 균형이 맞춰집니다.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "마지막입니다. 패널 상단의 균형 맞추기 (≡)를 클릭하세요. 줄 수는 그대로, 말풍선처럼 가운데가 더 길어집니다.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "줄 바꿈 패널 (창 메뉴)의 모든 동작. 고른 텍스트의 줄을 보여 주고, 패널에서 하는 대로 페이지가 따라갑니다. 메뉴에서 하이픈 연결 언어를 정하며, 자동은 텍스트에서 언어를 찾습니다. 실행 취소는 어디서나처럼 Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "줄 바꿈을 익혔습니다. 모든 동작은 언제든 도움말 → 줄 바꿈 가이드와 패널의 ?에서 볼 수 있습니다.",
+  "Line Breaks in 2 minutes": "2분 만에 익히는 줄 바꿈",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "별도 페이지에서 패널을 익혀 볼까요? 직접 해 보며 통과하는 짧은 9단계입니다.",
 });

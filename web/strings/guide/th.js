@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.th = Object.assign(window.TYPER_WEB_STRINGS.th || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.th = Object.assign(window.TYPER_WEB_STRINGS.th || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "คีย์ลัดทั้งหมดของเปอร์สเปกทีฟอัตโนมัติ (P) แถบตัวเลือกยังมี ความกว้าง % สำหรับตัวอักษรที่กว้างขึ้นหรือแคบลง ตรวจหาอีกครั้ง และรีเซ็ต เลิกทำได้เหมือนทุกที่: Cmd + Z",
   "Perspective practice": "การฝึกเปอร์สเปกทีฟ",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "คู่มือเปอร์สเปกทีฟอัตโนมัติ: คีย์ลัดทั้งหมด และการฝึก 2 นาที",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "คลิกขวา",
+  "hover": "ชี้เมาส์",
+  "Guide and practice": "คู่มือและการฝึก",
+  "Line Breaks Guide": "คู่มือการตัดบรรทัด",
+  "Line Breaks practice": "การฝึกตัดบรรทัด",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "We never thought\rwe'd make it back home\rtogether, after all this time.",
+  "In the panel's text": "บนข้อความในแผง",
+  "The Line Breaks panel (Window menu), a text picked on the page": "แผง การตัดบรรทัด (เมนู หน้าต่าง) ข้อความที่เลือกบนหน้า",
+  "Over the text: the page shows the break before any click": "บนข้อความ: หน้าแสดงจุดตัดก่อนคลิก",
+  "Between two words: the line breaks there": "ระหว่างสองคำ: ตัดบรรทัดตรงนั้น",
+  "Inside a word: at a syllable, with its hyphen": "ในคำ: ตัดที่พยางค์ พร้อมยัติภังค์",
+  "Anywhere, between any two letters": "ตรงไหนก็ได้ ระหว่างตัวอักษรสองตัวใดก็ได้",
+  "A break": "จุดตัดบรรทัด",
+  "Its ↵, at the end of the line": "↵ ที่ท้ายบรรทัด",
+  "Joins the two lines again": "รวมสองบรรทัดกลับเข้าด้วยกัน",
+  "Moves the break, shown on the page as you drag": "ย้ายจุดตัด หน้าแสดงให้เห็นขณะลาก",
+  "On the first word of a line: joins it to the one above": "บนคำแรกของบรรทัด: รวมกับบรรทัดก่อนหน้า",
+  "The whole text": "ข้อความทั้งหมด",
+  "From the top of the panel, or the keys with the panel closed": "จากด้านบนของแผง หรือใช้ปุ่มลัดเมื่อปิดแผง",
+  "One line less, balanced": "ลดหนึ่งบรรทัด แบบสมดุล",
+  "One line more, balanced": "เพิ่มหนึ่งบรรทัด แบบสมดุล",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "จัดสมดุล (≡): จำนวนบรรทัดเท่าเดิม ตรงกลางเต็มกว่า แบบบอลลูนคำพูด",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "ในแผง การตัดบรรทัด เลื่อนตัวชี้ไปบนข้อความ: หน้าจะแสดงว่าบรรทัดจะถูกตัดตรงไหน ก่อนที่คุณจะคลิก",
+  "Click between two words: the line breaks there.": "คลิกระหว่างสองคำ: บรรทัดจะถูกตัดตรงนั้น",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "คลิกในคำยาว: คำจะถูกตัดที่พยางค์ และได้ยัติภังค์",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "คลิก ↵ ที่ท้ายบรรทัด: สองบรรทัดจะรวมกันอีกครั้ง",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "ลาก ↵ ไปที่อื่น: จุดตัดจะย้ายตาม และหน้าจะแสดงให้เห็นขณะลาก",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "กด {Alt} ค้างไว้แล้วคลิกระหว่างตัวอักษรสองตัวใดก็ได้: บรรทัดจะถูกตัดตรงนั้นพอดี จะเป็นพยางค์หรือไม่ก็ตาม",
+  "Right-click the first word of a line: it joins the line above.": "คลิกขวาที่คำแรกของบรรทัด: บรรทัดนั้นจะรวมกับบรรทัดก่อนหน้า",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "ลดหนึ่งบรรทัด: {Alt}{Cmd}{-} หรือ − ที่ด้านบนของแผง เพิ่มหนึ่งบรรทัด: {Alt}{Cmd}{=} หรือ + ทั้งสองแบบจะจัดบรรทัดให้สมดุล",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "ขั้นสุดท้าย: คลิก จัดสมดุล (≡) ที่ด้านบนของแผง: จำนวนบรรทัดเท่าเดิม ตรงกลางเต็มกว่า แบบบอลลูนคำพูด",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "ทุกวิธีใช้ของแผง การตัดบรรทัด (เมนู หน้าต่าง): แผงแสดงบรรทัดของข้อความที่เลือก และหน้าจะเปลี่ยนตามสิ่งที่คุณทำในแผง เมนูของแผงใช้ตั้งภาษาสำหรับการตัดคำ ซึ่ง อัตโนมัติ จะหาจากข้อความเอง เลิกทำได้เหมือนทุกที่: Cmd + Z",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "คุณรู้จักการตัดบรรทัดแล้ว วิธีใช้ทั้งหมดยังอยู่ใน ความช่วยเหลือ → คู่มือการตัดบรรทัด และใต้ปุ่ม ? ของแผง",
+  "Line Breaks in 2 minutes": "การตัดบรรทัดใน 2 นาที",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "เรียนรู้แผงนี้บนหน้าแยกต่างหากไหม? เก้าขั้นสั้นๆ ผ่านแต่ละขั้นด้วยการลงมือทำ",
 });

@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.nl = Object.assign(window.TYPER_WEB_STRINGS.nl || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.nl = Object.assign(window.TYPER_WEB_STRINGS.nl || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Alle sneltoetsen van Automatisch perspectief (P). De optiebalk heeft ook Breedte %, voor bredere of smallere letters, Opnieuw detecteren en Herstellen. Ongedaan maken zoals overal: Cmd + Z.",
   "Perspective practice": "Perspectiefoefening",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Gids Automatisch perspectief: alle sneltoetsen en een oefening van 2 minuten",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "rechtsklik",
+  "hover": "aanwijzen",
+  "Guide and practice": "Gids en oefening",
+  "Line Breaks Guide": "Gids Regeleinden",
+  "Line Breaks practice": "Oefening regeleinden",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "We never thought\rwe'd make it back home\rtogether, after all this time.",
+  "In the panel's text": "In de tekst van het paneel",
+  "The Line Breaks panel (Window menu), a text picked on the page": "Het paneel Regeleinden (menu Venster), een tekst gekozen op de pagina",
+  "Over the text: the page shows the break before any click": "Boven de tekst: de pagina toont het regeleinde vóór elke klik",
+  "Between two words: the line breaks there": "Tussen twee woorden: de regel breekt daar",
+  "Inside a word: at a syllable, with its hyphen": "In een woord: bij een lettergreep, met afbreekstreepje",
+  "Anywhere, between any two letters": "Overal, tussen twee willekeurige letters",
+  "A break": "Een regeleinde",
+  "Its ↵, at the end of the line": "Zijn ↵, aan het eind van de regel",
+  "Joins the two lines again": "Voegt de twee regels weer samen",
+  "Moves the break, shown on the page as you drag": "Verplaatst het regeleinde, op de pagina getoond terwijl je sleept",
+  "On the first word of a line: joins it to the one above": "Op het eerste woord van een regel: voegt die samen met de vorige",
+  "The whole text": "De hele tekst",
+  "From the top of the panel, or the keys with the panel closed": "Bovenaan het paneel, of met de toetsen als het paneel dicht is",
+  "One line less, balanced": "Eén regel minder, gebalanceerd",
+  "One line more, balanced": "Eén regel meer, gebalanceerd",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Balanceren (≡): evenveel regels, voller in het midden, zoals een ballon",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "Beweeg in het paneel Regeleinden de aanwijzer over de tekst: de pagina toont waar de regel zou breken, vóór elke klik.",
+  "Click between two words: the line breaks there.": "Klik tussen twee woorden: de regel breekt daar.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Klik in een lang woord: het breekt bij een lettergreep en krijgt een afbreekstreepje.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Klik op een ↵ aan het eind van een regel: de twee regels worden weer samengevoegd.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Sleep een ↵ naar een andere plek: het regeleinde verschuift, en de pagina toont het terwijl je sleept.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "Houd {Alt} ingedrukt en klik tussen twee willekeurige letters: de regel breekt precies daar, lettergreep of niet.",
+  "Right-click the first word of a line: it joins the line above.": "Rechtsklik op het eerste woord van een regel: die wordt samengevoegd met de regel erboven.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "Eén regel minder: {Alt}{Cmd}{-}, of de − bovenaan het paneel. Eén regel meer: {Alt}{Cmd}{=}, of de +. Hoe dan ook worden de regels gebalanceerd.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Als laatste: klik op Balanceren (≡), bovenaan het paneel: evenveel regels, voller in het midden, zoals een ballon.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Alle gebaren van het paneel Regeleinden (menu Venster): het toont de regels van de gekozen tekst, en de pagina volgt wat je daar doet. Het menu stelt de taal voor woordafbreking in, die Auto in de tekst herkent. Ongedaan maken zoals overal: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Je kent Regeleinden nu. Alle gebaren blijven in Help → Gids Regeleinden, en onder de ? van het paneel.",
+  "Line Breaks in 2 minutes": "Regeleinden in 2 minuten",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Het paneel leren op een eigen pagina? Negen korte stappen, elk gehaald door het te doen.",
 });

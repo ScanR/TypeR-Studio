@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.ar = Object.assign(window.TYPER_WEB_STRINGS.ar || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.ar = Object.assign(window.TYPER_WEB_STRINGS.ar || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "كل اختصارات منظور تلقائي (P). وفي شريط خياراته أيضًا العرض %، لحروف أعرض أو أضيق، واكتشاف مجددًا وإعادة تعيين. التراجع كما في كل مكان: Cmd + Z.",
   "Perspective practice": "تدريب المنظور",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "دليل منظور تلقائي: كل الاختصارات، وتدريب لمدة دقيقتين",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "نقرة يمنى",
+  "hover": "تمرير المؤشر",
+  "Guide and practice": "الدليل والتدريب",
+  "Line Breaks Guide": "دليل فواصل الأسطر",
+  "Line Breaks practice": "تدريب فواصل الأسطر",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "We never thought\rwe'd make it back home\rtogether, after all this time.",
+  "In the panel's text": "في نص اللوحة",
+  "The Line Breaks panel (Window menu), a text picked on the page": "لوحة فواصل الأسطر (قائمة نافذة)، نص محدد على الصفحة",
+  "Over the text: the page shows the break before any click": "فوق النص: تُظهر الصفحة الفاصل قبل أي نقرة",
+  "Between two words: the line breaks there": "بين كلمتين: يُقطع السطر هناك",
+  "Inside a word: at a syllable, with its hyphen": "داخل كلمة: عند مقطع، مع واصلته",
+  "Anywhere, between any two letters": "في أي مكان، بين أي حرفين",
+  "A break": "فاصل",
+  "Its ↵, at the end of the line": "علامته ↵، في نهاية السطر",
+  "Joins the two lines again": "يعيد دمج السطرين",
+  "Moves the break, shown on the page as you drag": "ينقل الفاصل، ويظهر على الصفحة أثناء السحب",
+  "On the first word of a line: joins it to the one above": "على أول كلمة في السطر: يدمجه مع السطر السابق",
+  "The whole text": "النص كله",
+  "From the top of the panel, or the keys with the panel closed": "من أعلى اللوحة، أو بالمفاتيح واللوحة مغلقة",
+  "One line less, balanced": "سطر واحد أقل، مع الموازنة",
+  "One line more, balanced": "سطر واحد أكثر، مع الموازنة",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "موازنة (≡): العدد نفسه من الأسطر، أملأ في الوسط، كشكل الفقاعة",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "في لوحة فواصل الأسطر، مرّر المؤشر فوق النص: تُظهر الصفحة أين سيُقطع السطر، قبل أي نقرة.",
+  "Click between two words: the line breaks there.": "انقر بين كلمتين: يُقطع السطر هناك.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "انقر داخل كلمة طويلة: تُقطع عند مقطع، وتأخذ واصلتها.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "انقر على ↵ في نهاية سطر: يُدمج السطران من جديد.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "اسحب ↵ إلى موضع آخر: ينتقل الفاصل، وتُظهره الصفحة أثناء السحب.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "اضغط مع الاستمرار على {Alt} وانقر بين أي حرفين: يُقطع السطر هناك تمامًا، عند مقطع أو لا.",
+  "Right-click the first word of a line: it joins the line above.": "انقر نقرة يمنى على أول كلمة في سطر: يُدمج مع السطر السابق.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "سطر واحد أقل: {Alt}{Cmd}{-}، أو − في أعلى اللوحة. سطر واحد أكثر: {Alt}{Cmd}{=}، أو +. في الحالتين، تُوازَن الأسطر.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "الخطوة الأخيرة: انقر على موازنة (≡) في أعلى اللوحة: العدد نفسه من الأسطر، أملأ في الوسط، كشكل الفقاعة.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "كل إيماءات لوحة فواصل الأسطر (قائمة نافذة): تُظهر أسطر النص المحدد، وتتبع الصفحة ما تفعله فيها. تضبط قائمتها لغة الواصلات، التي يكتشفها خيار تلقائي من النص. التراجع كما في كل مكان: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "أصبحت تعرف فواصل الأسطر. تبقى كل الإيماءات في تعليمات → دليل فواصل الأسطر، وتحت ? في اللوحة.",
+  "Line Breaks in 2 minutes": "فواصل الأسطر في دقيقتين",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "هل تتعلّم اللوحة على صفحة مستقلة؟ تسع خطوات قصيرة، تجتاز كلًّا منها بتنفيذها.",
 });

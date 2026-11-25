@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.pl = Object.assign(window.TYPER_WEB_STRINGS.pl || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.pl = Object.assign(window.TYPER_WEB_STRINGS.pl || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Wszystkie skróty Automatycznej perspektywy (P). Jej pasek opcji ma też Szerokość % dla szerszych lub węższych liter, Wykryj ponownie i Resetuj. Cofanie jak wszędzie: Cmd + Z.",
   "Perspective practice": "Ćwiczenie perspektywy",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Przewodnik Automatyczna perspektywa: wszystkie skróty i 2-minutowe ćwiczenie",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "prawy klik",
+  "hover": "najedź",
+  "Guide and practice": "Przewodnik i ćwiczenie",
+  "Line Breaks Guide": "Przewodnik Łamanie wierszy",
+  "Line Breaks practice": "Ćwiczenie łamania wierszy",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "Nigdy nie myśleliśmy,\rże wrócimy do domu\rrazem, po tak długim czasie.",
+  "In the panel's text": "W tekście panelu",
+  "The Line Breaks panel (Window menu), a text picked on the page": "Panel Łamanie wierszy (menu Okno), tekst wybrany na stronie",
+  "Over the text: the page shows the break before any click": "Nad tekstem: strona pokazuje podział przed kliknięciem",
+  "Between two words: the line breaks there": "Między dwoma słowami: wiersz łamie się tam",
+  "Inside a word: at a syllable, with its hyphen": "W słowie: na sylabie, z dywizem",
+  "Anywhere, between any two letters": "Gdziekolwiek, między dowolnymi dwiema literami",
+  "A break": "Podział",
+  "Its ↵, at the end of the line": "Jego ↵, na końcu wiersza",
+  "Joins the two lines again": "Ponownie łączy oba wiersze",
+  "Moves the break, shown on the page as you drag": "Przesuwa podział, widoczny na stronie podczas przeciągania",
+  "On the first word of a line: joins it to the one above": "Na pierwszym słowie wiersza: łączy go z poprzednim",
+  "The whole text": "Cały tekst",
+  "From the top of the panel, or the keys with the panel closed": "Na górze panelu albo klawiszami przy zamkniętym panelu",
+  "One line less, balanced": "Jeden wiersz mniej, zrównoważony",
+  "One line more, balanced": "Jeden wiersz więcej, zrównoważony",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Zrównoważ (≡): tyle samo wierszy, pełniejszych w środku, jak dymek",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "W panelu Łamanie wierszy przesuń wskaźnik nad tekstem: strona pokazuje, gdzie wiersz by się złamał, zanim klikniesz.",
+  "Click between two words: the line breaks there.": "Kliknij między dwoma słowami: wiersz łamie się tam.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Kliknij w długie słowo: dzieli się na sylabie i dostaje dywiz.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Kliknij ↵ na końcu wiersza: oba wiersze znów się łączą.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Przeciągnij ↵ w inne miejsce: podział się przesuwa, a strona pokazuje go podczas przeciągania.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "Przytrzymaj {Alt} i kliknij między dowolnymi dwiema literami: wiersz łamie się dokładnie tam, sylaba czy nie.",
+  "Right-click the first word of a line: it joins the line above.": "Kliknij prawym przyciskiem pierwsze słowo wiersza: łączy się z wierszem powyżej.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "Jeden wiersz mniej: {Alt}{Cmd}{-} albo − na górze panelu. Jeden wiersz więcej: {Alt}{Cmd}{=} albo +. W obu przypadkach wiersze są zrównoważone.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Ostatni krok: kliknij Zrównoważ (≡) na górze panelu: tyle samo wierszy, pełniejszych w środku, jak dymek.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Wszystkie gesty panelu Łamanie wierszy (menu Okno): pokazuje wiersze wybranego tekstu, a strona podąża za tym, co w nim robisz. Jego menu ustawia język dzielenia wyrazów, który Auto rozpoznaje w tekście. Cofanie jak wszędzie: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Znasz już Łamanie wierszy. Wszystkie gesty zostają w Pomoc → Przewodnik Łamanie wierszy i pod ? panelu.",
+  "Line Breaks in 2 minutes": "Łamanie wierszy w 2 minuty",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Poznać panel na osobnej stronie? Dziewięć krótkich kroków, każdy zaliczany przez wykonanie.",
 });

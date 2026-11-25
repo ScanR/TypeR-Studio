@@ -63,6 +63,14 @@
   // No Alt key on a touch screen: this button stands for it
   let cutAnywhere = false;
 
+  // What is done in the panel, told to its guide (breaks-guide.js), which passes its steps on it
+  const listeners = new Set();
+  const tell = (detail) => listeners.forEach((listener) => listener(detail));
+  const onGesture = (listener) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  };
+
   const activeText = () => {
     const doc = app.doc;
     if (!doc) return null;
@@ -225,9 +233,52 @@
   };
   const fill = (text, values) => Object.keys(values).reduce((out, key) => out.split(`{${key}}`).join(values[key]), text);
 
+  // The first time the panel shows a text, its guide offers a practice, in the panel itself:
+  // nothing in the way of the work, and it says so where the panel is being used. Once, as
+  // long as it is neither started nor declined.
+  const offer = document.createElement("div");
+  offer.className = "breaks__offer";
+  offer.hidden = true;
+  root.insertBefore(offer, lines);
+  let offerLater = false;
+  const showOffer = (hasText) => {
+    const guide = window.TypeRBreaksGuide;
+    const wanted = Boolean(hasText && guide && !Shell.touch && !offerLater && guide.offer.pending());
+    if (wanted === !offer.hidden) return;
+    if (wanted && !offer.firstChild) {
+      const words = document.createElement("p");
+      const title = document.createElement("b");
+      title.textContent = guide.offer.title();
+      words.append(title, " ", guide.offer.body());
+      const start = document.createElement("button");
+      start.type = "button";
+      start.className = "btn btn--main";
+      start.textContent = T("Start the practice");
+      start.addEventListener("click", () => {
+        offerLater = true;
+        offer.hidden = true;
+        guide.practise();
+      });
+      const later = document.createElement("button");
+      later.type = "button";
+      later.className = "btn";
+      later.textContent = T("Not now");
+      later.addEventListener("click", () => {
+        offerLater = true;
+        offer.hidden = true;
+        guide.offer.decline();
+      });
+      const row = document.createElement("div");
+      row.append(later, start);
+      offer.append(words, row);
+    }
+    offer.hidden = !wanted;
+  };
+
   const update = () => {
     const doc = app.doc;
     const next = root.hidden ? null : activeText();
+    showOffer(Boolean(next));
     root.classList.toggle("is-typing", App.isEditing());
     empty.hidden = Boolean(next) || root.hidden;
     root.classList.toggle("is-empty", !next);
@@ -451,6 +502,7 @@
     if (!hover || hover.at !== found.at) {
       hover = { at: found.at };
       preview(Array.from(breakSet).concat(found.at));
+      tell({ mode: "hover" });
     }
   };
 
@@ -521,13 +573,20 @@
     if (drag) {
       const current = drag;
       drag = null;
-      if (!current.moved) commit(Array.from(breakSet).filter((at) => at !== current.at));
-      else if (current.to !== null && current.to !== current.at) commit(Array.from(breakSet).filter((at) => at !== current.at).concat(current.to));
-      else clearPreview();
+      if (!current.moved) {
+        commit(Array.from(breakSet).filter((at) => at !== current.at));
+        tell({ mode: "join" });
+      } else if (current.to !== null && current.to !== current.at) {
+        commit(Array.from(breakSet).filter((at) => at !== current.at).concat(current.to));
+        tell({ mode: "move" });
+      } else clearPreview();
       return;
     }
     const found = pick(event);
-    if (found) commit(Array.from(breakSet).concat(found.at));
+    if (!found) return;
+    const previous = model.chars[found.at - 1];
+    commit(Array.from(breakSet).concat(found.at));
+    tell({ mode: "break", cut: previous.ch !== " " && previous.ch !== "-", alt: event.altKey || cutAnywhere });
   });
   lines.addEventListener("pointercancel", () => {
     stopPanning();
@@ -556,10 +615,12 @@
     if (!layer || !model) return;
     const mark = event.target.closest && event.target.closest(".bl__m");
     const at = mark ? Number(mark.dataset.at) : breakOfLineStart(event);
-    if (at !== null) commit(Array.from(breakSet).filter((item) => item !== at));
+    if (at === null) return;
+    commit(Array.from(breakSet).filter((item) => item !== at));
+    tell({ mode: "join", right: true });
   });
 
-  const footButton = (id, compute) => {
+  const footButton = (id, compute, mode) => {
     const button = $(id);
     button.addEventListener("mouseenter", () => {
       if (layer && !button.disabled) preview(compute());
@@ -568,12 +629,14 @@
       if (layer) clearPreview();
     });
     button.addEventListener("click", () => {
-      if (layer && !button.disabled) commit(compute());
+      if (!layer || button.disabled) return;
+      commit(compute());
+      tell({ mode });
     });
   };
-  footButton("breaks-fewer", () => balanced(breakSet.size));
-  footButton("breaks-more", () => balanced(breakSet.size + 2));
-  footButton("breaks-balance", () => balanced(breakSet.size + 1));
+  footButton("breaks-fewer", () => balanced(breakSet.size), "fewer");
+  footButton("breaks-more", () => balanced(breakSet.size + 2), "more");
+  footButton("breaks-balance", () => balanced(breakSet.size + 1), "balance");
 
   // From the keys, the panel open or not: one line less or more on the active text
   const stepLines = (direction) => {
@@ -588,12 +651,97 @@
     }
     try {
       const total = breakSet.size + 1;
-      if (direction < 0 ? total > 1 : total <= allGaps().length) commit(balanced(total + direction));
+      if (direction < 0 ? total > 1 : total <= allGaps().length) {
+        commit(balanced(total + direction));
+        tell({ mode: direction < 0 ? "fewer" : "more", keys: true });
+      }
     } finally {
       // The panel, closed, shows nothing again
       if (shown && layer === target) ({ layer, model, breakSet } = shown);
     }
   };
+
+  /* ------------------------------ its guide's rings ------------------------------ */
+
+  // Where its guide asks to act: rings that pulse over the spot, or the whole text outlined.
+  // Placed again at each frame while there is one: the text is drawn again, scrolls, resizes.
+  let mark = null;
+  let markFrame = 0;
+  const rings = [];
+  const words = () => {
+    const out = [];
+    let start = -1;
+    model.chars.forEach((item, index) => {
+      if (item.ch !== " " && start < 0) start = index;
+      if (item.ch === " " && start >= 0) {
+        out.push([start, index]);
+        start = -1;
+      }
+    });
+    if (start >= 0) out.push([start, model.chars.length]);
+    return out;
+  };
+  // The spots inside words that are not breaks yet, the longest words first; nearest the
+  // middle of each first, with `middle`
+  const inWords = (accept, middle) => words()
+    .sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]))
+    .flatMap(([start, end]) => {
+      const out = [];
+      for (let at = start + 2; at < end - 1; at++) if (!breakSet.has(at) && accept(at)) out.push(at);
+      return middle ? out.sort((a, b) => Math.abs(a - (start + end) / 2) - Math.abs(b - (start + end) / 2)) : out;
+    });
+  const centreOf = (node) => {
+    const box = node.getBoundingClientRect();
+    return box.width || box.height ? [box.left + box.width / 2, box.top + box.height / 2] : null;
+  };
+  const between = (at) => {
+    const span = spans[at] || spans[at - 1];
+    if (!span) return null;
+    const box = span.getBoundingClientRect();
+    return [boundaryX(at, box), box.top + box.height / 2];
+  };
+  // Where the guide could ask: a ring on each of a button's spots, on the first in sight of the
+  // others (the text may go on out of sight, sideways)
+  const spotsOf = (wanted) => {
+    if (wanted.kind === "button") return wanted.ids.map((id) => $(id)).filter((node) => node && !node.disabled).map(centreOf);
+    if (!model || !spans.length) return [];
+    if (wanted.kind === "mark") return Array.from(lines.querySelectorAll(".bl__m")).map(centreOf);
+    if (wanted.kind === "lineStart") return Array.from(lines.querySelectorAll(".bl__row")).slice(1).map((row) => row.querySelector(".bl__c")).filter(Boolean).map(centreOf);
+    if (wanted.kind === "gap") {
+      const gaps = allGaps().filter((at) => !breakSet.has(at) && model.chars[at - 1].ch === " ");
+      const middle = gaps.length / 2;
+      return gaps.map((at, index) => [at, Math.abs(index - middle)]).sort((a, b) => a[1] - b[1]).map(([at]) => between(at));
+    }
+    if (wanted.kind === "syllable") return inWords((index) => syllableSet.has(index)).map(between);
+    if (wanted.kind === "letters") return inWords((index) => !syllableSet.has(index) && model.chars[index - 1].ch !== "-", true).map(between);
+    return [];
+  };
+  const drawMark = () => {
+    markFrame = 0;
+    let spots = mark && !root.hidden ? spotsOf(mark).filter(Boolean) : [];
+    if (mark && mark.kind !== "button") {
+      const seen = lines.getBoundingClientRect();
+      spots = spots.filter(([x, y]) => x >= seen.left + 6 && x <= seen.right - 6 && y >= seen.top && y <= seen.bottom).slice(0, 1);
+    }
+    const box = root.getBoundingClientRect();
+    spots.forEach(([x, y], index) => {
+      if (!rings[index]) {
+        rings[index] = document.createElement("div");
+        rings[index].className = "breaks__ring";
+        root.appendChild(rings[index]);
+      }
+      rings[index].hidden = false;
+      rings[index].style.left = `${x - box.left}px`;
+      rings[index].style.top = `${y - box.top}px`;
+    });
+    rings.slice(spots.length).forEach((ring) => { ring.hidden = true; });
+    if (mark) markFrame = requestAnimationFrame(drawMark);
+  };
+  function setMark(value) {
+    mark = value || null;
+    lines.classList.toggle("is-marked", Boolean(mark && mark.kind === "lines"));
+    if (!markFrame) markFrame = requestAnimationFrame(drawMark);
+  }
 
   /* ------------------------------- the panel ------------------------------- */
 
@@ -647,6 +795,14 @@
       hint.appendChild(document.createTextNode(part));
     });
     helpButton.title = explanations;
+    // Every gesture shown, and a practice: the panel's guide
+    hint.appendChild(document.createTextNode(" "));
+    const guide = document.createElement("button");
+    guide.type = "button";
+    guide.className = "breaks__guide";
+    guide.textContent = T("Guide and practice");
+    guide.addEventListener("click", () => window.TypeRBreaksGuide && window.TypeRBreaksGuide.show());
+    hint.appendChild(guide);
   };
   showExplanations();
   Shell.onChange(() => {
@@ -703,5 +859,7 @@
     fewer: () => stepLines(-1),
     more: () => stepLines(1),
     get model() { return model; },
+    onGesture,
+    setMark,
   };
 })();

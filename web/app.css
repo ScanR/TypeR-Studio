@@ -556,6 +556,14 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .breaks__lines { position: relative; flex: 1; min-height: 0; overflow: auto; padding: 6px 22px; background: #fff; color: #000; cursor: text; user-select: none; -webkit-user-select: none; touch-action: none; }
 .breaks__hint { flex: none; max-height: 45%; margin: 0; padding: 5px 8px 6px; overflow: auto; color: var(--muted); font-size: 11px; line-height: 1.4; }
 .breaks__hint kbd { padding: 0 3px; background: var(--ui-3); border-radius: 2px; color: #fff; font: 600 10px/1.3 system-ui, sans-serif; }
+.breaks__guide { padding: 0; background: none; border: 0; color: var(--blue); font: inherit; text-decoration: underline; cursor: pointer; }
+.breaks__guide:hover { color: var(--strong); }
+.breaks__offer { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 7px 8px; background: var(--ui-dark); border-left: 3px solid #f0a020; border-bottom: 1px solid var(--line); font-size: 11px; line-height: 1.4; }
+.breaks__offer[hidden] { display: none; }
+.breaks__offer p { margin: 0; color: var(--muted); }
+.breaks__offer b { color: var(--strong); }
+.breaks__offer > div { display: flex; justify-content: flex-end; gap: 6px; }
+.breaks__offer .btn { min-height: 22px; padding: 0 9px; font-size: 11px; }
 /* the lines never wrap: one row is one line of the text, and the panel scrolls sideways.
    Centred on the widest line, the rows keep the shape of the text. */
 .breaks__text { width: max-content; min-width: 100%; }

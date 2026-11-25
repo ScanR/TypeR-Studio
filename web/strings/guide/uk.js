@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.uk = Object.assign(window.TYPER_WEB_STRINGS.uk || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.uk = Object.assign(window.TYPER_WEB_STRINGS.uk || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Усі гарячі клавіші автоперспективи (P). На її панелі параметрів є також Ширина % — для ширших або вужчих літер, Визначити знову і Скинути. Скасування, як і всюди: Cmd + Z.",
   "Perspective practice": "Практика перспективи",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Посібник з автоперспективи: усі гарячі клавіші та практика на 2 хвилини",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "праве клацання",
+  "hover": "наведення",
+  "Guide and practice": "Посібник і практика",
+  "Line Breaks Guide": "Посібник з розривів рядків",
+  "Line Breaks practice": "Практика розривів рядків",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "Ми й не думали,\rщо повернемося додому\rразом, після всього цього часу.",
+  "In the panel's text": "У тексті панелі",
+  "The Line Breaks panel (Window menu), a text picked on the page": "Панель «Розриви рядків» (меню Вікно), текст, вибраний на сторінці",
+  "Over the text: the page shows the break before any click": "Над текстом: сторінка показує розрив ще до клацання",
+  "Between two words: the line breaks there": "Між двома словами: рядок розривається тут",
+  "Inside a word: at a syllable, with its hyphen": "Усередині слова: по складу, з дефісом",
+  "Anywhere, between any two letters": "Будь-де, між будь-якими двома літерами",
+  "A break": "Розрив",
+  "Its ↵, at the end of the line": "Його ↵ у кінці рядка",
+  "Joins the two lines again": "Знову з’єднує два рядки",
+  "Moves the break, shown on the page as you drag": "Переміщує розрив, сторінка показує його під час перетягування",
+  "On the first word of a line: joins it to the one above": "На першому слові рядка: з’єднує його з попереднім",
+  "The whole text": "Увесь текст",
+  "From the top of the panel, or the keys with the panel closed": "Угорі панелі або клавішами при закритій панелі",
+  "One line less, balanced": "На один рядок менше, збалансовано",
+  "One line more, balanced": "На один рядок більше, збалансовано",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Збалансувати (≡): стільки ж рядків, повніші посередині, як хмаринка",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "У панелі «Розриви рядків» наведіть указівник на текст: сторінка показує, де розірветься рядок, ще до клацання.",
+  "Click between two words: the line breaks there.": "Клацніть між двома словами: рядок розривається тут.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Клацніть усередині довгого слова: воно розривається по складу й отримує дефіс.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Клацніть по ↵ у кінці рядка: два рядки знову з’єднуються.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Перетягніть ↵ в інше місце: розрив переміщується, і сторінка показує його під час перетягування.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "Утримуючи {Alt}, клацніть між будь-якими двома літерами: рядок розривається саме там, склад це чи ні.",
+  "Right-click the first word of a line: it joins the line above.": "Клацніть правою кнопкою по першому слову рядка: він з’єднується з попереднім.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "На один рядок менше: {Alt}{Cmd}{-} або − угорі панелі. На один рядок більше: {Alt}{Cmd}{=} або +. В обох випадках рядки збалансовуються.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Останній крок: клацніть «Збалансувати» (≡) угорі панелі: стільки ж рядків, повніші посередині, як хмаринка.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Усі жести панелі «Розриви рядків» (меню Вікно): вона показує рядки вибраного тексту, а сторінка стежить за тим, що ви там робите. Її меню задає мову переносів, яку Авто визначає за текстом. Скасування, як і всюди: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Тепер ви знаєте розриви рядків. Усі жести лишаються в меню Довідка → Посібник з розривів рядків і за значком ? панелі.",
+  "Line Breaks in 2 minutes": "Розриви рядків за 2 хвилини",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Опанувати панель на окремій сторінці? Дев’ять коротких кроків, кожен зараховується, коли ви його виконаєте.",
 });

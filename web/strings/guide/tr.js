@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.tr = Object.assign(window.TYPER_WEB_STRINGS.tr || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.tr = Object.assign(window.TYPER_WEB_STRINGS.tr || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Otomatik Perspektif’in (P) tüm kısayolları. Seçenekler çubuğunda ayrıca harfleri genişleten ya da daraltan Genişlik %, Yeniden algıla ve Sıfırla var. Geri alma her yerde olduğu gibi: Cmd + Z.",
   "Perspective practice": "Perspektif alıştırması",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Otomatik Perspektif kılavuzu: tüm kısayollar ve 2 dakikalık alıştırma",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "sağ tıkla",
+  "hover": "üzerine gel",
+  "Guide and practice": "Kılavuz ve alıştırma",
+  "Line Breaks Guide": "Satır Sonları Kılavuzu",
+  "Line Breaks practice": "Satır sonları alıştırması",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "Bunca zamandan sonra\reve birlikte döneceğimizi\rhiç düşünmemiştik.",
+  "In the panel's text": "Paneldeki metinde",
+  "The Line Breaks panel (Window menu), a text picked on the page": "Satır Sonları paneli (Pencere menüsü), sayfada seçili bir metin",
+  "Over the text: the page shows the break before any click": "Metnin üzerinde: sayfa, tıklamadan önce bölmeyi gösterir",
+  "Between two words: the line breaks there": "İki sözcük arasında: satır orada bölünür",
+  "Inside a word: at a syllable, with its hyphen": "Bir sözcüğün içinde: bir hecede, kısa çizgisiyle",
+  "Anywhere, between any two letters": "Her yerde, herhangi iki harf arasında",
+  "A break": "Bir satır sonu",
+  "Its ↵, at the end of the line": "Satırın sonundaki ↵ işareti",
+  "Joins the two lines again": "İki satırı yeniden birleştirir",
+  "Moves the break, shown on the page as you drag": "Satır sonunu taşır, sürüklerken sayfada görünür",
+  "On the first word of a line: joins it to the one above": "Bir satırın ilk sözcüğünde: onu önceki satırla birleştirir",
+  "The whole text": "Metnin tamamı",
+  "From the top of the panel, or the keys with the panel closed": "Panelin üstünden ya da panel kapalıyken tuşlarla",
+  "One line less, balanced": "Bir satır az, dengeli",
+  "One line more, balanced": "Bir satır fazla, dengeli",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Dengele (≡): aynı sayıda satır, bir balon gibi ortası daha dolu",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "Satır Sonları panelinde işaretçiyi metnin üzerinde gezdirin: sayfa, tıklamadan önce satırın nereden bölüneceğini gösterir.",
+  "Click between two words: the line breaks there.": "İki sözcüğün arasına tıklayın: satır orada bölünür.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Uzun bir sözcüğün içine tıklayın: sözcük bir hecede bölünür ve kısa çizgisini alır.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Bir satırın sonundaki ↵ işaretine tıklayın: iki satır yeniden birleşir.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Bir ↵ işaretini başka bir yere sürükleyin: satır sonu taşınır ve sayfa bunu siz sürüklerken gösterir.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "{Alt} tuşunu basılı tutup herhangi iki harfin arasına tıklayın: satır, hece olsun olmasın tam orada bölünür.",
+  "Right-click the first word of a line: it joins the line above.": "Bir satırın ilk sözcüğüne sağ tıklayın: satır bir öncekiyle birleşir.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "Bir satır az: {Alt}{Cmd}{-} ya da panelin üstündeki −. Bir satır fazla: {Alt}{Cmd}{=} ya da +. Her iki durumda da satırlar dengelenir.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Son adım: panelin üstündeki Dengele (≡) düğmesine tıklayın: aynı sayıda satır, bir balon gibi ortası daha dolu.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Satır Sonları panelinin (Pencere menüsü) tüm hareketleri: panel seçili metnin satırlarını gösterir ve sayfa orada yaptıklarınızı izler. Menüsü heceleme dilini ayarlar; Otomatik bu dili metinden bulur. Geri alma her yerde olduğu gibi: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Satır Sonları’nı artık biliyorsunuz. Tüm hareketler Yardım → Satır Sonları Kılavuzu’nda ve panelin ? düğmesinde duruyor.",
+  "Line Breaks in 2 minutes": "2 dakikada Satır Sonları",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Paneli ayrı bir sayfada öğrenmek ister misiniz? Dokuz kısa adım, her biri yapılarak geçilir.",
 });

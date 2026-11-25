@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.de = Object.assign(window.TYPER_WEB_STRINGS.de || {}, {
   "Page Down": "Bild ↓",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.de = Object.assign(window.TYPER_WEB_STRINGS.de || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Alle Kurzbefehle der Auto-Perspektive (P). Ihre Optionsleiste hat außerdem Breite % für breitere oder schmalere Buchstaben, Erneut erkennen und Zurücksetzen. Rückgängig wie überall: Cmd + Z.",
   "Perspective practice": "Perspektiv-Übung",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Auto-Perspektive-Guide: alle Kurzbefehle und eine Übung von 2 Minuten",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "rechtsklicken",
+  "hover": "darüberfahren",
+  "Guide and practice": "Guide und Übung",
+  "Line Breaks Guide": "Zeilenumbrüche-Guide",
+  "Line Breaks practice": "Zeilenumbrüche-Übung",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "Wir hätten nie gedacht,\rnach all der Zeit zusammen\rwieder heimzukommen.",
+  "In the panel's text": "Im Text des Panels",
+  "The Line Breaks panel (Window menu), a text picked on the page": "Das Panel Zeilenumbrüche (Menü Fenster), ein auf der Seite gewählter Text",
+  "Over the text: the page shows the break before any click": "Über dem Text: Die Seite zeigt den Umbruch vor jedem Klick",
+  "Between two words: the line breaks there": "Zwischen zwei Wörtern: Die Zeile wird dort umbrochen",
+  "Inside a word: at a syllable, with its hyphen": "In einem Wort: an einer Silbe, mit Trennstrich",
+  "Anywhere, between any two letters": "Überall, zwischen zwei beliebigen Buchstaben",
+  "A break": "Ein Umbruch",
+  "Its ↵, at the end of the line": "Sein ↵ am Zeilenende",
+  "Joins the two lines again": "Verbindet die beiden Zeilen wieder",
+  "Moves the break, shown on the page as you drag": "Verschiebt den Umbruch, beim Ziehen auf der Seite gezeigt",
+  "On the first word of a line: joins it to the one above": "Auf dem ersten Wort einer Zeile: verbindet sie mit der vorherigen",
+  "The whole text": "Der ganze Text",
+  "From the top of the panel, or the keys with the panel closed": "Oben im Panel oder per Tastatur bei geschlossenem Panel",
+  "One line less, balanced": "Eine Zeile weniger, ausgeglichen",
+  "One line more, balanced": "Eine Zeile mehr, ausgeglichen",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Ausgleichen (≡): gleich viele Zeilen, in der Mitte voller, wie eine Sprechblase",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "Fahren Sie im Panel Zeilenumbrüche mit dem Zeiger über den Text: Die Seite zeigt, wo die Zeile umbrechen würde, noch vor jedem Klick.",
+  "Click between two words: the line breaks there.": "Klicken Sie zwischen zwei Wörter: Die Zeile wird dort umbrochen.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Klicken Sie in ein langes Wort: Es wird an einer Silbe getrennt und erhält seinen Trennstrich.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Klicken Sie auf ein ↵ am Zeilenende: Die beiden Zeilen werden wieder verbunden.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Ziehen Sie ein ↵ an eine andere Stelle: Der Umbruch wandert mit, und die Seite zeigt ihn schon beim Ziehen.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "Halten Sie {Alt} gedrückt und klicken Sie zwischen zwei beliebige Buchstaben: Die Zeile wird genau dort umbrochen, ob Silbe oder nicht.",
+  "Right-click the first word of a line: it joins the line above.": "Rechtsklicken Sie auf das erste Wort einer Zeile: Sie wird mit der vorherigen verbunden.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "Eine Zeile weniger: {Alt}{Cmd}{-} oder das − oben im Panel. Eine Zeile mehr: {Alt}{Cmd}{=} oder das +. In beiden Fällen werden die Zeilen ausgeglichen.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Zum Schluss: Klicken Sie oben im Panel auf Ausgleichen (≡): gleich viele Zeilen, in der Mitte voller, wie eine Sprechblase.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Alle Gesten des Panels Zeilenumbrüche (Menü Fenster): Es zeigt die Zeilen des gewählten Texts, und die Seite folgt dem, was Sie dort tun. Sein Menü legt die Sprache für Silbentrennung fest, die Auto im Text erkennt. Rückgängig wie überall: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Sie kennen jetzt die Zeilenumbrüche. Alle Gesten bleiben unter Hilfe → Zeilenumbrüche-Guide und hinter dem ? des Panels.",
+  "Line Breaks in 2 minutes": "Zeilenumbrüche in 2 Minuten",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Das Panel auf einer eigenen Seite lernen? Neun kurze Schritte, jeder durch Ausführen bestanden.",
 });

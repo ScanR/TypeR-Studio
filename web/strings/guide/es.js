@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.es = Object.assign(window.TYPER_WEB_STRINGS.es || {}, {
   "Page Down": "Av Pág",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.es = Object.assign(window.TYPER_WEB_STRINGS.es || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Todos los atajos de la Perspectiva automática (P). Su barra de opciones también tiene Ancho %, para letras más anchas o más estrechas, Detectar de nuevo y Restablecer. Para deshacer, como en todas partes: Cmd + Z.",
   "Perspective practice": "Práctica perspectiva",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Guía Perspectiva automática: todos los atajos y una práctica de 2 minutos",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "clic derecho",
+  "hover": "pasar por encima",
+  "Guide and practice": "Guía y práctica",
+  "Line Breaks Guide": "Guía Saltos de línea",
+  "Line Breaks practice": "Práctica saltos de línea",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "Nunca pensamos\rque volveríamos a casa\rjuntos, después de tanto tiempo.",
+  "In the panel's text": "En el texto del panel",
+  "The Line Breaks panel (Window menu), a text picked on the page": "El panel Saltos de línea (menú Ventana), un texto elegido en la página",
+  "Over the text: the page shows the break before any click": "Sobre el texto: la página muestra el salto antes de cualquier clic",
+  "Between two words: the line breaks there": "Entre dos palabras: la línea se corta ahí",
+  "Inside a word: at a syllable, with its hyphen": "Dentro de una palabra: en una sílaba, con su guion",
+  "Anywhere, between any two letters": "En cualquier sitio, entre dos letras cualesquiera",
+  "A break": "Un salto",
+  "Its ↵, at the end of the line": "Su ↵, al final de la línea",
+  "Joins the two lines again": "Vuelve a unir las dos líneas",
+  "Moves the break, shown on the page as you drag": "Mueve el salto, que la página muestra mientras arrastras",
+  "On the first word of a line: joins it to the one above": "En la primera palabra de una línea: la une a la anterior",
+  "The whole text": "Todo el texto",
+  "From the top of the panel, or the keys with the panel closed": "Arriba del panel, o con el teclado con el panel cerrado",
+  "One line less, balanced": "Una línea menos, equilibrada",
+  "One line more, balanced": "Una línea más, equilibrada",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Equilibrar (≡): el mismo número de líneas, más llenas en el centro, como un bocadillo",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "En el panel Saltos de línea, pasa el puntero sobre el texto: la página muestra dónde se cortaría la línea, antes de cualquier clic.",
+  "Click between two words: the line breaks there.": "Haz clic entre dos palabras: la línea se corta ahí.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Haz clic dentro de una palabra larga: se corta en una sílaba y recibe su guion.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Haz clic en un ↵ al final de una línea: las dos líneas se vuelven a unir.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Arrastra un ↵ a otro sitio: el salto se mueve, y la página lo muestra mientras arrastras.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "Mantén {Alt} y haz clic entre dos letras cualesquiera: la línea se corta justo ahí, sea sílaba o no.",
+  "Right-click the first word of a line: it joins the line above.": "Clic derecho en la primera palabra de una línea: se une a la línea anterior.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "Una línea menos: {Alt}{Cmd}{-}, o el − arriba del panel. Una línea más: {Alt}{Cmd}{=}, o el +. En ambos casos, las líneas quedan equilibradas.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Último paso: haz clic en Equilibrar (≡), arriba del panel: el mismo número de líneas, más llenas en el centro, como un bocadillo.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Todos los gestos del panel Saltos de línea (menú Ventana): muestra las líneas del texto elegido, y la página sigue lo que haces en él. Su menú fija el idioma de la división, que Auto detecta en el texto. Para deshacer, como en todas partes: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Ya conoces los Saltos de línea. Todos los gestos siguen en Ayuda → Guía Saltos de línea, y tras el ? del panel.",
+  "Line Breaks in 2 minutes": "Los Saltos de línea en 2 minutos",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "¿Aprender el panel en una página aparte? Nueve pasos cortos, cada uno superado al hacerlo.",
 });

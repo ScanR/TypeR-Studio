@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.ja = Object.assign(window.TYPER_WEB_STRINGS.ja || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.ja = Object.assign(window.TYPER_WEB_STRINGS.ja || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "自動遠近法（P）のすべてのショートカット。オプションバーには、文字を広く・狭くする「幅 %」、「再検出」、「リセット」もあります。取り消しはいつもどおり Cmd + Z。",
   "Perspective practice": "遠近法の練習",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "自動遠近法ガイド：すべてのショートカットと2分間の練習",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "右クリック",
+  "hover": "ホバー",
+  "Guide and practice": "ガイドと練習",
+  "Line Breaks Guide": "改行ガイド",
+  "Line Breaks practice": "改行の練習",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "We never thought\rwe'd make it back home\rtogether, after all this time.",
+  "In the panel's text": "パネルのテキスト上で",
+  "The Line Breaks panel (Window menu), a text picked on the page": "改行パネル（ウィンドウメニュー）、ページ上で選んだテキスト",
+  "Over the text: the page shows the break before any click": "テキストの上：クリックする前に、改行位置がページに表示されます",
+  "Between two words: the line breaks there": "2つの単語の間：そこで改行します",
+  "Inside a word: at a syllable, with its hyphen": "単語の中：音節で、ハイフン付きで改行します",
+  "Anywhere, between any two letters": "どこでも、任意の2文字の間で",
+  "A break": "1つの改行",
+  "Its ↵, at the end of the line": "行末の ↵",
+  "Joins the two lines again": "2行をつなげ直します",
+  "Moves the break, shown on the page as you drag": "改行を移動。ドラッグ中もページに表示されます",
+  "On the first word of a line: joins it to the one above": "行の最初の単語の上：前の行とつなげます",
+  "The whole text": "テキスト全体",
+  "From the top of the panel, or the keys with the panel closed": "パネル上部から、またはパネルを閉じたままキーで",
+  "One line less, balanced": "1行減らして、バランス調整",
+  "One line more, balanced": "1行増やして、バランス調整",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "バランス調整（≡）：行数はそのまま、吹き出しのように中央の行を長く",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "改行パネルで、テキストの上にポインターを動かします。クリックする前に、どこで改行されるかがページに表示されます。",
+  "Click between two words: the line breaks there.": "2つの単語の間をクリックします。そこで改行されます。",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "長い単語の中をクリックします。音節で改行され、ハイフンが付きます。",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "行末の ↵ をクリックします。2行がつながります。",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "↵ を別の位置へドラッグします。改行が移動し、ドラッグ中もページに表示されます。",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "{Alt} を押しながら、任意の2文字の間をクリックします。音節かどうかに関係なく、ちょうどそこで改行されます。",
+  "Right-click the first word of a line: it joins the line above.": "行の最初の単語を右クリックします。前の行とつながります。",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "1行減らす：{Alt}{Cmd}{-}、またはパネル上部の −。1行増やす：{Alt}{Cmd}{=}、または +。どちらも行のバランスが調整されます。",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "最後です。パネル上部の「バランス調整（≡）」をクリックします。行数はそのまま、吹き出しのように中央の行が長くなります。",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "改行パネル（ウィンドウメニュー）のすべての操作。選んだテキストの行が表示され、パネルでの操作にページが追従します。メニューではハイフネーションの言語を設定でき、「自動」ならテキストから判別します。取り消しはいつもどおり Cmd + Z。",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "改行をマスターしました。すべての操作はいつでも「ヘルプ → 改行ガイド」と、パネルの ? から確認できます。",
+  "Line Breaks in 2 minutes": "2分で覚える改行",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "専用のページで、パネルを覚えませんか？実際に操作して進む、短い9ステップです。",
 });

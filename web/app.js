@@ -19409,6 +19409,7 @@
       ...(Shell.touch ? [] : [
         { label: "SFX Guide", action: () => window.TypeRSFXGuide && window.TypeRSFXGuide.show() },
         { label: "Auto Perspective Guide", action: () => window.TypeRPerspectiveGuide && window.TypeRPerspectiveGuide.show() },
+        { label: "Line Breaks Guide", action: () => window.TypeRBreaksGuide && window.TypeRBreaksGuide.show() },
       ]),
       null,
       // Nothing to download from the phone app: the computer's apps and the plugin are a computer's
@@ -19769,8 +19770,9 @@
           make("span", "", row);
         });
       }
-      // The SFX tool's and Auto Perspective's, as they are: their guides show each one
-      [[window.TypeRSFXGuide, "SFX tool"], [window.TypeRPerspectiveGuide, "Auto Perspective"]].forEach(([guide, name]) => {
+      // The SFX tool's, Auto Perspective's and the Line Breaks panel's, as they are: their guides
+      // show each one
+      [[window.TypeRSFXGuide, "SFX tool"], [window.TypeRPerspectiveGuide, "Auto Perspective"], [window.TypeRBreaksGuide, "Line Breaks"]].forEach(([guide, name]) => {
         const toolRows = guide ? guide.rows().filter(({ text, label }) => !words || label.toLowerCase().includes(words) || text.toLowerCase().includes(words)) : [];
         if (!toolRows.length) return;
         make("div", "sk__group", placeOf(false), T(name));

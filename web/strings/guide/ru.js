@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.ru = Object.assign(window.TYPER_WEB_STRINGS.ru || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.ru = Object.assign(window.TYPER_WEB_STRINGS.ru || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "Все горячие клавиши автоперспективы (P). На её панели параметров есть также Ширина % — для более широких или узких букв, Определить снова и Сбросить. Отмена, как и везде: Cmd + Z.",
   "Perspective practice": "Практика перспективы",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "Руководство по автоперспективе: все горячие клавиши и практика на 2 минуты",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "правый щелчок",
+  "hover": "наведение",
+  "Guide and practice": "Руководство и практика",
+  "Line Breaks Guide": "Руководство по переносам строк",
+  "Line Breaks practice": "Практика переносов строк",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "Мы и не надеялись,\rчто вернёмся домой\rвместе, спустя столько времени.",
+  "In the panel's text": "В тексте панели",
+  "The Line Breaks panel (Window menu), a text picked on the page": "Панель «Переносы строк» (меню Окно), текст, выбранный на странице",
+  "Over the text: the page shows the break before any click": "Над текстом: страница показывает перенос ещё до щелчка",
+  "Between two words: the line breaks there": "Между двумя словами: строка переносится здесь",
+  "Inside a word: at a syllable, with its hyphen": "Внутри слова: по слогу, с дефисом",
+  "Anywhere, between any two letters": "Где угодно, между любыми двумя буквами",
+  "A break": "Перенос",
+  "Its ↵, at the end of the line": "Его ↵ в конце строки",
+  "Joins the two lines again": "Снова соединяет две строки",
+  "Moves the break, shown on the page as you drag": "Перемещает перенос, страница показывает его во время перетаскивания",
+  "On the first word of a line: joins it to the one above": "На первом слове строки: соединяет её с предыдущей",
+  "The whole text": "Весь текст",
+  "From the top of the panel, or the keys with the panel closed": "Вверху панели или клавишами при закрытой панели",
+  "One line less, balanced": "На одну строку меньше, сбалансированно",
+  "One line more, balanced": "На одну строку больше, сбалансированно",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "Сбалансировать (≡): столько же строк, полнее в середине, как облачко",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "В панели «Переносы строк» наведите указатель на текст: страница показывает, где строка перенесётся, ещё до щелчка.",
+  "Click between two words: the line breaks there.": "Щёлкните между двумя словами: строка переносится здесь.",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "Щёлкните внутри длинного слова: оно переносится по слогу и получает дефис.",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "Щёлкните по ↵ в конце строки: две строки снова соединяются.",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "Перетащите ↵ в другое место: перенос перемещается, и страница показывает его во время перетаскивания.",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "Удерживая {Alt}, щёлкните между любыми двумя буквами: строка переносится именно там, слог это или нет.",
+  "Right-click the first word of a line: it joins the line above.": "Щёлкните правой кнопкой по первому слову строки: она соединяется с предыдущей.",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "На одну строку меньше: {Alt}{Cmd}{-} или − вверху панели. На одну строку больше: {Alt}{Cmd}{=} или +. В обоих случаях строки балансируются.",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "Последний шаг: нажмите «Сбалансировать» (≡) вверху панели: столько же строк, полнее в середине, как облачко.",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "Все жесты панели «Переносы строк» (меню Окно): она показывает строки выбранного текста, а страница следует за тем, что вы там делаете. Её меню задаёт язык переносов, который Авто определяет по тексту. Отмена, как и везде: Cmd + Z.",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Теперь вы знаете переносы строк. Все жесты остаются в меню Справка → Руководство по переносам строк и за значком ? панели.",
+  "Line Breaks in 2 minutes": "Переносы строк за 2 минуты",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Освоить панель на отдельной странице? Девять коротких шагов, каждый засчитывается, когда вы его выполните.",
 });

@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js) and Auto Perspective's guide (perspective-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.zh = Object.assign(window.TYPER_WEB_STRINGS.zh || {}, {
   "Page Down": "PgDn",
@@ -165,4 +165,41 @@ window.TYPER_WEB_STRINGS.zh = Object.assign(window.TYPER_WEB_STRINGS.zh || {}, {
   "Every shortcut of Auto Perspective (P). Its options bar also has Width %, for letters wider or narrower, Detect again and Reset. Undo works as everywhere: Cmd + Z.": "自动透视（P）的所有快捷键。它的选项栏还有让文字变宽或变窄的“宽度 %”、“重新检测”和“复位”。还原和其他地方一样：Cmd + Z。",
   "Perspective practice": "透视练习",
   "Auto Perspective guide: every shortcut, and a 2-minute practice": "自动透视指南：所有快捷键，以及 2 分钟练习",
+
+  // Line Breaks' guide (breaks-guide.js)
+  "right-click": "右键单击",
+  "hover": "悬停",
+  "Guide and practice": "指南和练习",
+  "Line Breaks Guide": "换行指南",
+  "Line Breaks practice": "换行练习",
+  "We never thought\rwe'd make it back home\rtogether, after all this time.": "We never thought\rwe'd make it back home\rtogether, after all this time.",
+  "In the panel's text": "在面板的文字上",
+  "The Line Breaks panel (Window menu), a text picked on the page": "换行面板（“窗口”菜单），在页面上选中的文字",
+  "Over the text: the page shows the break before any click": "文字上方：点击之前，页面就显示换行位置",
+  "Between two words: the line breaks there": "两个词之间：在此换行",
+  "Inside a word: at a syllable, with its hyphen": "词中间：在音节处断开，并加上连字符",
+  "Anywhere, between any two letters": "任意位置，任意两个字母之间",
+  "A break": "一处换行",
+  "Its ↵, at the end of the line": "行尾的 ↵",
+  "Joins the two lines again": "重新合并两行",
+  "Moves the break, shown on the page as you drag": "移动换行，拖动时页面同步显示",
+  "On the first word of a line: joins it to the one above": "在一行的第一个词上：与上一行合并",
+  "The whole text": "整段文字",
+  "From the top of the panel, or the keys with the panel closed": "在面板顶部，或面板关闭时用按键",
+  "One line less, balanced": "少一行，并均衡",
+  "One line more, balanced": "多一行，并均衡",
+  "Balance (≡): as many lines, fuller in the middle, as a bubble is": "均衡（≡）：行数不变，像气泡一样中间更满",
+  "In the Line Breaks panel, move the pointer over the text: the page shows where the line would break, before any click.": "在换行面板中，将指针移到文字上：点击之前，页面就会显示该行将在哪里断开。",
+  "Click between two words: the line breaks there.": "单击两个词之间：该行在此断开。",
+  "Click inside a long word: it breaks at a syllable, and gets its hyphen.": "单击一个长词的中间：它在音节处断开，并加上连字符。",
+  "Click a ↵ at the end of a line: the two lines are joined again.": "单击行尾的 ↵：两行重新合并。",
+  "Drag a ↵ to another spot: the break moves, and the page shows it as you drag.": "将 ↵ 拖到另一个位置：换行随之移动，拖动时页面同步显示。",
+  "Hold {Alt} and click between any two letters: the line breaks right there, syllable or not.": "按住 {Alt} 并单击任意两个字母之间：无论是否为音节，该行都正好在此断开。",
+  "Right-click the first word of a line: it joins the line above.": "右键单击一行的第一个词：它与上一行合并。",
+  "One line less: {Alt}{Cmd}{-}, or the − at the top of the panel. One line more: {Alt}{Cmd}{=}, or the +. Either way, the lines are balanced.": "少一行：{Alt}{Cmd}{-}，或面板顶部的 −。多一行：{Alt}{Cmd}{=}，或 +。两种方式都会均衡各行。",
+  "Last one: click Balance (≡), at the top of the panel: as many lines, fuller in the middle, as a bubble is.": "最后一步：单击面板顶部的“均衡（≡）”：行数不变，像气泡一样中间更满。",
+  "Every gesture of the Line Breaks panel (Window menu): it shows the lines of the picked text, and the page follows what you do there. Its menu sets the hyphenation language, which Auto finds in the text. Undo works as everywhere: Cmd + Z.": "换行面板（“窗口”菜单）的所有操作：它显示所选文字的各行，页面跟随你在面板中的操作。它的菜单设置连字语言，“自动”会从文字中识别。还原和其他地方一样：Cmd + Z。",
+  "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "你已掌握换行。所有操作随时可在“帮助 → 换行指南”以及面板的 ? 中找到。",
+  "Line Breaks in 2 minutes": "2 分钟学会换行",
+  "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "在单独的页面上学会这个面板？共九个简短步骤，每步动手做到即可通过。",
 });
