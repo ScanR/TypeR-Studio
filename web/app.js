@@ -3865,7 +3865,7 @@
     if (PS.TEXT_LANGUAGES.some(([name]) => name === saved.language)) app.textDefaults.language = saved.language;
     if (saved.ligature === false) app.textDefaults.ligature = false;
     if (saved.hyphenate === true) app.textDefaults.hyphenate = true;
-    if (saved.autoKern === "manual") app.textDefaults.autoKern = "manual";
+    if (saved.autoKern === "manual" || saved.autoKern === "opticalKern") app.textDefaults.autoKern = saved.autoKern;
     if (saved.textOnTop === true) app.textDefaults.textOnTop = true;
     if (saved.smartGuides === false) settings.smartGuides = false;
     if (saved.snapText === true) settings.snapText = true;
@@ -3897,7 +3897,7 @@
     const d = app.textDefaults;
     try {
       // A language nobody chose keeps following the interface
-      window.localStorage.setItem(STORE_SETTINGS, JSON.stringify({ spellcheck: settings.spellcheck ? undefined : false, wheel: settings.wheel, zoomSpeed: settings.zoomSpeed === "normal" ? undefined : settings.zoomSpeed, smartGuides: settings.smartGuides, snapText: settings.snapText || undefined, transformControls: settings.transformControls ? undefined : false, bubbleRoom: settings.bubbleRoom ? undefined : false, taskBar: settings.taskBar ? undefined : false, taskBarPlace: settings.taskBarPlace || undefined, hiddenChars: settings.hiddenChars || undefined, discord: settings.discord === "page" ? undefined : settings.discord, sizeStep: settings.sizeStep === 2 ? undefined : settings.sizeStep, workspace: settings.workspace === "flow" ? "flow" : undefined, flowDirection: settings.flowDirection === "rtl" ? undefined : settings.flowDirection, flowGap: settings.flowGap === 80 ? undefined : settings.flowGap, flowGapDown: settings.flowGapDown || undefined, flowPerRow: settings.flowPerRow || undefined, flowPairs: settings.flowPairs || undefined, flowPairsShift: settings.flowPairsShift || undefined, ligature: d.ligature, hyphenate: d.hyphenate || undefined, autoKern: d.autoKern === "manual" ? "manual" : undefined, textOnTop: d.textOnTop || undefined, language: d.language === PS.DEFAULT_TEXT_LANGUAGE ? undefined : d.language }));
+      window.localStorage.setItem(STORE_SETTINGS, JSON.stringify({ spellcheck: settings.spellcheck ? undefined : false, wheel: settings.wheel, zoomSpeed: settings.zoomSpeed === "normal" ? undefined : settings.zoomSpeed, smartGuides: settings.smartGuides, snapText: settings.snapText || undefined, transformControls: settings.transformControls ? undefined : false, bubbleRoom: settings.bubbleRoom ? undefined : false, taskBar: settings.taskBar ? undefined : false, taskBarPlace: settings.taskBarPlace || undefined, hiddenChars: settings.hiddenChars || undefined, discord: settings.discord === "page" ? undefined : settings.discord, sizeStep: settings.sizeStep === 2 ? undefined : settings.sizeStep, workspace: settings.workspace === "flow" ? "flow" : undefined, flowDirection: settings.flowDirection === "rtl" ? undefined : settings.flowDirection, flowGap: settings.flowGap === 80 ? undefined : settings.flowGap, flowGapDown: settings.flowGapDown || undefined, flowPerRow: settings.flowPerRow || undefined, flowPairs: settings.flowPairs || undefined, flowPairsShift: settings.flowPairsShift || undefined, ligature: d.ligature, hyphenate: d.hyphenate || undefined, autoKern: d.autoKern === "manual" || d.autoKern === "opticalKern" ? d.autoKern : undefined, textOnTop: d.textOnTop || undefined, language: d.language === PS.DEFAULT_TEXT_LANGUAGE ? undefined : d.language }));
     } catch (error) {
       console.warn("TypeR web: could not keep the settings", error);
     }
@@ -9585,7 +9585,8 @@
 
   // Kerning as Photoshop sets it: at the cursor, the space between the letters on either side,
   // kept on the letter after the cursor, in thousandths of an em (-1000 to 10000). A selection
-  // or a whole text only takes Metrics or 0: a number there is Tracking's job.
+  // or a whole text only takes Metrics, Optical or 0: a number there is Tracking's job.
+  // Metrics is the font's own kerning, Optical sets each pair by the letters' shapes.
   const KERNING_LIMITS = [-1000, 10000];
   // The letter after the cursor, when the cursor sits between two letters of the text typed in;
   // -1 otherwise
@@ -9599,12 +9600,13 @@
     const ranges = layer.params.layerText.textStyleRange;
     return (ranges.find((range) => at >= range.from && at < range.to) || ranges[ranges.length - 1]).textStyle;
   };
-  // "metrics", "0", or the number set between the two letters at the cursor
+  // "metrics", "optical", "0", or the number set between the two letters at the cursor
+  const KERNING_MODES = { metrics: "metricsKern", optical: "opticalKern" };
   const kerningShown = (layer) => {
     const at = kernedLetter(layer);
     const style = at >= 0 ? styleAtLetter(layer, at) : styleShown(layer);
     if (at >= 0 && style.kerning) return String(style.kerning);
-    return style.autoKern === "manual" ? "0" : "metrics";
+    return style.autoKern === "manual" ? "0" : style.autoKern === "opticalKern" ? "optical" : "metrics";
   };
   // False when a number was asked for outside the cursor: nothing changes then
   const setKerning = (value) => {
@@ -9613,11 +9615,11 @@
     if (at >= 0) {
       // Metrics gives the pair back to the font, as the letters before it have it
       const left = styleAtLetter(layer, at - 1);
-      const patch = value === "metrics" ? { kerning: 0, autoKern: left.autoKern === "manual" ? "metricsKern" : left.autoKern } : { kerning: value, autoKern: "manual" };
+      const patch = value === "metrics" ? { kerning: 0, autoKern: left.autoKern === "manual" ? "metricsKern" : left.autoKern } : value === "optical" ? { kerning: 0, autoKern: "opticalKern" } : { kerning: value, autoKern: "manual" };
       ops.setTextStyle([editing.id], patch, null, "kerning", [at, at + 1]);
-    } else if (value === "metrics" || value === 0) {
+    } else if (KERNING_MODES[value] || value === 0) {
       // The last one chosen is the one new text takes, as the font and the size
-      app.textDefaults.autoKern = value === "metrics" ? "metricsKern" : "manual";
+      app.textDefaults.autoKern = KERNING_MODES[value] || "manual";
       keepSettings();
       patchTypography({ kerning: 0, autoKern: app.textDefaults.autoKern });
     } else {
@@ -11628,22 +11630,25 @@
     return { box, input, step, from };
   };
 
-  // Kerning as Photoshop sets it (see setKerning): Metrics, 0 or a number, typed or from the
-  // list; the numbers only between two letters, at the cursor
+  // Kerning as Photoshop sets it (see setKerning): Metrics, Optical, 0 or a number, typed or
+  // from the list; the numbers only between two letters, at the cursor
   const KERNING_PRESETS = [-100, -75, -50, -25, -10, -5, 5, 10, 25, 50, 75, 100, 200];
   const kerningField = (layer) => {
-    const named = (value) => (value === "metrics" ? T("Metrics") : String(value));
+    const named = (value) => (value === "metrics" ? T("Metrics") : value === "optical" ? T("Optical") : String(value));
     const box = document.createElement("span");
     box.className = "combo";
     const input = document.createElement("input");
     input.type = "text";
-    input.title = T("Alt + left or right arrow: kerning at the cursor, or tracking of the selection.");
+    // Optical is the text's kerning for Photoshop, which sets each pair by the letters' shapes:
+    // here it is kept, and drawn with the font's own kerning
+    input.title = kerningShown(layer) === "optical" ? T("Optical is kept with the text. TypeR draws it with the font's own kerning, as Metrics.") : T("Alt + left or right arrow: kerning at the cursor, or tracking of the selection.");
     input.setAttribute("aria-label", T("Kerning"));
     input.value = named(kerningShown(layer));
     let last = input.value;
     const read = () => {
       const text = input.value.trim();
       if (!text || /^metrics$/i.test(text) || text.toLowerCase() === T("Metrics").toLowerCase()) return "metrics";
+      if (/^optical$/i.test(text) || text.toLowerCase() === T("Optical").toLowerCase()) return "optical";
       const value = parseFloat(text.replace(",", "."));
       return Number.isFinite(value) ? Math.round(Math.max(KERNING_LIMITS[0], Math.min(KERNING_LIMITS[1], value))) : null;
     };
@@ -11660,7 +11665,7 @@
     const step = (steps, shift) => {
       const value = read();
       if (value === null || !steps || kernedLetter(layer) < 0) return;
-      apply(Math.max(KERNING_LIMITS[0], Math.min(KERNING_LIMITS[1], (value === "metrics" ? 0 : value) + steps * (shift ? 10 : 1))));
+      apply(Math.max(KERNING_LIMITS[0], Math.min(KERNING_LIMITS[1], (KERNING_MODES[value] ? 0 : value) + steps * (shift ? 10 : 1))));
     };
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") input.blur();
@@ -11677,9 +11682,9 @@
     opener.setAttribute("aria-expanded", "false");
     const open = (byKeys) => {
       const value = read();
-      const entries = [["metrics", T("Metrics")], ["0", "0"]];
+      const entries = [["metrics", T("Metrics")], ["optical", T("Optical")], ["0", "0"]];
       if (kernedLetter(layer) >= 0) entries.push(...KERNING_PRESETS.map((preset) => [String(preset), String(preset)]));
-      openLeadingMenu(opener, value === null ? null : String(value), (chosen) => apply(chosen === "metrics" ? "metrics" : Number(chosen)), byKeys, entries);
+      openLeadingMenu(opener, value === null ? null : String(value), (chosen) => apply(KERNING_MODES[chosen] ? chosen : Number(chosen)), byKeys, entries);
     };
     // Pressed, the button leaves the focus where it is: in the text being typed, too
     opener.addEventListener("pointerdown", (event) => {

@@ -304,6 +304,7 @@
       return [];
     }
   };
+  const KERNING_IN = { 0: "manual", 2: "opticalKern" };
 
   const styleFromPsd = (style, scale, resolution) => {
     const font = (style.font && style.font.name) || "";
@@ -360,6 +361,8 @@
         const end = Math.min(range.to, to);
         if (end <= start) return;
         const textStyle = Object.assign({}, range.textStyle);
+        if (KERNING_IN[run.kerning]) textStyle.autoKern = KERNING_IN[run.kerning];
+        else if (run.kerning === 1) delete textStyle.autoKern;
         if (typeof run.contextual === "boolean") textStyle.contextualLigatures = run.contextual;
         const last = out[out.length - 1];
         if (last && last.to === start && JSON.stringify(last.textStyle) === JSON.stringify(textStyle)) last.to = end;
@@ -743,6 +746,28 @@
       const layer = alike.reduce((best, item) => (far(item) < far(best) ? item : best));
       layer.across = { key: entry.key, part: entry.part, rev: entry.rev > 0 ? entry.rev : 0 };
       taken.add(layer);
+    });
+  };
+  // What a text layer's own data can't say (see textBlockOf), kept for TypeR itself: a text set
+  // in Optical, or with its Contextual alternates off, comes back so from a PSD TypeR wrote.
+  // Each entry: the layer's name and text, then for each run its length, its kerning (2 for
+  // Optical) and its alternates (0 when off).
+  const lettersForSave = (doc) => doc.state.layers
+    .filter((layer) => layer.kind === "text" && layer.params.layerText.textStyleRange.some((range) => range.textStyle.autoKern === "opticalKern" || range.textStyle.contextualLigatures === false))
+    .map((layer) => ({
+      name: layer.name,
+      text: layer.params.layerText.textKey,
+      runs: layer.params.layerText.textStyleRange.map((range) => [range.to - range.from, range.textStyle.autoKern === "opticalKern" ? 2 : 0, range.textStyle.contextualLigatures === false ? 0 : 1]),
+    }));
+  const attachLetters = (layers, xmp) => {
+    const taken = new Set();
+    listOfXmp(xmp, "letters").forEach((entry) => {
+      if (!entry || !Array.isArray(entry.runs) || typeof entry.text !== "string") return;
+      const layer = layers.find((item) => item.kind === "text" && !taken.has(item) && item.name === entry.name && item.params.layerText.textKey === entry.text);
+      if (!layer) return;
+      taken.add(layer);
+      const runs = entry.runs.filter((run) => Array.isArray(run) && run[0] > 0).map((run) => ({ length: run[0], kerning: run[1] === 2 ? 2 : undefined, contextual: run[2] === 0 ? false : undefined }));
+      blockStyles(layer.params.layerText.textStyleRange, entry.text, { text: entry.text, runs });
     });
   };
   const attachWarps = (layers, xmp) => {
@@ -1163,6 +1188,8 @@
       });
     };
     walk(psd.children, null);
+    // A file Photoshop saved since says it all in its own text block
+    if (!textBlock.length) attachLetters(layers, psd.imageResources && psd.imageResources.xmpMetadata);
     attachWarps(layers, psd.imageResources && psd.imageResources.xmpMetadata);
     attachOffSurface(layers, psd.imageResources && psd.imageResources.xmpMetadata);
     attachAcross(layers, psd.imageResources && psd.imageResources.xmpMetadata);
@@ -1877,7 +1904,7 @@
     delete imageResources.thumbnail;
     delete imageResources.thumbnailRaw;
     const sfx = window.TypeRSFX ? window.TypeRSFX.recipesForSave(doc) : [];
-    const xmp = xmpWithList(xmpWithList(xmpWithList(xmpWithList(xmpWithSfx(imageResources.xmpMetadata, sfx), "warps", warpsForSave(doc)), "surfaces", surfacesForSave(doc)), "offsurface", offSurfaceForSave(doc)), "across", acrossForSave(doc));
+    const xmp = xmpWithList(xmpWithList(xmpWithList(xmpWithList(xmpWithList(xmpWithSfx(imageResources.xmpMetadata, sfx), "warps", warpsForSave(doc)), "surfaces", surfacesForSave(doc)), "offsurface", offSurfaceForSave(doc)), "across", acrossForSave(doc)), "letters", lettersForSave(doc));
     if (xmp === undefined) delete imageResources.xmpMetadata;
     else imageResources.xmpMetadata = xmp;
     const root = Object.assign({}, source, { width: doc.width, height: doc.height, bitsPerChannel: 8, canvas: composite, children, imageResources });

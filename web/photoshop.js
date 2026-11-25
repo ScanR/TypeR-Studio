@@ -13233,7 +13233,7 @@
       if (!doc) return null;
       const d = app.textDefaults;
       const text = value || "";
-      const style = { fontPostScriptName: d.font, fontName: d.family, fontStyleName: d.style, size: d.size, impliedFontSize: d.size, autoLeading: true, tracking: 0, horizontalScale: 100, verticalScale: 100, ligature: d.ligature, textLanguage: d.language, autoKern: d.autoKern === "manual" ? "manual" : "metricsKern", color: { red: app.fg.r, green: app.fg.g, blue: app.fg.b } };
+      const style = { fontPostScriptName: d.font, fontName: d.family, fontStyleName: d.style, size: d.size, impliedFontSize: d.size, autoLeading: true, tracking: 0, horizontalScale: 100, verticalScale: 100, ligature: d.ligature, textLanguage: d.language, autoKern: d.autoKern === "manual" || d.autoKern === "opticalKern" ? d.autoKern : "metricsKern", color: { red: app.fg.r, green: app.fg.g, blue: app.fg.b } };
       const params = { layerText: { textKey: text, antiAlias: d.antiAlias || "antiAliasSmooth", textClickPoint: { horizontal: (x / doc.width) * 100, vertical: (y / doc.height) * 100 }, textStyleRange: [{ from: 0, to: text.length, textStyle: style }], paragraphStyleRange: [{ from: 0, to: text.length, paragraphStyle: Object.assign({ alignment: "center", autoLeadingPercentage: 1.2 }, d.hyphenate ? { hyphenate: true } : {}) }], textShape: [box ? { textType: "box", orientation: "horizontal", box: Object.assign({ verticalAlign: d.verticalAlign }, box) } : { textType: "point", orientation: "horizontal" }] } };
       const layer = newTextLayer(doc, params, null, text || "Text");
       commitState(doc, "Type Tool", { layers: addNewTexts(doc.state.layers, [layer], textSpotOf(doc)), activeIds: [layer.id] });
@@ -14422,6 +14422,9 @@
   // that way, not because they were chosen for this text: the settings win, but a style that
   // turns ligatures off means it. A text the panel restyles (`layer`) keeps its own language,
   // ligatures and hyphenation instead.
+  // The same for the kerning: the panel's styles start on Metrics, so only a style set to
+  // Optical means it. Any other takes the kerning chosen last in the Character panel, or
+  // leaves a restyled text the one it has.
   const followTextDefaults = (params, layer) => {
     const d = app.textDefaults;
     const lt = params.layerText;
@@ -14429,10 +14432,13 @@
     const ownStyle = own && own.textStyleRange[0].textStyle;
     const language = (ownStyle && ownStyle.textLanguage) || d.language;
     const ligature = ownStyle ? ownStyle.ligature !== false : d.ligature !== false;
+    const kept = ownStyle ? ownStyle.autoKern : d.autoKern;
     (lt.textStyleRange || []).forEach((range) => {
       if (!range.textStyle) return;
       range.textStyle.textLanguage = language;
       range.textStyle.ligature = ligature && range.textStyle.ligature !== false;
+      // A letter kerned by hand keeps its number
+      if (!range.textStyle.kerning && range.textStyle.autoKern !== "opticalKern" && range.textStyle.autoKern !== "manual" && (kept === "opticalKern" || kept === "manual")) range.textStyle.autoKern = kept;
     });
     const hyphenate = own ? own.paragraphStyleRange[0].paragraphStyle.hyphenate === true : Boolean(d.hyphenate);
     (lt.paragraphStyleRange || []).forEach((range) => {
