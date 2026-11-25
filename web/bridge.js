@@ -32,11 +32,15 @@
   // panel on a seeded copy, for the site's pictures: it is never kept.
   const kit = window.parent.TypeRKit;
   const seeded = params.get("seeded") === "1" && Boolean(seed);
+  // Another tab has written TypeR's files since this panel read them (kit.js): what it holds is
+  // the past, and isn't written over what is kept now. The app starts it again on that.
+  const readAt = kit.elsewhere();
+  const upToDate = () => kit.elsewhere() === readAt;
   const remember = (path, value) => {
-    if (!seeded && kit.keeps(path)) kit.keep(path, value);
+    if (!seeded && kit.keeps(path) && upToDate()) kit.keep(path, value);
   };
   const forget = (path) => {
-    if (!seeded && kit.keeps(path)) kit.forget(path);
+    if (!seeded && kit.keeps(path) && upToDate()) kit.forget(path);
   };
   let startingStorage = !seeded && kit.read(ROOT + "/storage");
   const shell = window.parent.TypeRShell;

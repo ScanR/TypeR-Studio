@@ -258,7 +258,9 @@
   //   is written over it (`unread`);
   // - earlier copies of each file stay in the database (`copies`): one a day, and what a file
   //   was before it lost most of its length at once. A file that can't be read comes back from
-  //   them, and the app offers them when the styles and scripts come back empty (app.js).
+  //   them, and the app offers them when the styles and scripts come back empty (app.js);
+  // - what another tab writes is read here as it is written, so that a tab left open never
+  //   writes what it read hours ago over it (`elsewhere`).
   const memory = new Map();
   const copies = new Map();
   const unread = new Set();
@@ -476,7 +478,10 @@
       }
     }
     if (!stores && window.TypeRPhotoshop) window.TypeRPhotoshop.warnStorage();
-    if (stores) askToStay();
+    if (stores) {
+      tell(path);
+      askToStay();
+    }
     return stores > 0;
   };
 
@@ -492,6 +497,7 @@
     }
     dropCopies(path);
     await inFiles((store) => store.delete(path));
+    tell(path);
   };
 
   // The styles and the scripts came back empty, and an earlier copy had some: what the app
@@ -507,6 +513,76 @@
     return null;
   };
   const bringBack = (lost) => keep(lost.path, lost.text);
+
+  /* ---- the same files in another tab ---- */
+
+  // Two tabs of the app, or the installed app beside a tab, keep the same files, and each
+  // writes a file whole, from what it read at its start. A tab is told what the others write
+  // (their message, or localStorage changing under it for a tab that runs an earlier version),
+  // reads it, and counts it: the panel started before that count holds the past, and no longer
+  // writes (bridge.js) until the app has started it again (app.js).
+  // Not in the tab being used for more than a moment: there the user's own work is the present,
+  // and what another tab writes behind their back (a panel that finishes starting) isn't.
+  const SETTLED = 2000;
+  let elsewhere = 0;
+  let inFrontSince = 0;
+  const inFront = () => document.visibilityState === "visible" && document.hasFocus();
+  const watchFront = () => { inFrontSince = inFront() ? inFrontSince || Date.now() : 0; };
+  ["focus", "blur", "pageshow"].forEach((name) => window.addEventListener(name, watchFront));
+  document.addEventListener("visibilitychange", watchFront);
+  watchFront();
+  let channel = null;
+  try {
+    channel = new BroadcastChannel("typer-web-files");
+  } catch (error) {
+    channel = null;
+  }
+  const tell = (path) => {
+    try {
+      if (channel) channel.postMessage({ path });
+    } catch (error) {
+      console.warn("TypeR web: the other tabs weren't told", error);
+    }
+  };
+  // True when the file here is no longer what this tab held
+  const readAgain = async (path) => {
+    const list = [];
+    try {
+      const text = window.localStorage.getItem(keyFor(path));
+      if (text !== null) list.push({ text, time: Number(window.localStorage.getItem(timeKey(path))) || 0, from: 0 });
+    } catch (error) {
+      console.warn("TypeR web: localStorage is not available", error);
+    }
+    const db = await window.TypeRFonts.openStore().catch(() => null);
+    const row = db ? await fromFiles(db, (store) => store.get(path)) : null;
+    if (row) list.push({ text: row.text, time: row.time, from: 1 });
+    // Not known: this tab keeps what it has
+    else if (row === null && !list.length) return false;
+    const known = memory.get(path);
+    const newest = list.sort(newestFirst).find((one) => reads(one.text));
+    if (!list.length) return memory.delete(path);
+    if (!newest || (known && (known.time >= newest.time || known.text === newest.text))) return false;
+    memory.set(path, { text: newest.text, time: newest.time });
+    return true;
+  };
+  const hearing = new Map();
+  const hear = (path) => {
+    if (!keeps(path) || unread.has(path)) return;
+    clearTimeout(hearing.get(path));
+    hearing.set(path, setTimeout(async () => {
+      hearing.delete(path);
+      watchFront();
+      if ((inFront() && Date.now() - inFrontSince > SETTLED) || !(await readAgain(path))) return;
+      elsewhere++;
+      window.dispatchEvent(new Event("typer-storage-elsewhere"));
+    }, 60));
+  };
+  if (channel) channel.onmessage = (event) => { if (event.data && typeof event.data.path === "string") hear(event.data.path); };
+  window.addEventListener("storage", (event) => {
+    const key = String(event.key || "");
+    if (key === "typer.web.storage") hear(`${ROOT}/storage`);
+    else if (key.indexOf("typer.web.file:") === 0) hear(key.slice("typer.web.file:".length));
+  });
 
   // What TypeR starts from; a user who imports their styles first skips the tutorial
   const freshStorage = (firstTime) => ({ notFirstTime: !firstTime, whatsNewSeen: "3.0", checkUpdates: false, autoUpdate: false, textShapeRPerformanceTipShown: true });
@@ -538,5 +614,5 @@
     return active === "default" ? `${ROOT}/storage` : `${ROOT}/storage_profile_${active}`;
   };
 
-  window.TypeRKit = { readArchive, writeArchive, zipEntries, validate, mergeInto, keeps, loadFiles, read, keep, forget, storedPaths, activeStoragePath, freshStorage, freshTouchStorage, ROOT, report: () => report, emptied, bringBack, dropCopies };
+  window.TypeRKit = { readArchive, writeArchive, zipEntries, validate, mergeInto, keeps, loadFiles, read, keep, forget, storedPaths, activeStoragePath, freshStorage, freshTouchStorage, ROOT, report: () => report, emptied, bringBack, dropCopies, elsewhere: () => elsewhere, inFront };
 })();

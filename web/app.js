@@ -20756,10 +20756,12 @@
   // The panel only starts from here: its page checks the start it was given (bridge.js), so
   // that one the browser loads again by itself, from its history, starts nothing.
   let panelStarts = 0;
+  let panelReadAt = 0;
   const startPanel = ({ tour, seeded } = {}) => {
     PS.resetPanelListeners();
     const start = `${Date.now().toString(36)}${(panelStarts++).toString(36)}`;
     ui.frame.dataset.start = start;
+    panelReadAt = Kit.elsewhere();
     ui.frame.src = `panel/index.html?lang=${lang}&v=${start}${tour ? "&tour=1" : ""}${seeded ? "&seeded=1" : ""}`;
   };
 
@@ -20772,6 +20774,24 @@
     ui.frame.src = "about:blank";
     setTimeout(done, 1500);
   });
+
+  // Another tab changed TypeR's styles, settings or scripts (kit.js): the panel here holds what
+  // they were, and no longer writes. It starts again on what is kept now once this tab is the
+  // one being used: at once when the change comes as the tab is reached, else when it is.
+  let catchingUp = false;
+  const catchUpPanel = async () => {
+    if (catchingUp || panelReadAt === Kit.elsewhere() || !Kit.inFront()) return;
+    const running = Boolean(ui.frame.src) && !/^about:blank/.test(ui.frame.src);
+    if (!running) return;
+    catchingUp = true;
+    await closePanel();
+    startPanel();
+    catchingUp = false;
+    catchUpPanel();
+  };
+  window.addEventListener("typer-storage-elsewhere", catchUpPanel);
+  window.addEventListener("focus", catchUpPanel);
+  document.addEventListener("visibilitychange", catchUpPanel);
 
   // A script sent by TypeR for Photoshop (Open in TypeR Studio): the tab that already holds it,
   // or a new one, becomes the panel's open tab, as TypeR does with one sent from here
