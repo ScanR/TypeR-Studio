@@ -8850,6 +8850,11 @@
     magicSampleAll: false,
     autoSelect: true,
     selectionMode: "new",
+    // The marquees' Style, as Photoshop's: drawn freely ("normal"), to a ratio, or at a size in
+    // pixels. Width then height.
+    marqueeStyle: "normal",
+    marqueeRatio: [1, 1],
+    marqueeSize: [64, 64],
     fg: { r: 0, g: 0, b: 0 },
     bg: { r: 255, g: 255, b: 255 },
     brush: { size: 24, hardness: 100 },

@@ -186,6 +186,8 @@
     lockAlpha: SVG('<rect x="4" y="4" width="16" height="16"/><path d="M4 4h8v8H4ZM12 12h8v8h-8Z" fill="currentColor"/>'),
     // Lucide's search and image: Find Layers, and its filter for pixel layers
     search: SVG('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.300-4.300"/>'),
+    // A width and a height that trade places (the marquees' Fixed Ratio and Fixed Size)
+    swapSides: SVG('<path d="m16 3 4 4-4 4"/> <path d="M20 7H4"/> <path d="m8 21-4-4 4-4"/> <path d="M4 17h16"/>'),
     image: SVG('<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>'),
   };
 
@@ -2745,6 +2747,38 @@
     };
     button(T("Cancel"), "btn btn--small", resetCrop);
     button(T("Crop"), "btn btn--small btn--main", commitCrop);
+  };
+  // The marquees' Style, as in Photoshop's options bar (see marqueeBox). The two numbers and
+  // the button that trades them only show for a style that uses them. Both marquees share them.
+  const marqueeStyleOptions = (bar) => {
+    const style = document.createElement("select");
+    [["normal", T("Normal")], ["ratio", T("Fixed Ratio")], ["size", T("Fixed Size")]].forEach(([value, text]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      style.appendChild(option);
+    });
+    style.value = app.marqueeStyle;
+    style.addEventListener("change", () => {
+      app.marqueeStyle = style.value;
+      style.blur();
+      renderOptions();
+    });
+    bar.appendChild(labelled(T("Style"), style));
+    if (app.marqueeStyle === "normal") return;
+    // A size is whole pixels, no smaller than a selection can be; a ratio is any two numbers
+    const sized = app.marqueeStyle === "size";
+    const key = sized ? "marqueeSize" : "marqueeRatio";
+    const least = sized ? 4 : 0.01;
+    const field = (at, name) => scrubbed(T(name), numberInput(app[key][at], least, sized ? MAX_SIDE : 1000, (value) => {
+      const pair = app[key].slice();
+      pair[at] = Math.max(least, (sized ? Math.round(value) : value) || 0);
+      app[key] = pair;
+    }, sized ? 1 : "any"));
+    bar.append(field(0, sized ? "Width (px)" : "Width"), iconButton("swapSides", T("Swap width and height"), false, () => {
+      app[key] = [app[key][1], app[key][0]];
+      renderOptions();
+    }), field(1, sized ? "Height (px)" : "Height"));
   };
 
   const hud = (text, event) => {
@@ -8025,6 +8059,7 @@
       });
       bar.appendChild(modes);
       if (TextMask && (tool === "rectangle" || tool === "ellipse")) bar.appendChild(selectTextButton());
+      if (isMarquee(tool)) marqueeStyleOptions(bar);
     }
     if (tool === "wand") {
       bar.appendChild(scrubbed(T("Tolerance"), numberInput(app.tolerance, 0, 255, (value) => { app.tolerance = Math.max(0, Math.min(255, value)); keepWand(); })));
@@ -8551,15 +8586,32 @@
     if (!event.shiftKey) current.shiftAtStart = false;
     if (!event.altKey) current.altAtStart = false;
   };
+  // The marquees' Style (options bar), as Photoshop's. Fixed Ratio keeps the box to the shape
+  // typed in, whatever Shift says. Fixed Size is a box of that many pixels, held by its corner
+  // under the pointer (by its middle with Alt): a click puts it down, a drag carries it first.
+  const marqueeStyle = (kind) => (isMarquee(kind) ? app.marqueeStyle : "normal");
   const marqueeBox = (current, event) => {
     let [x0, y0] = current.start;
     let [x1, y1] = current.last;
-    if (event.shiftKey && !current.shiftAtStart) {
+    const style = marqueeStyle(current.kind);
+    const centred = event.altKey && !current.altAtStart;
+    if (style === "size") {
+      const [width, height] = app.marqueeSize;
+      const left = Math.round(x1 - (centred ? width / 2 : 0));
+      const top = Math.round(y1 - (centred ? height / 2 : 0));
+      return [left, top, left + width, top + height];
+    }
+    if (style === "ratio") {
+      const [width, height] = app.marqueeRatio;
+      const unit = Math.max(Math.abs(x1 - x0) / width, Math.abs(y1 - y0) / height);
+      x1 = x0 + Math.sign(x1 - x0 || 1) * unit * width;
+      y1 = y0 + Math.sign(y1 - y0 || 1) * unit * height;
+    } else if (event.shiftKey && !current.shiftAtStart) {
       const side = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
       x1 = x0 + Math.sign(x1 - x0 || 1) * side;
       y1 = y0 + Math.sign(y1 - y0 || 1) * side;
     }
-    if (event.altKey && !current.altAtStart) {
+    if (centred) {
       x0 -= x1 - x0;
       y0 -= y1 - y0;
     }
@@ -9234,6 +9286,8 @@
     gesture = Object.assign(base, { kind: tool, mode, points: [point], leaves });
     ui.stage.classList.toggle("is-marquee", isMarquee(tool));
     ui.stage.setPointerCapture(event.pointerId);
+    // A fixed size shows where it lands from the press on
+    if (marqueeStyle(tool) === "size" && !leaves) drawMarquee(gesture, event);
   });
 
   // Where the mouse last was over the page: pressing or letting go of Cmd while typing changes
@@ -9718,11 +9772,16 @@
         // A click there is the first corner of a new outline
         polygon = { points: [current.start], mode, time: performance.now(), screen: [current.x, current.y], doc: app.doc };
         showPolygon(null);
+      } else if (marqueeStyle(current.tool) === "size") {
+        // A click is a new box of the fixed size, inside the selection as beside it
+        const [x0, y0, x1, y1] = marqueeBox(Object.assign({}, current, { kind: current.tool, last: point }), event);
+        ops[current.tool](x0, y0, x1, y1, mode);
       } else ops.deselect();
     } else if (kind === "wand") {
       if (!current.moved) ops.wandAt(point[0], point[1], mode);
     } else if (kind === "rectangle" || kind === "ellipse") {
-      if (current.moved) {
+      // A fixed size needs no drag: a click puts it down
+      if (current.moved || (marqueeStyle(kind) === "size" && !current.leaves)) {
         carryMarquee(current, point);
         const [x0, y0, x1, y1] = marqueeBox(Object.assign({}, current, { last: point }), event);
         ops[kind](x0, y0, x1, y1, mode);
