@@ -1,4 +1,5 @@
 {"notes": [
+  {"id":"5e08471aed9e","at":"2026-11-25T09:38:24+01:00","kind":"fix","text":"Toolbars saved by an older version also get the new order, in sections","lang":{"fr":"Les barres d'outils enregistrées par une ancienne version passent aussi au nouvel ordre, en sections"}},
   {"id":"6a45fa5c8ff1","at":"2026-11-25T09:22:55+01:00","kind":"feat","text":"Swatches panel (Window > Swatches): keep your colours and colour text with a click","lang":{"fr":"Nouveau panneau Nuancier (Fenêtre > Nuancier) : gardez vos couleurs et colorez le texte d'un clic"}},
   {"id":"82db1f3db1e9","at":"2026-11-25T09:22:54+01:00","kind":"feat","text":"Add the Quick Selection Tool (W): paint over an area to select it up to its edges","lang":{"fr":"Nouvel outil Sélection rapide (W) : peignez sur une zone pour la sélectionner jusqu'à ses contours"}},
   {"id":"836314e21557","at":"2026-11-25T09:22:54+01:00","kind":"fix","text":"Thai text wraps between words and keeps its vowel and tone marks in place","lang":{"fr":"Le texte thaï passe à la ligne entre les mots et garde ses voyelles et ses marques de ton à leur place"}},
@@ -147,6 +148,5 @@
   {"id":"cfcac445ffe6","at":"2026-11-11T06:14:31+01:00","kind":"feat","text":"Go back a step in the TypeR Tutorial's lessons","lang":{"fr":"Revenez à l’étape précédente dans les leçons du Tutoriel de TypeR"}},
   {"id":"7bb8932fbc04","at":"2026-11-11T06:14:31+01:00","kind":"feat","text":"Choose how Smart Paste sizes text in the Setup Assistant","lang":{"fr":"Choisissez dans l’Assistant de configuration comment le Collage intelligent dimensionne le texte"}},
   {"id":"b3b00d020e97","at":"2026-11-11T06:14:30+01:00","kind":"feat","text":"Text the TypeR panel fits in a bubble follows the settings for new text: language, ligatures and hyphenation","lang":{"fr":"Le texte que le panneau TypeR place dans une bulle suit les réglages des nouveaux textes : langue, ligatures et césure"}},
-  {"id":"dae6c987d67f","at":"2026-11-11T06:14:30+01:00","kind":"fix","text":"Turkish words in capitals are hyphenated at the right place","lang":{"fr":"Les mots turcs en majuscules sont coupés au bon endroit"}},
-  {"id":"4f41ffe5f3ac","at":"2026-11-11T06:14:30+01:00","kind":"fix","text":"The Adobe account shows in the settings only while Adobe Firefly is the service in use","lang":{"fr":"Le compte Adobe n’apparaît dans les paramètres que si Adobe Firefly est le service utilisé"}}
+  {"id":"dae6c987d67f","at":"2026-11-11T06:14:30+01:00","kind":"fix","text":"Turkish words in capitals are hyphenated at the right place","lang":{"fr":"Les mots turcs en majuscules sont coupés au bon endroit"}}
 ]}
