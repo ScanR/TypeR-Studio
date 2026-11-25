@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.ja = Object.assign(window.TYPER_WEB_STRINGS.ja || {}, {
   "Page Down": "PgDn",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.ja = Object.assign(window.TYPER_WEB_STRINGS.ja || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "改行をマスターしました。すべての操作はいつでも「ヘルプ → 改行ガイド」と、パネルの ? から確認できます。",
   "Line Breaks in 2 minutes": "2分で覚える改行",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "専用のページで、パネルを覚えませんか？実際に操作して進む、短い9ステップです。",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "章のすべてのページを 1 つの面に",
+  "A page, dragged by its name": "名前をドラッグしたページ",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "オプションバーの「ページ表示」で並べ直せます：「ページを整列」",
+  "A bubble cut between two pages": "2 ページにまたがる吹き出し",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "Flow モードのオン・オフ：すべてのページを 1 つの面に、または 1 ページずつ（Solo）",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "ページの上を移動：表示が止まると、画面中央のページが前面に来ます",
+  "On a page: it comes in front, and the script follows it": "ページ上で：そのページが前面に来て、スクリプトも追従します",
+  "The next or the previous page": "次のページ・前のページ",
+  "Pages Two by Two, as a printed manga": "2 ページずつ表示：印刷されたマンガのように",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "別のページの上端か下端に付ける：2 つが 1 枚の縦長ページになります。マンファの縦長画像のように",
+  "Against its side, level with it: one page, a spread": "横に、高さをそろえて付ける：1 枚のページ、見開きになります",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "上下に並んだ 2 ページの境目をまたぐテキスト：次のページに続きます",
+  "The same, wherever the pages are. Again: on this page only": "ページがどこにあっても同じ。もう一度押すと：このページだけに",
+  "Typed, moved or styled on either page: the other follows": "どちらのページで入力・移動・書式変更しても、もう一方が追従します",
+  "Wholly back on one page: the other lets it go": "完全に 1 ページに戻すと、もう一方から外れます",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "{Shift}{F} を押します：Flow モードです。2 枚の練習ページが 1 つの面に、上下に並びました。",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "ホイールで 2 ページ目までスクロールするか、{Space} を押したままドラッグします。表示が止まると、画面中央のページが前面に来ます。",
+  "Click page 1: it comes in front, as it would to work on it.": "1 ページ目をクリックします。作業するときと同じように、前面に来ます。",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "移動ツール（{V}）で、テキストを下の吹き出しへ、ページの境目をまたぐようにドラッグします。自動で 2 ページ目に続きます。",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "2 ページ目にあるテキストをダブルクリックし、単語を 1 つ変えてから {Esc} を押します。1 ページ目も追従します。",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "テキストを選んだまま {Shift}{T} を押します。テキストは自分のページだけに残り、もう一方のページから外れます。",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "もう一度 {Shift}{T} を押します。また、もう一方のページに続きます。ページがどこにあっても、離れていても使えます。",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "最後です：テキストを上に戻し、すべて 1 ページ目に収めます。2 ページ目から外れます。",
+  "Flow Guide": "Flow ガイド",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "Flow と「ページをまたぐテキスト」をマスターしました。すべての操作はいつでも「ヘルプ → Flow ガイド」で確認できます。",
+  "New: Flow mode": "新機能：Flow モード",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "吹き出しがまたがる専用の 2 ページで、2分で覚えませんか？ 実際に操作して進む、短い8ステップです。",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "Flow モード (Shift+F) と「ページをまたぐテキスト」(Shift+T) のすべての操作。オプションバーの「ページ表示」で、ページの並ぶ向きを設定できます：右から左、左から右、またはマンファ向けに上から下。取り消しはいつもどおり Cmd + Z、ページごとに。",
+  "Flow practice": "Flow の練習",
+  "Wait for me!": "待ってよ！",
 });

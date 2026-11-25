@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.nl = Object.assign(window.TYPER_WEB_STRINGS.nl || {}, {
   "Page Down": "PgDn",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.nl = Object.assign(window.TYPER_WEB_STRINGS.nl || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Je kent Regeleinden nu. Alle gebaren blijven in Help → Gids Regeleinden, en onder de ? van het paneel.",
   "Line Breaks in 2 minutes": "Regeleinden in 2 minuten",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Het paneel leren op een eigen pagina? Negen korte stappen, elk gehaald door het te doen.",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "Alle pagina’s van het hoofdstuk op één vlak",
+  "A page, dragged by its name": "Een pagina, aan haar naam gesleept",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "Paginaweergave, in de optiebalk, legt ze opnieuw neer: Pagina’s ordenen",
+  "A bubble cut between two pages": "Een ballon, doorgesneden tussen twee pagina’s",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "Flow-modus aan of uit: alle pagina’s op één vlak, of één tegelijk (Solo)",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "Beweegt over de pagina’s: zodra het beeld stilstaat, komt de pagina in het midden van het scherm naar voren",
+  "On a page: it comes in front, and the script follows it": "Op een pagina: die komt naar voren, en het script volgt haar",
+  "The next or the previous page": "De volgende of de vorige pagina",
+  "Pages Two by Two, as a printed manga": "Pagina’s per twee, zoals een gedrukte manga",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "Tegen de boven- of onderkant van een andere: de twee worden één lange pagina, zoals de stroken van een manhwa",
+  "Against its side, level with it: one page, a spread": "Tegen haar zijkant, op gelijke hoogte: één pagina, een dubbele pagina",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "Een tekst over de lijn waar twee pagina’s elkaar raken, van boven naar onder: hij loopt door op de volgende pagina",
+  "The same, wherever the pages are. Again: on this page only": "Hetzelfde, waar de pagina’s ook liggen. Nog eens: alleen op deze pagina",
+  "Typed, moved or styled on either page: the other follows": "Getypt, verplaatst of opgemaakt op een van beide pagina’s: de andere volgt",
+  "Wholly back on one page: the other lets it go": "Helemaal terug op één pagina: de andere laat hem los",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "Druk op {Shift}{F}: de Flow-modus. De twee oefenpagina’s liggen nu op één vlak, de ene onder de andere.",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "Scrol omlaag naar pagina 2, of sleep met {Space} ingedrukt: zodra het beeld stilstaat, komt de pagina in het midden van het scherm naar voren.",
+  "Click page 1: it comes in front, as it would to work on it.": "Klik op pagina 1: die komt naar voren, zoals om eraan te werken.",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "Sleep met het gereedschap Verplaatsen ({V}) de tekst omlaag in de ballon, over de lijn waar de pagina’s elkaar raken: hij loopt vanzelf door op pagina 2.",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "Dubbelklik op de tekst waar hij op pagina 2 staat, verander een woord en druk dan op {Esc}: pagina 1 volgt.",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "Druk op {Shift}{T} met de tekst gekozen: hij blijft alleen op zijn pagina, en de andere pagina laat hem los.",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "Druk nog eens op {Shift}{T}: hij loopt weer door op de andere pagina. Dat werkt waar de pagina’s ook liggen, zelfs uit elkaar.",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "Als laatste: sleep de tekst terug omhoog, helemaal op pagina 1: pagina 2 laat hem los.",
+  "Flow Guide": "Gids Flow",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "Je kent de Flow-modus en Tekst over twee pagina’s nu. Alle gebaren blijven in Help → Gids Flow.",
+  "New: Flow mode": "Nieuw: de Flow-modus",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "Hem leren in 2 minuten, op twee eigen pagina’s, met een ballon die ertussen is doorgesneden? Acht korte stappen, elk gehaald door het te doen.",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "Alle gebaren van de Flow-modus (Shift+F) en Tekst over twee pagina’s (Shift+T). Paginaweergave, in de optiebalk, bepaalt de richting van de pagina’s: van rechts naar links, van links naar rechts, of van boven naar onder voor een manhwa. Ongedaan maken zoals overal: Cmd + Z, op elke pagina.",
+  "Flow practice": "Flow-oefening",
+  "Wait for me!": "Wacht op mij!",
 });

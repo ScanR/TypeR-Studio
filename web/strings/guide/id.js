@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.id = Object.assign(window.TYPER_WEB_STRINGS.id || {}, {
   "Page Down": "PgDn",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.id = Object.assign(window.TYPER_WEB_STRINGS.id || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Anda sudah menguasai Pemisah Baris. Semua gerakan tetap ada di Bantuan → Panduan Pemisah Baris, dan di balik ? pada panel.",
   "Line Breaks in 2 minutes": "Pemisah Baris dalam 2 menit",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Pelajari panel ini di halaman tersendiri? Sembilan langkah singkat, masing-masing lulus dengan melakukannya.",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "Semua halaman bab dalam satu bidang",
+  "A page, dragged by its name": "Halaman yang diseret lewat namanya",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "Tampilan halaman, di bilah opsi, menatanya kembali: Rapikan Halaman",
+  "A bubble cut between two pages": "Balon yang terpotong di antara dua halaman",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "Mode Flow aktif atau tidak: semua halaman dalam satu bidang, atau satu per satu (Solo)",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "Bergerak di atas halaman: begitu tampilan diam, halaman di tengah layar maju ke depan",
+  "On a page: it comes in front, and the script follows it": "Di sebuah halaman: halaman itu maju ke depan, dan naskah mengikutinya",
+  "The next or the previous page": "Halaman berikutnya atau sebelumnya",
+  "Pages Two by Two, as a printed manga": "Halaman Berpasangan, seperti manga cetak",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "Menempel di atas atau bawah halaman lain: keduanya menjadi satu halaman panjang, seperti potongan manhwa",
+  "Against its side, level with it: one page, a spread": "Menempel di sisinya, sejajar: satu halaman, halaman ganda",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "Teks yang melintasi garis pertemuan dua halaman atas-bawah: berlanjut ke halaman berikutnya",
+  "The same, wherever the pages are. Again: on this page only": "Sama saja, di mana pun halamannya. Sekali lagi: hanya di halaman ini",
+  "Typed, moved or styled on either page: the other follows": "Diketik, dipindah, atau diberi gaya di halaman mana pun: yang lain mengikuti",
+  "Wholly back on one page: the other lets it go": "Kembali sepenuhnya ke satu halaman: yang lain melepaskannya",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "Tekan {Shift}{F}: mode Flow. Dua halaman latihan kini ada dalam satu bidang, satu di bawah yang lain.",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "Gulir ke halaman 2, atau seret sambil menahan {Space}: begitu tampilan diam, halaman di tengah layar maju ke depan.",
+  "Click page 1: it comes in front, as it would to work on it.": "Klik halaman 1: halaman itu maju ke depan, seperti saat hendak mengerjakannya.",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "Dengan alat Pindahkan ({V}), seret teks ke bawah ke dalam balon, melintasi garis pertemuan halaman: teks berlanjut sendiri ke halaman 2.",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "Klik dua kali teks di halaman 2, ganti satu kata, lalu tekan {Esc}: halaman 1 mengikuti.",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "Tekan {Shift}{T} saat teks dipilih: teks hanya tetap di halamannya, dan halaman lain melepaskannya.",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "Tekan {Shift}{T} lagi: teks kembali berlanjut ke halaman lain. Ini berfungsi di mana pun halamannya, bahkan saat berjauhan.",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "Terakhir: seret teks kembali ke atas, sepenuhnya di halaman 1: halaman 2 melepaskannya.",
+  "Flow Guide": "Panduan Flow",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "Anda sudah menguasai Flow dan Teks Lintas Halaman. Semua gerakan tetap ada di Bantuan → Panduan Flow.",
+  "New: Flow mode": "Baru: mode Flow",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "Pelajari dalam 2 menit, di dua halaman tersendiri dengan balon terpotong di antaranya? Delapan langkah singkat, masing-masing lulus dengan melakukannya.",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "Semua gerakan mode Flow (Shift+F) dan Teks Lintas Halaman (Shift+T). Tampilan halaman, di bilah opsi, mengatur arah halaman: kanan ke kiri, kiri ke kanan, atau atas ke bawah untuk manhwa. Urungkan seperti biasa: Cmd + Z, di tiap halaman.",
+  "Flow practice": "Latihan Flow",
+  "Wait for me!": "Tunggu aku!",
 });

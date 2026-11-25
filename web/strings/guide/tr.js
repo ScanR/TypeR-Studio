@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.tr = Object.assign(window.TYPER_WEB_STRINGS.tr || {}, {
   "Page Down": "PgDn",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.tr = Object.assign(window.TYPER_WEB_STRINGS.tr || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Satır Sonları’nı artık biliyorsunuz. Tüm hareketler Yardım → Satır Sonları Kılavuzu’nda ve panelin ? düğmesinde duruyor.",
   "Line Breaks in 2 minutes": "2 dakikada Satır Sonları",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Paneli ayrı bir sayfada öğrenmek ister misiniz? Dokuz kısa adım, her biri yapılarak geçilir.",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "Bölümün tüm sayfaları tek bir yüzeyde",
+  "A page, dragged by its name": "Adından sürüklenen bir sayfa",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "Seçenekler çubuğundaki Sayfa görünümü onları yeniden dizer: Sayfaları Düzenle",
+  "A bubble cut between two pages": "İki sayfa arasında bölünmüş bir balon",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "Flow modu açık ya da kapalı: tüm sayfalar tek bir yüzeyde ya da teker teker (Solo)",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "Sayfaların üzerinde gezinir: görünüm durunca ekranın ortasındaki sayfa öne gelir",
+  "On a page: it comes in front, and the script follows it": "Bir sayfada: o sayfa öne gelir ve senaryo da onu izler",
+  "The next or the previous page": "Sonraki ya da önceki sayfa",
+  "Pages Two by Two, as a printed manga": "İkişer Sayfa, basılı bir manga gibi",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "Başka bir sayfanın üstüne ya da altına: ikisi, bir manhwa şeridi gibi tek uzun sayfa olur",
+  "Against its side, level with it: one page, a spread": "Yanına, aynı hizada: tek sayfa, bir çift sayfa",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "Üst üste iki sayfanın buluştuğu çizgiyi aşan bir metin: sonraki sayfada devam eder",
+  "The same, wherever the pages are. Again: on this page only": "Sayfalar nerede olursa olsun aynısı. Bir daha: yalnızca bu sayfada",
+  "Typed, moved or styled on either page: the other follows": "Sayfalardan birinde yazılır, taşınır ya da biçimlendirilirse: diğeri de izler",
+  "Wholly back on one page: the other lets it go": "Tamamen tek bir sayfaya dönünce: diğeri onu bırakır",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "{Shift}{F} tuşlarına basın: Flow modu. İki alıştırma sayfası artık tek bir yüzeyde, biri diğerinin altında.",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "Sayfa 2'ye kaydırın ya da {Space} basılıyken sürükleyin: görünüm durunca ekranın ortasındaki sayfa öne gelir.",
+  "Click page 1: it comes in front, as it would to work on it.": "Sayfa 1'e tıklayın: üzerinde çalışacakmış gibi öne gelir.",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "Taşı aracıyla ({V}) metni aşağı, sayfaların buluştuğu çizgiyi aşacak şekilde balona sürükleyin: kendiliğinden sayfa 2'de devam eder.",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "Sayfa 2'deki metne çift tıklayın, bir kelimeyi değiştirin, sonra {Esc} tuşuna basın: sayfa 1 de izler.",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "Metin seçiliyken {Shift}{T} tuşlarına basın: yalnızca kendi sayfasında kalır, diğer sayfa onu bırakır.",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "{Shift}{T} tuşlarına yeniden basın: diğer sayfada yeniden devam eder. Sayfalar nerede olursa olsun, ayrı olsalar bile çalışır.",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "Son adım: metni yukarı, tamamen sayfa 1'e geri sürükleyin: sayfa 2 onu bırakır.",
+  "Flow Guide": "Flow Kılavuzu",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "Flow’u ve Sayfalar Arası Metin’i artık biliyorsunuz. Tüm hareketler Yardım → Flow Kılavuzu’nda duruyor.",
+  "New: Flow mode": "Yeni: Flow modu",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "Aralarında bölünmüş bir balon olan iki ayrı sayfada, 2 dakikada öğrenmek ister misiniz? Sekiz kısa adım, her biri yapılarak geçilir.",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "Flow modunun (Shift+F) ve Sayfalar Arası Metin’in (Shift+T) tüm hareketleri. Seçenekler çubuğundaki Sayfa görünümü sayfaların yönünü belirler: sağdan sola, soldan sağa ya da manhwa için yukarıdan aşağı. Geri alma her yerde olduğu gibi: Cmd + Z, her sayfada.",
+  "Flow practice": "Flow alıştırması",
+  "Wait for me!": "Beni bekle!",
 });

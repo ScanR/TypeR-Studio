@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.ko = Object.assign(window.TYPER_WEB_STRINGS.ko || {}, {
   "Page Down": "PgDn",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.ko = Object.assign(window.TYPER_WEB_STRINGS.ko || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "줄 바꿈을 익혔습니다. 모든 동작은 언제든 도움말 → 줄 바꿈 가이드와 패널의 ?에서 볼 수 있습니다.",
   "Line Breaks in 2 minutes": "2분 만에 익히는 줄 바꿈",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "별도 페이지에서 패널을 익혀 볼까요? 직접 해 보며 통과하는 짧은 9단계입니다.",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "챕터의 모든 페이지를 한 화면에",
+  "A page, dragged by its name": "이름을 잡고 드래그한 페이지",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "옵션 막대의 페이지 표시에서 다시 배치: 페이지 정리",
+  "A bubble cut between two pages": "두 페이지에 걸쳐 잘린 말풍선",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "Flow 모드 켜기/끄기: 모든 페이지를 한 화면에, 또는 한 번에 한 페이지씩 (Solo)",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "페이지 위를 이동: 화면이 멈추면 화면 가운데 페이지가 앞으로 옵니다",
+  "On a page: it comes in front, and the script follows it": "페이지 위에서: 그 페이지가 앞으로 오고, 대본도 따라갑니다",
+  "The next or the previous page": "다음 또는 이전 페이지",
+  "Pages Two by Two, as a printed manga": "두 페이지씩, 인쇄된 만화처럼",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "다른 페이지의 위나 아래에 붙이기: 두 페이지가 웹툰 컷처럼 하나의 긴 페이지가 됩니다",
+  "Against its side, level with it: one page, a spread": "옆에 높이를 맞춰 붙이기: 한 페이지, 양면 펼침이 됩니다",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "위아래로 맞닿은 두 페이지의 경계에 걸친 텍스트: 다음 페이지로 이어집니다",
+  "The same, wherever the pages are. Again: on this page only": "페이지가 어디에 있든 같습니다. 한 번 더: 이 페이지에만",
+  "Typed, moved or styled on either page: the other follows": "어느 페이지에서 입력, 이동, 서식 변경을 해도 다른 페이지가 따라갑니다",
+  "Wholly back on one page: the other lets it go": "한 페이지 안으로 완전히 돌아오면: 다른 페이지가 놓아줍니다",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "{Shift}{F}를 누르세요: Flow 모드입니다. 두 연습 페이지가 이제 한 화면에 위아래로 놓입니다.",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "휠로 2페이지까지 내려가거나 {Space}를 누른 채 드래그하세요. 화면이 멈추면 화면 가운데 페이지가 앞으로 옵니다.",
+  "Click page 1: it comes in front, as it would to work on it.": "1페이지를 클릭하세요. 작업할 때처럼 앞으로 옵니다.",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "이동 도구({V})로 텍스트를 아래 말풍선으로, 페이지 경계에 걸치게 드래그하세요. 저절로 2페이지로 이어집니다.",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "2페이지에 있는 텍스트를 더블클릭해 단어 하나를 바꾼 뒤 {Esc}를 누르세요. 1페이지가 따라갑니다.",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "텍스트를 고른 채 {Shift}{T}를 누르세요. 텍스트는 자기 페이지에만 남고, 다른 페이지는 놓아줍니다.",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "{Shift}{T}를 다시 누르세요. 다시 다른 페이지로 이어집니다. 페이지가 어디에 있든, 떨어져 있어도 됩니다.",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "마지막입니다. 텍스트를 위로 끌어 1페이지 안에 완전히 넣으세요. 2페이지가 놓아줍니다.",
+  "Flow Guide": "Flow 가이드",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "Flow와 페이지에 걸친 텍스트를 익혔습니다. 모든 동작은 언제든 도움말 → Flow 가이드에서 볼 수 있습니다.",
+  "New: Flow mode": "새 기능: Flow 모드",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "말풍선이 걸쳐 있는 별도의 두 페이지에서 2분 만에 익혀 볼까요? 직접 해 보며 통과하는 짧은 8단계입니다.",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "Flow 모드 (Shift+F)와 페이지에 걸친 텍스트 (Shift+T)의 모든 동작. 옵션 막대의 페이지 표시에서 페이지 방향을 정합니다: 오른쪽에서 왼쪽, 왼쪽에서 오른쪽, 또는 웹툰용 위에서 아래. 실행 취소는 어디서나처럼 Cmd + Z, 페이지마다.",
+  "Flow practice": "Flow 연습",
+  "Wait for me!": "기다려 줘!",
 });

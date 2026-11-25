@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.th = Object.assign(window.TYPER_WEB_STRINGS.th || {}, {
   "Page Down": "PgDn",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.th = Object.assign(window.TYPER_WEB_STRINGS.th || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "คุณรู้จักการตัดบรรทัดแล้ว วิธีใช้ทั้งหมดยังอยู่ใน ความช่วยเหลือ → คู่มือการตัดบรรทัด และใต้ปุ่ม ? ของแผง",
   "Line Breaks in 2 minutes": "การตัดบรรทัดใน 2 นาที",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "เรียนรู้แผงนี้บนหน้าแยกต่างหากไหม? เก้าขั้นสั้นๆ ผ่านแต่ละขั้นด้วยการลงมือทำ",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "ทุกหน้าของตอนบนพื้นที่เดียว",
+  "A page, dragged by its name": "หน้าที่ลากจากชื่อของมัน",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "การแสดงหน้า ในแถบตัวเลือก จัดวางหน้าใหม่ได้: จัดเรียงหน้า",
+  "A bubble cut between two pages": "บอลลูนที่ถูกตัดระหว่างสองหน้า",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "เปิดหรือปิดโหมด Flow: ทุกหน้าบนพื้นที่เดียว หรือทีละหน้า (Solo)",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "เคลื่อนไปบนหน้าต่าง ๆ: เมื่อมุมมองหยุดนิ่ง หน้าที่อยู่กลางจอจะขึ้นมาข้างหน้า",
+  "On a page: it comes in front, and the script follows it": "บนหน้าหนึ่ง: หน้านั้นขึ้นมาข้างหน้า และสคริปต์ตามไปด้วย",
+  "The next or the previous page": "หน้าถัดไปหรือหน้าก่อนหน้า",
+  "Pages Two by Two, as a printed manga": "ทีละสองหน้า เหมือนมังงะฉบับพิมพ์",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "ชิดขอบบนหรือล่างของอีกหน้า: ทั้งสองกลายเป็นหน้ายาวหน้าเดียว เหมือนแถบภาพของมังฮวา",
+  "Against its side, level with it: one page, a spread": "ชิดด้านข้างในระดับเดียวกัน: เป็นหน้าเดียว แบบหน้าคู่",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "ข้อความที่คร่อมรอยต่อของสองหน้าที่เรียงบนล่าง: จะต่อไปยังหน้าถัดไป",
+  "The same, wherever the pages are. Again: on this page only": "เหมือนกัน ไม่ว่าหน้าจะอยู่ตรงไหน กดอีกครั้ง: อยู่บนหน้านี้เท่านั้น",
+  "Typed, moved or styled on either page: the other follows": "พิมพ์ ย้าย หรือจัดรูปแบบบนหน้าใดก็ได้: อีกหน้าตามไปด้วย",
+  "Wholly back on one page: the other lets it go": "กลับมาอยู่บนหน้าเดียวทั้งหมด: อีกหน้าปล่อยมันไป",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "กด {Shift}{F}: โหมด Flow ตอนนี้หน้าฝึกทั้งสองอยู่บนพื้นที่เดียว เรียงบนล่าง",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "เลื่อนลงไปหน้า 2 หรือกด {Space} ค้างไว้แล้วลาก: เมื่อมุมมองหยุดนิ่ง หน้าที่อยู่กลางจอจะขึ้นมาข้างหน้า",
+  "Click page 1: it comes in front, as it would to work on it.": "คลิกหน้า 1: หน้านั้นขึ้นมาข้างหน้า เหมือนตอนจะทำงานบนหน้านั้น",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "ใช้เครื่องมือย้าย ({V}) ลากข้อความลงไปในบอลลูน ให้คร่อมรอยต่อของหน้า: ข้อความจะต่อไปยังหน้า 2 เอง",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "ดับเบิลคลิกข้อความตรงที่อยู่บนหน้า 2 เปลี่ยนสักคำ แล้วกด {Esc}: หน้า 1 ตามไปด้วย",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "เลือกข้อความแล้วกด {Shift}{T}: ข้อความอยู่บนหน้าของมันเท่านั้น และอีกหน้าปล่อยมันไป",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "กด {Shift}{T} อีกครั้ง: ข้อความต่อไปยังอีกหน้าอีกครั้ง ใช้ได้ไม่ว่าหน้าจะอยู่ตรงไหน แม้แยกห่างกัน",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "ขั้นสุดท้าย: ลากข้อความกลับขึ้นไปให้อยู่บนหน้า 1 ทั้งหมด: หน้า 2 ปล่อยมันไป",
+  "Flow Guide": "คู่มือ Flow",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "คุณรู้จัก Flow และข้อความข้ามหน้าแล้ว วิธีใช้ทั้งหมดยังอยู่ใน ความช่วยเหลือ → คู่มือ Flow",
+  "New: Flow mode": "ใหม่: โหมด Flow",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "เรียนรู้ใน 2 นาที บนสองหน้าแยกต่างหากที่มีบอลลูนถูกตัดอยู่ระหว่างกลางไหม? แปดขั้นสั้นๆ ผ่านแต่ละขั้นด้วยการลงมือทำ",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "วิธีใช้ทั้งหมดของโหมด Flow (Shift+F) และข้อความข้ามหน้า (Shift+T) การแสดงหน้า ในแถบตัวเลือก กำหนดทิศทางของหน้า: ขวาไปซ้าย ซ้ายไปขวา หรือบนลงล่างสำหรับมังฮวา เลิกทำได้เหมือนทุกที่: Cmd + Z บนแต่ละหน้า",
+  "Flow practice": "การฝึก Flow",
+  "Wait for me!": "รอด้วย!",
 });

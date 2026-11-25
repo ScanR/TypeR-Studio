@@ -146,6 +146,32 @@
     });
     return node;
   };
+  // Rings that pulse over spots of the screen, wherever no tool draws them: `spots()` gives
+  // their places, [x, y] in the window, again at each frame. Only those over the page's stage
+  // show. Returns what stops them.
+  const rings = (spots) => {
+    const nodes = [];
+    let frame = 0;
+    const draw = () => {
+      const stage = document.getElementById("stage");
+      const box = stage ? stage.getBoundingClientRect() : null;
+      const list = box ? (spots() || []).filter((spot) => spot && spot[0] >= box.left && spot[0] <= box.right && spot[1] >= box.top && spot[1] <= box.bottom) : [];
+      list.forEach(([x, y], index) => {
+        if (!nodes[index]) nodes[index] = el("div", "tg-ring", document.body);
+        nodes[index].hidden = false;
+        nodes[index].style.left = `${x}px`;
+        nodes[index].style.top = `${y}px`;
+      });
+      nodes.slice(list.length).forEach((node) => { node.hidden = true; });
+      frame = requestAnimationFrame(draw);
+    };
+    frame = requestAnimationFrame(draw);
+    return () => {
+      cancelAnimationFrame(frame);
+      nodes.forEach((node) => node.remove());
+    };
+  };
+
   // A page the practice made: nothing to save until the practice changes it
   const unchanged = (page) => {
     if (page && page.history && page.history[page.historyIndex]) page.savedId = page.history[page.historyIndex].id;
@@ -156,9 +182,12 @@
   // spec: {
   //   tool, store: the tool and where the guide remembers it was offered, seen or done;
   //   title, intro(), groups: the card, [title, about, [[keys, label, scene], …]], …;
-  //   scenes: { name: (u) => svg }; steps: [{ text, demo, mark, done(detail) }, …];
+  //   scenes: { name: (u) => svg }; steps: [{ text, demo, mark, done(detail), enter() }, …];
+  //   ready(): whether the offer still has its place when it comes (by default, the tool
+  //     still picked);
   //   start(): makes the practice page, the tool ready on it, and resolves to
-  //     { page, onGesture(listener) → stop, setMark(mark), restore() };
+  //     { page, others, onGesture(listener) → stop, setMark(mark), restore() }, `others` the
+  //     practice's other pages, if it has more than one;
   //   doneText, offerTitle, offerBody, practiceLabel
   // }
   const make = (spec) => {
@@ -219,7 +248,8 @@
       remember("seen");
       const run = await spec.start();
       const { page } = run;
-      unchanged(page);
+      const pages = [page].concat(run.others || []);
+      pages.forEach(unchanged);
       App().renderOptions();
       const STEPS = spec.steps;
 
@@ -261,6 +291,8 @@
         cardButton(foot, T("Quit"), endPractice);
         card.classList.remove("is-passed");
         run.setMark(step.mark);
+        // What a step shows first, if it has to: the view brought where it happens
+        if (step.enter) step.enter();
       };
       const finish = () => {
         run.setMark(null);
@@ -273,10 +305,9 @@
         backButton();
         cardButton(foot, T("Keep the page"), endPractice);
         cardButton(foot, T("Close the practice page"), async () => {
-          const open = app.docs.find((one) => one === page);
-          if (open) {
-            unchanged(open);
-            await App().closeDoc(open);
+          for (const one of pages.filter((item) => app.docs.includes(item))) {
+            unchanged(one);
+            await App().closeDoc(one);
           }
           endPractice();
         }, true);
@@ -308,12 +339,13 @@
     };
 
     // The first time the tool is picked, once: the practice is offered, never pushed
+    const ready = spec.ready || (() => app.tool === spec.tool);
     let offered = false;
     const toolChosen = () => {
       if (offered || coach || window.TypeRShell.touch || remembered()) return;
       offered = true;
       setTimeout(async () => {
-        if (app.tool !== spec.tool || coach || !App() || document.querySelector("dialog[open]")) {
+        if (!ready() || coach || !App() || document.querySelector("dialog[open]")) {
           offered = false;
           return;
         }
@@ -343,5 +375,5 @@
     return { show, practise, toolChosen, offer, rows, capsInto, endPractice };
   };
 
-  window.TypeRToolGuide = { make, el, capOf, capsInto, keysText, sentence, demo, pointer, ease, lerp, phase, notches, between, n1, W, H, endPractice };
+  window.TypeRToolGuide = { make, rings, el, capOf, capsInto, keysText, sentence, demo, pointer, ease, lerp, phase, notches, between, n1, W, H, endPractice };
 })();

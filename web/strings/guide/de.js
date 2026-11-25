@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.de = Object.assign(window.TYPER_WEB_STRINGS.de || {}, {
   "Page Down": "Bild ↓",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.de = Object.assign(window.TYPER_WEB_STRINGS.de || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Sie kennen jetzt die Zeilenumbrüche. Alle Gesten bleiben unter Hilfe → Zeilenumbrüche-Guide und hinter dem ? des Panels.",
   "Line Breaks in 2 minutes": "Zeilenumbrüche in 2 Minuten",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Das Panel auf einer eigenen Seite lernen? Neun kurze Schritte, jeder durch Ausführen bestanden.",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "Alle Seiten des Kapitels auf einer Fläche",
+  "A page, dragged by its name": "Eine Seite, an ihrem Namen gezogen",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "Seitenanzeige in der Optionsleiste ordnet sie neu: Seiten aufräumen",
+  "A bubble cut between two pages": "Eine Sprechblase, zwischen zwei Seiten geteilt",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "Flow-Modus ein oder aus: alle Seiten auf einer Fläche oder eine nach der anderen (Solo)",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "Bewegt sich über die Seiten: Sobald die Ansicht ruht, rückt die Seite in der Bildschirmmitte nach vorn",
+  "On a page: it comes in front, and the script follows it": "Auf einer Seite: Sie rückt nach vorn, und das Skript folgt ihr",
+  "The next or the previous page": "Die nächste oder die vorherige Seite",
+  "Pages Two by Two, as a printed manga": "Seiten paarweise, wie in einem gedruckten Manga",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "An den oberen oder unteren Rand einer anderen: Beide werden eine lange Seite, wie die Streifen eines Manhwa",
+  "Against its side, level with it: one page, a spread": "An ihre Seite, auf gleicher Höhe: eine einzige Seite, eine Doppelseite",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "Ein Text über der Linie, an der sich zwei Seiten treffen, von oben nach unten: Er geht auf der nächsten Seite weiter",
+  "The same, wherever the pages are. Again: on this page only": "Dasselbe, wo immer die Seiten liegen. Noch einmal: nur auf dieser Seite",
+  "Typed, moved or styled on either page: the other follows": "Auf einer der beiden Seiten getippt, verschoben oder gestaltet: Die andere folgt",
+  "Wholly back on one page: the other lets it go": "Ganz zurück auf einer Seite: Die andere lässt ihn los",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "Drücken Sie {Shift}{F}: der Flow-Modus. Die beiden Übungsseiten liegen jetzt auf einer Fläche, eine unter der anderen.",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "Scrollen Sie hinunter zu Seite 2 oder ziehen Sie mit gedrückter {Space}: Sobald die Ansicht ruht, rückt die Seite in der Bildschirmmitte nach vorn.",
+  "Click page 1: it comes in front, as it would to work on it.": "Klicken Sie auf Seite 1: Sie rückt nach vorn, wie zum Bearbeiten.",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "Ziehen Sie mit dem Werkzeug Verschieben ({V}) den Text nach unten in die Sprechblase, über die Linie, an der sich die Seiten treffen: Er geht von selbst auf Seite 2 weiter.",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "Doppelklicken Sie auf den Text dort, wo er auf Seite 2 steht, ändern Sie ein Wort und drücken Sie dann {Esc}: Seite 1 folgt.",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "Drücken Sie bei gewähltem Text {Shift}{T}: Er bleibt nur auf seiner Seite, und die andere Seite lässt ihn los.",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "Drücken Sie erneut {Shift}{T}: Er geht wieder auf der anderen Seite weiter. Das klappt, wo immer die Seiten liegen, sogar getrennt.",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "Zum Schluss: Ziehen Sie den Text wieder hoch, ganz auf Seite 1: Seite 2 lässt ihn los.",
+  "Flow Guide": "Flow-Guide",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "Sie kennen jetzt den Flow-Modus und Text über zwei Seiten. Alle Gesten bleiben unter Hilfe → Flow-Guide.",
+  "New: Flow mode": "Neu: der Flow-Modus",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "Ihn in 2 Minuten lernen, auf zwei eigenen Seiten, mit einer dazwischen geteilten Sprechblase? Acht kurze Schritte, jeder durch Ausführen bestanden.",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "Alle Gesten des Flow-Modus (Umschalt+F) und von Text über zwei Seiten (Umschalt+T). Seitenanzeige in der Optionsleiste legt fest, in welche Richtung die Seiten laufen: von rechts nach links, von links nach rechts oder von oben nach unten für ein Manhwa. Rückgängig wie überall: Cmd + Z, auf jeder Seite.",
+  "Flow practice": "Flow-Übung",
+  "Wait for me!": "Warte auf mich!",
 });

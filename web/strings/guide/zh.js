@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.zh = Object.assign(window.TYPER_WEB_STRINGS.zh || {}, {
   "Page Down": "PgDn",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.zh = Object.assign(window.TYPER_WEB_STRINGS.zh || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "你已掌握换行。所有操作随时可在“帮助 → 换行指南”以及面板的 ? 中找到。",
   "Line Breaks in 2 minutes": "2 分钟学会换行",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "在单独的页面上学会这个面板？共九个简短步骤，每步动手做到即可通过。",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "章节的所有页面在同一画面上",
+  "A page, dragged by its name": "按名称拖动的页面",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "选项栏中的“页面显示”可重新排列：“整理页面”",
+  "A bubble cut between two pages": "跨两页的气泡",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "开关 Flow 模式：所有页面在同一画面上，或一次一页（Solo）",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "在页面间移动：视图停下后，屏幕中央的页面会移到最前",
+  "On a page: it comes in front, and the script follows it": "点击页面：它移到最前，脚本也随之切换",
+  "The next or the previous page": "下一页或上一页",
+  "Pages Two by Two, as a printed manga": "两页并排，像印刷的漫画一样",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "贴着另一页的顶部或底部：两页合成一张长页，像条漫的长条一样",
+  "Against its side, level with it: one page, a spread": "贴着另一页的侧边并对齐：合成一页对开页",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "文字跨过上下两页的交界线：它会延续到下一页",
+  "The same, wherever the pages are. Again: on this page only": "无论页面在哪里都一样。再按一次：只留在这一页",
+  "Typed, moved or styled on either page: the other follows": "在任一页上输入、移动或改样式：另一页随之同步",
+  "Wholly back on one page: the other lets it go": "完全回到一页上：另一页就放开它",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "按 {Shift}{F}：Flow 模式。两张练习页现在在同一画面上，上下排列。",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "用滚轮向下滚到第 2 页，或按住 {Space} 拖动：视图停下后，屏幕中央的页面会移到最前。",
+  "Click page 1: it comes in front, as it would to work on it.": "点击第 1 页：它会移到最前，就像要在上面工作一样。",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "用移动工具（{V}）把文字向下拖进气泡，跨过两页的交界线：它会自动延续到第 2 页。",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "在第 2 页上双击这段文字，改一个词，然后按 {Esc}：第 1 页随之同步。",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "选中文字后按 {Shift}{T}：它只留在自己的页面上，另一页放开它。",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "再按一次 {Shift}{T}：它又延续到另一页。无论页面在哪里都有效，即使分开也行。",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "最后一步：把文字拖回上方，完全放在第 1 页上：第 2 页放开它。",
+  "Flow Guide": "Flow 指南",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "你已掌握 Flow 和跨页文字。所有操作随时可在“帮助 → Flow 指南”中找到。",
+  "New: Flow mode": "新功能：Flow 模式",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "在单独的两页上，借一个跨页气泡，用 2 分钟学会它？共八个简短步骤，每步动手做到即可通过。",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "Flow 模式 (Shift+F) 和跨页文字 (Shift+T) 的所有操作。选项栏中的“页面显示”设置页面的排列方向：从右到左、从左到右，或为条漫从上到下。还原和其他地方一样：Cmd + Z，每页分别还原。",
+  "Flow practice": "Flow 练习",
+  "Wait for me!": "等等我！",
 });

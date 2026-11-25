@@ -4220,6 +4220,8 @@
     } else viewChanged();
     renderMenusState();
     if (!silent) toast(T(next === "flow" ? "Flow mode: every page on one surface." : "Solo mode: one page at a time."));
+    // Flow's guide offers its practice, once, the first time Flow is on (flow-guide.js)
+    if (next === "flow" && window.TypeRFlowGuide) window.TypeRFlowGuide.toolChosen();
   };
   // Flow laid out another way: the page in front stays where it is, the others move around it.
   // The pages moved by hand are laid out again with the others.
@@ -19414,6 +19416,7 @@
         { label: "SFX Guide", action: () => window.TypeRSFXGuide && window.TypeRSFXGuide.show() },
         { label: "Auto Perspective Guide", action: () => window.TypeRPerspectiveGuide && window.TypeRPerspectiveGuide.show() },
         { label: "Line Breaks Guide", action: () => window.TypeRBreaksGuide && window.TypeRBreaksGuide.show() },
+        ...(Flow ? [{ label: "Flow Guide", action: () => window.TypeRFlowGuide && window.TypeRFlowGuide.show() }] : []),
       ]),
       null,
       // Nothing to download from the phone app: the computer's apps and the plugin are a computer's
@@ -19774,9 +19777,9 @@
           make("span", "", row);
         });
       }
-      // The SFX tool's, Auto Perspective's and the Line Breaks panel's, as they are: their guides
-      // show each one
-      [[window.TypeRSFXGuide, "SFX tool"], [window.TypeRPerspectiveGuide, "Auto Perspective"], [window.TypeRBreaksGuide, "Line Breaks"]].forEach(([guide, name]) => {
+      // The SFX tool's, Auto Perspective's, the Line Breaks panel's and Flow's, as they are: their
+      // guides show each one
+      [[window.TypeRSFXGuide, "SFX tool"], [window.TypeRPerspectiveGuide, "Auto Perspective"], [window.TypeRBreaksGuide, "Line Breaks"], [!Shell.touch && window.TypeRFlowGuide, "Flow Mode"]].forEach(([guide, name]) => {
         const toolRows = guide ? guide.rows().filter(({ text, label }) => !words || label.toLowerCase().includes(words) || text.toLowerCase().includes(words)) : [];
         if (!toolRows.length) return;
         make("div", "sk__group", placeOf(false), T(name));
@@ -22005,6 +22008,8 @@
     setWorkspace,
     setFlowLayout,
     flow: () => (Flow && flowOn() ? Flow : null),
+    // Flow's settings, for its guide to put them back as they were after its practice
+    flowSettings: () => ({ workspace: settings.workspace, direction: settings.flowDirection, gapDown: settings.flowGapDown }),
     // The texts that go on from a page to the next (across.js)
     across: () => Across,
     openDialog,

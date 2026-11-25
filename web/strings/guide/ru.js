@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.ru = Object.assign(window.TYPER_WEB_STRINGS.ru || {}, {
   "Page Down": "PgDn",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.ru = Object.assign(window.TYPER_WEB_STRINGS.ru || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Теперь вы знаете переносы строк. Все жесты остаются в меню Справка → Руководство по переносам строк и за значком ? панели.",
   "Line Breaks in 2 minutes": "Переносы строк за 2 минуты",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Освоить панель на отдельной странице? Девять коротких шагов, каждый засчитывается, когда вы его выполните.",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "Все страницы главы на одной поверхности",
+  "A page, dragged by its name": "Страница, которую тянут за название",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "«Отображение страниц» на панели параметров раскладывает их заново: «Упорядочить страницы»",
+  "A bubble cut between two pages": "Облачко, разрезанное между двумя страницами",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "Режим Flow включён или нет: все страницы на одной поверхности или по одной (Solo)",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "Перемещение по страницам: когда вид остановится, страница в центре экрана выходит вперёд",
+  "On a page: it comes in front, and the script follows it": "На странице: она выходит вперёд, и сценарий следует за ней",
+  "The next or the previous page": "Следующая или предыдущая страница",
+  "Pages Two by Two, as a printed manga": "Страницы по две, как в печатной манге",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "К верхнему или нижнему краю другой: две становятся одной длинной страницей, как полосы манхвы",
+  "Against its side, level with it: one page, a spread": "К её боку, на одной высоте: одна страница, разворот",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "Текст на линии, где встречаются две страницы, сверху вниз: он продолжается на следующей странице",
+  "The same, wherever the pages are. Again: on this page only": "То же самое, где бы ни были страницы. Ещё раз: только на этой странице",
+  "Typed, moved or styled on either page: the other follows": "Набран, перемещён или оформлен на одной из страниц: другая следует за ним",
+  "Wholly back on one page: the other lets it go": "Целиком вернулся на одну страницу: другая его отпускает",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "Нажмите {Shift}{F}: режим Flow. Две учебные страницы теперь на одной поверхности, одна под другой.",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "Прокрутите вниз до страницы 2 или перетащите, удерживая {Space}: когда вид остановится, страница в центре экрана выходит вперёд.",
+  "Click page 1: it comes in front, as it would to work on it.": "Щёлкните по странице 1: она выходит вперёд, как для работы с ней.",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "Инструментом «Перемещение» ({V}) перетащите текст вниз в облачко, через линию, где встречаются страницы: он сам продолжится на странице 2.",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "Дважды щёлкните по тексту там, где он на странице 2, измените слово, затем нажмите {Esc}: страница 1 следует за ним.",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "Нажмите {Shift}{T}, выбрав текст: он остаётся только на своей странице, а другая страница его отпускает.",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "Нажмите {Shift}{T} ещё раз: он снова продолжается на другой странице. Это работает, где бы ни были страницы, даже порознь.",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "Последний шаг: перетащите текст обратно вверх, целиком на страницу 1: страница 2 его отпускает.",
+  "Flow Guide": "Руководство по Flow",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "Теперь вы знаете режим Flow и «Текст на двух страницах». Все жесты остаются в меню Справка → Руководство по Flow.",
+  "New: Flow mode": "Новое: режим Flow",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "Освоить его за 2 минуты на двух отдельных страницах, с облачком, разрезанным между ними? Восемь коротких шагов, каждый засчитывается, когда вы его выполните.",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "Все жесты режима Flow (Shift+F) и «Текста на двух страницах» (Shift+T). «Отображение страниц» на панели параметров задаёт направление страниц: справа налево, слева направо или сверху вниз для манхвы. Отмена, как и везде: Cmd + Z, на каждой странице.",
+  "Flow practice": "Практика Flow",
+  "Wait for me!": "Подожди меня!",
 });

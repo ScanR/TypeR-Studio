@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.vi = Object.assign(window.TYPER_WEB_STRINGS.vi || {}, {
   "Page Down": "PgDn",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.vi = Object.assign(window.TYPER_WEB_STRINGS.vi || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Bạn đã nắm được Ngắt dòng. Mọi thao tác luôn có trong Trợ giúp → Hướng dẫn Ngắt dòng, và dưới dấu ? của bảng.",
   "Line Breaks in 2 minutes": "Ngắt dòng trong 2 phút",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "Học bảng này trên một trang riêng? Chín bước ngắn, mỗi bước qua khi bạn làm được.",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "Mọi trang của chương trên cùng một mặt",
+  "A page, dragged by its name": "Một trang, kéo bằng tên của nó",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "Hiển thị trang, trên thanh tùy chọn, xếp lại chúng: Sắp xếp trang",
+  "A bubble cut between two pages": "Một bong bóng bị cắt giữa hai trang",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "Bật hoặc tắt chế độ Flow: mọi trang trên cùng một mặt, hoặc từng trang một (Solo)",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "Di chuyển trên các trang: khi khung nhìn dừng lại, trang ở giữa màn hình lên trước",
+  "On a page: it comes in front, and the script follows it": "Trên một trang: trang đó lên trước, và kịch bản đi theo",
+  "The next or the previous page": "Trang sau hoặc trang trước",
+  "Pages Two by Two, as a printed manga": "Hai trang một, như manga in",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "Sát đỉnh hoặc đáy của trang khác: hai trang thành một trang dài, như các dải của manhwa",
+  "Against its side, level with it: one page, a spread": "Sát cạnh bên, ngang hàng: một trang, một trang đôi",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "Chữ vắt qua đường nối của hai trang trên dưới: chữ tiếp tục sang trang sau",
+  "The same, wherever the pages are. Again: on this page only": "Như vậy, dù các trang ở đâu. Lần nữa: chỉ trên trang này",
+  "Typed, moved or styled on either page: the other follows": "Gõ, di chuyển hay định dạng trên trang nào: trang kia cũng theo",
+  "Wholly back on one page: the other lets it go": "Trở về hẳn một trang: trang kia buông nó ra",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "Nhấn {Shift}{F}: chế độ Flow. Hai trang luyện tập giờ nằm trên cùng một mặt, trang này dưới trang kia.",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "Cuộn xuống trang 2, hoặc kéo khi giữ {Space}: khi khung nhìn dừng lại, trang ở giữa màn hình lên trước.",
+  "Click page 1: it comes in front, as it would to work on it.": "Nhấp vào trang 1: trang đó lên trước, như khi bạn làm việc trên nó.",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "Với công cụ Di chuyển ({V}), kéo chữ xuống vào bong bóng, vắt qua đường nối hai trang: chữ tự tiếp tục sang trang 2.",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "Nhấp đúp vào chữ ở trang 2, đổi một từ, rồi nhấn {Esc}: trang 1 cũng theo.",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "Nhấn {Shift}{T} khi chữ đang được chọn: chữ chỉ ở lại trang của nó, và trang kia buông nó ra.",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "Nhấn {Shift}{T} lần nữa: chữ lại tiếp tục sang trang kia. Cách này dùng được dù các trang ở đâu, kể cả khi tách xa.",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "Bước cuối: kéo chữ ngược lên, nằm hẳn trên trang 1: trang 2 buông nó ra.",
+  "Flow Guide": "Hướng dẫn Flow",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "Bạn đã nắm được Flow và Chữ xuyên trang. Mọi thao tác luôn có trong Trợ giúp → Hướng dẫn Flow.",
+  "New: Flow mode": "Mới: chế độ Flow",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "Học trong 2 phút, trên hai trang riêng có một bong bóng bị cắt giữa chúng? Tám bước ngắn, mỗi bước qua khi bạn làm được.",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "Mọi thao tác của chế độ Flow (Shift+F) và Chữ xuyên trang (Shift+T). Hiển thị trang, trên thanh tùy chọn, đặt hướng các trang: phải sang trái, trái sang phải, hoặc trên xuống dưới cho manhwa. Hoàn tác như mọi nơi: Cmd + Z, trên từng trang.",
+  "Flow practice": "Luyện tập Flow",
+  "Wait for me!": "Chờ tớ với!",
 });

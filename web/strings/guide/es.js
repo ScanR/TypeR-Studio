@@ -1,4 +1,4 @@
-// TypeR Studio's tutorial (guide.js), Auto Perspective's guide (perspective-guide.js) and Line Breaks' guide (breaks-guide.js) in this language, by its English wording.
+// TypeR Studio's tutorial (guide.js) and the guides of Auto Perspective (perspective-guide.js), Line Breaks (breaks-guide.js) and Flow (flow-guide.js) in this language, by its English wording.
 window.TYPER_WEB_STRINGS = window.TYPER_WEB_STRINGS || {};
 window.TYPER_WEB_STRINGS.es = Object.assign(window.TYPER_WEB_STRINGS.es || {}, {
   "Page Down": "Av Pág",
@@ -202,4 +202,37 @@ window.TYPER_WEB_STRINGS.es = Object.assign(window.TYPER_WEB_STRINGS.es || {}, {
   "You know Line Breaks. Every gesture stays in Help → Line Breaks Guide, and under the panel's ?.": "Ya conoces los Saltos de línea. Todos los gestos siguen en Ayuda → Guía Saltos de línea, y tras el ? del panel.",
   "Line Breaks in 2 minutes": "Los Saltos de línea en 2 minutos",
   "Learn the panel on a page of its own? Nine short steps, each passed by doing it.": "¿Aprender el panel en una página aparte? Nueve pasos cortos, cada uno superado al hacerlo.",
+
+  // Flow's guide (flow-guide.js)
+  "Flow": "Flow",
+  "Every page of the chapter on one surface": "Todas las páginas del capítulo en una misma superficie",
+  "A page, dragged by its name": "Una página, arrastrada por su nombre",
+  "Page display, in the options bar, lays them out again: Tidy Up Pages": "Visualización de páginas, en la barra de opciones, las vuelve a ordenar: Ordenar páginas",
+  "A bubble cut between two pages": "Un bocadillo cortado entre dos páginas",
+  "Flow mode on or off: every page on one surface, or one at a time (Solo)": "Modo Flow activado o no: todas las páginas en una misma superficie, o una a la vez (Solo)",
+  "Moves over the pages: once the view rests, the page in the middle of the screen comes in front": "Se desplaza por las páginas: cuando la vista se detiene, la página del centro de la pantalla pasa al frente",
+  "On a page: it comes in front, and the script follows it": "En una página: pasa al frente, y el guion la sigue",
+  "The next or the previous page": "La página siguiente o la anterior",
+  "Pages Two by Two, as a printed manga": "Páginas de dos en dos, como un manga impreso",
+  "Against another's top or bottom: the two become one long page, as the strips of a manhwa": "Contra el borde superior o inferior de otra: las dos se vuelven una página larga, como las tiras de un manhwa",
+  "Against its side, level with it: one page, a spread": "Contra su lado, a su altura: una sola página, una doble página",
+  "A text across the line where two pages meet, top to bottom: it goes on to the next page": "Un texto sobre la línea donde se tocan dos páginas, de arriba abajo: continúa en la página siguiente",
+  "The same, wherever the pages are. Again: on this page only": "Lo mismo, estén donde estén las páginas. Otra vez: solo en esta página",
+  "Typed, moved or styled on either page: the other follows": "Escrito, movido o con otro estilo en cualquiera de las páginas: la otra lo sigue",
+  "Wholly back on one page: the other lets it go": "De vuelta por completo en una página: la otra lo suelta",
+  "Press {Shift}{F}: Flow mode. The two practice pages are now on one surface, one under the other.": "Pulsa {Shift}{F}: el modo Flow. Las dos páginas de práctica están ahora en una misma superficie, una debajo de la otra.",
+  "Scroll down to page 2, or drag with {Space} held: once the view rests, the page in the middle of the screen comes in front.": "Baja hasta la página 2 con la rueda, o arrastra manteniendo {Space}: cuando la vista se detiene, la página del centro de la pantalla pasa al frente.",
+  "Click page 1: it comes in front, as it would to work on it.": "Haz clic en la página 1: pasa al frente, como para trabajar en ella.",
+  "With the Move tool ({V}), drag the text down into the bubble, across the line where the pages meet: it goes on to page 2 by itself.": "Con la herramienta Mover ({V}), arrastra el texto hacia abajo dentro del bocadillo, sobre la línea donde se tocan las páginas: continúa solo en la página 2.",
+  "Double-click the text where it is on page 2, change a word, then press {Esc}: page 1 follows.": "Haz doble clic en el texto donde está en la página 2, cambia una palabra y luego pulsa {Esc}: la página 1 lo sigue.",
+  "Press {Shift}{T}, the text picked: it stays on its page only, and the other page lets it go.": "Pulsa {Shift}{T} con el texto elegido: se queda solo en su página, y la otra página lo suelta.",
+  "Press {Shift}{T} again: it goes on to the other page again. That works wherever the pages are, even apart.": "Pulsa {Shift}{T} de nuevo: vuelve a continuar en la otra página. Funciona estén donde estén las páginas, incluso separadas.",
+  "Last one: drag the text back up, wholly on page 1: page 2 lets it go.": "Último paso: vuelve a subir el texto, entero en la página 1: la página 2 lo suelta.",
+  "Flow Guide": "Guía Flow",
+  "You know Flow and Text Across Pages. Every gesture stays in Help → Flow Guide.": "Ya conoces el modo Flow y el Texto entre dos páginas. Todos los gestos siguen en Ayuda → Guía Flow.",
+  "New: Flow mode": "Novedad: el modo Flow",
+  "Learn it in 2 minutes, on two pages of its own, with a bubble cut between them? Eight short steps, each passed by doing it.": "¿Aprenderlo en 2 minutos, en dos páginas aparte, con un bocadillo cortado entre ellas? Ocho pasos cortos, cada uno superado al hacerlo.",
+  "Every gesture of Flow mode (Shift+F) and Text Across Pages (Shift+T). Page display, in the options bar, sets which way the pages go: right to left, left to right, or top to bottom for a manhwa. Undo works as everywhere: Cmd + Z, on each page.": "Todos los gestos del modo Flow (Mayús+F) y del Texto entre dos páginas (Mayús+T). Visualización de páginas, en la barra de opciones, fija el sentido de las páginas: de derecha a izquierda, de izquierda a derecha o de arriba abajo para un manhwa. Para deshacer, como en todas partes: Cmd + Z, en cada página.",
+  "Flow practice": "Práctica Flow",
+  "Wait for me!": "¡Espérame!",
 });
