@@ -12451,8 +12451,9 @@
     const input = document.createElement("input");
     input.type = "text";
     // Optical is the text's kerning for Photoshop, which sets each pair by the letters' shapes:
-    // here it is kept, and drawn with the font's own kerning
-    input.title = kerningShown(layer) === "optical" ? T("Optical is kept with the text. TypeR draws it with the font's own kerning, as Metrics.") : T("Alt + left or right arrow: kerning at the cursor, or tracking of the selection.");
+    // here it is kept, drawn with the font's own kerning, and written for Photoshop in the PSD's
+    // text block (see textBlockOut in psd.js)
+    input.title = kerningShown(layer) === "optical" ? T("TypeR draws Optical with the font's own kerning, as Metrics. Saved as PSD, the text is in Optical in Photoshop, which sets it so once it is edited there.") : T("Alt + left or right arrow: kerning at the cursor, or tracking of the selection.");
     input.setAttribute("aria-label", T("Kerning"));
     input.value = named(kerningShown(layer));
     let last = input.value;

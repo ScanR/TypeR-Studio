@@ -936,7 +936,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Kerning": "ระยะช่องไฟ",
     "Metrics": "ตามฟอนต์",
     "Optical": "Optical",
-    "Optical is kept with the text. TypeR draws it with the font's own kerning, as Metrics.": "Optical จะถูกเก็บไว้กับข้อความ TypeR วาดด้วยระยะช่องไฟของฟอนต์เอง เหมือน ตามฟอนต์",
+    "TypeR draws Optical with the font's own kerning, as Metrics. Saved as PSD, the text is in Optical in Photoshop, which sets it so once it is edited there.": "TypeR วาด Optical ด้วยระยะช่องไฟของฟอนต์เอง เหมือน ตามฟอนต์ เมื่อบันทึกเป็น PSD ข้อความจะเป็น Optical ใน Photoshop ซึ่งจะใช้ค่านี้ทันทีที่แก้ไขข้อความที่นั่น",
     "Click between two letters to set their kerning. For selected letters, use Tracking.": "คลิกระหว่างตัวอักษรสองตัวเพื่อตั้งระยะช่องไฟ สำหรับตัวอักษรที่เลือก ให้ใช้ Tracking",
     "Alt + left or right arrow: kerning at the cursor, or tracking of the selection.": "Alt + ลูกศรซ้ายหรือขวา: ปรับช่องไฟที่เคอร์เซอร์ หรือระยะอักษรของส่วนที่เลือก",
     "There is no PSD, PNG, JPEG or WebP in this folder.": "ไม่มีไฟล์ PSD, PNG, JPEG หรือ WebP ในโฟลเดอร์นี้",

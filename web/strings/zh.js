@@ -936,7 +936,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Kerning": "字距微调",
     "Metrics": "度量标准",
     "Optical": "视觉",
-    "Optical is kept with the text. TypeR draws it with the font's own kerning, as Metrics.": "视觉会随文本保留。TypeR 会像度量标准一样，使用字体自带的字距来绘制。",
+    "TypeR draws Optical with the font's own kerning, as Metrics. Saved as PSD, the text is in Optical in Photoshop, which sets it so once it is edited there.": "TypeR 会像度量标准一样，使用字体自带的字距来绘制视觉。存储为 PSD 后，文本在 Photoshop 中为视觉，在那里编辑文本时即会应用。",
     "Click between two letters to set their kerning. For selected letters, use Tracking.": "在两个字母之间单击以设置字距微调。对于选中的字母，请使用字距调整。",
     "Alt + left or right arrow: kerning at the cursor, or tracking of the selection.": "Alt + 左右方向键:调整光标处的字距微调,或所选文字的字距。",
     "There is no PSD, PNG, JPEG or WebP in this folder.": "此文件夹中没有 PSD、PNG、JPEG 或 WebP。",

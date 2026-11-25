@@ -204,8 +204,11 @@
      one text in each state from Photoshop 2026: in each run's style sheet, key 11 is the
      kerning (0 a number, 1 Metrics, 2 Optical) and key 20 the alternates. */
   // The block's own writing: dictionaries << /key value >>, lists [ ], names, numbers, and
-  // strings ( ) in UTF-16 behind a mark
-  const parseTextBlock = (bytes) => {
+  // strings ( ) in UTF-16 behind a mark. Read into a tree that goes back into the very same
+  // bytes, so that what TypeR leaves alone in a block stays as Photoshop wrote it:
+  // { d: [[key, node]…] } a dictionary, { l: [node…] } a list, { s: bytes } a string,
+  // { r: "word" } a name, a number, true or false
+  const blockTree = (bytes) => {
     let at = 0;
     const blank = (c) => c === 32 || c === 10 || c === 13 || c === 9 || c === 0;
     const skip = () => {
@@ -217,18 +220,18 @@
       return out;
     };
     const entries = (closed) => {
-      const out = {};
+      const d = [];
       for (;;) {
         skip();
-        if (at >= bytes.length) return out;
+        if (at >= bytes.length) return { d };
         if (closed && bytes[at] === 0x3e && bytes[at + 1] === 0x3e) {
           at += 2;
-          return out;
+          return { d };
         }
         if (bytes[at] !== 0x2f) throw new Error("unreadable text block");
         at++;
         const key = word();
-        out[key] = value();
+        d.push([key, value()]);
       }
     };
     const value = () => {
@@ -240,64 +243,132 @@
       }
       if (c === 0x5b) {
         at++;
-        const out = [];
+        const l = [];
         for (;;) {
           skip();
-          if (at >= bytes.length) return out;
+          if (at >= bytes.length) return { l };
           if (bytes[at] === 0x5d) {
             at++;
-            return out;
+            return { l };
           }
-          out.push(value());
+          l.push(value());
         }
       }
       if (c === 0x28) {
+        const from = ++at;
+        while (at < bytes.length && bytes[at] !== 0x29) at += bytes[at] === 0x5c ? 2 : 1;
+        const s = bytes.subarray(from, Math.min(at, bytes.length));
         at++;
-        const codes = [];
-        while (at < bytes.length && bytes[at] !== 0x29) {
-          if (bytes[at] === 0x5c) at++;
-          codes.push(bytes[at++]);
-        }
-        at++;
-        let out = "";
-        if (codes[0] === 0xfe && codes[1] === 0xff) for (let i = 2; i + 1 < codes.length; i += 2) out += String.fromCharCode(codes[i] * 256 + codes[i + 1]);
-        else codes.forEach((code) => { out += String.fromCharCode(code); });
-        return out;
+        return { s };
       }
-      if (c === 0x2f) {
-        at++;
-        return "/" + word();
-      }
-      const text = word();
-      if (text === "true") return true;
-      if (text === "false") return false;
-      const number = Number(text);
-      return text && !Number.isNaN(number) ? number : text;
+      const r = word();
+      if (!r) throw new Error("unreadable text block");
+      return { r };
     };
     return entries(false);
   };
-  // Each text of the document, by the number its layer gives it: its characters and, run by
-  // run, what the block alone says of them. Empty when the file has no such block (a file
-  // TypeR wrote, or an old Photoshop's) or when it can't be read.
-  const textBlockOf = (psd) => {
-    if (!psd || typeof psd.engineData !== "string" || !psd.engineData) return [];
-    try {
-      const binary = atob(psd.engineData);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const block = parseTextBlock(bytes);
-      // A run's sheet only says what differs from the named style it comes from
-      const named = (((block[0] || {})[5] || {})[0] || []).map((entry) => ((entry && entry[0]) || {})[6] || {});
-      return (((block[1] || {})[1]) || []).map((entry) => {
-        const model = (entry && entry[0]) || {};
-        const runs = (((model[6] || {})[0]) || []).map((run) => {
-          const head = ((run[0] || {})[0]) || {};
-          const sheet = head[6] || {};
-          const parent = named[head[5]] || {};
-          const said = (key) => (sheet[key] !== undefined ? sheet[key] : parent[key]);
-          return { length: run[1] || 0, kerning: said(11), contextual: said(20) };
+  const blockBytes = (tree) => {
+    const parts = [];
+    const out = (node, top) => {
+      if (node.d) {
+        if (!top) parts.push("<<");
+        node.d.forEach(([key, value]) => {
+          parts.push(" /" + key + " ");
+          out(value);
         });
-        return { text: String(model[0] || ""), runs };
+        if (!top) parts.push(" >>");
+      } else if (node.l) {
+        parts.push("[");
+        node.l.forEach((value) => {
+          parts.push(" ");
+          out(value);
+        });
+        parts.push(" ]");
+      } else if (node.s) parts.push("(", node.s, ")");
+      else parts.push(node.r);
+    };
+    out(tree, true);
+    const bytes = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+    let at = 0;
+    parts.forEach((part) => {
+      if (typeof part === "string") for (let i = 0; i < part.length; i++) bytes[at++] = part.charCodeAt(i);
+      else {
+        bytes.set(part, at);
+        at += part.length;
+      }
+    });
+    return bytes;
+  };
+  // A node down a path of dictionary keys and places in lists
+  const dig = (node, ...path) => path.reduce((at, step) => {
+    if (!at) return undefined;
+    if (at.l) return at.l[step];
+    const entry = at.d && at.d.find(([key]) => key === String(step));
+    return entry && entry[1];
+  }, node);
+  const listAt = (node, ...path) => (dig(node, ...path) || {}).l || [];
+  // A word's value: true, false, a number, or the word itself
+  const wordOf = (node) => {
+    if (!node || node.r === undefined) return undefined;
+    if (node.r === "true") return true;
+    if (node.r === "false") return false;
+    const number = Number(node.r);
+    return Number.isNaN(number) ? node.r : number;
+  };
+  const stringOf = (node) => {
+    if (!node || !node.s) return "";
+    const codes = [];
+    for (let i = 0; i < node.s.length; i++) {
+      if (node.s[i] === 0x5c) i++;
+      codes.push(node.s[i]);
+    }
+    let out = "";
+    if (codes[0] === 0xfe && codes[1] === 0xff) for (let i = 2; i + 1 < codes.length; i += 2) out += String.fromCharCode(codes[i] * 256 + codes[i + 1]);
+    else codes.forEach((code) => { out += String.fromCharCode(code); });
+    return out;
+  };
+  const blockOf = (psd) => {
+    if (!psd || typeof psd.engineData !== "string" || !psd.engineData) return null;
+    const binary = atob(psd.engineData);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return blockTree(bytes);
+  };
+  // Each text of the document, by the number its layer gives it: its characters and, run by
+  // run, what the block alone says of them. Empty when the file has no such block (an old
+  // Photoshop's) or when it can't be read.
+  // The block says a pair's kerning on its first letter, a layer's data and TypeR on its second
+  // (the space before a letter): each letter here takes the kerning of the place before it.
+  const textBlockOf = (psd) => {
+    try {
+      const block = blockOf(psd);
+      if (!block) return [];
+      // A run's sheet only says what differs from the named style it comes from
+      const named = listAt(block, "0", "5", "0").map((entry) => dig(entry, "0", "6"));
+      return listAt(block, "1", "1").map((entry) => {
+        const model = dig(entry, "0");
+        const kerning = [];
+        const contextual = [];
+        listAt(model, "6", "0").forEach((run) => {
+          const head = dig(run, "0", "0");
+          const sheet = dig(head, "6");
+          const parent = named[wordOf(dig(head, "5"))];
+          const said = (key) => wordOf(dig(sheet, key) || dig(parent, key));
+          const pair = said("11");
+          const alternates = said("20");
+          for (let i = 0, length = wordOf(dig(run, "1")) || 0; i < length; i++) {
+            kerning.push(pair);
+            contextual.push(alternates);
+          }
+        });
+        const runs = [];
+        contextual.forEach((alternates, at) => {
+          const pair = kerning[Math.max(0, at - 1)];
+          const last = runs[runs.length - 1];
+          if (last && last.kerning === pair && last.contextual === alternates) last.length++;
+          else runs.push({ length: 1, kerning: pair, contextual: alternates });
+        });
+        return { text: stringOf(dig(model, "0")), runs };
       });
     } catch (error) {
       console.warn("TypeR web: could not read the document's text block", error);
@@ -343,11 +414,14 @@
     return out;
   };
 
+  // Whether an entry of the block is of these very characters: the block ends each text with
+  // a return of its own (a text that ends with an empty line has two)
+  const blockHas = (entryText, value) => entryText === value + "\r" || entryText === value;
   // The kerning and the Contextual alternates of each run, from the document's text block: a
-  // run is cut where they change inside it. Only when the block has this very text (it ends
-  // each one with a return): a layer the block doesn't follow keeps what its own data says.
+  // run is cut where they change inside it. Only when the block has this very text: a layer
+  // the block doesn't follow keeps what its own data says. True when the block had the text.
   const blockStyles = (ranges, value, block) => {
-    if (!block || !block.runs.length || block.text.replace(/\r$/, "") !== value.replace(/\r$/, "")) return;
+    if (!block || !block.runs.length || !blockHas(block.text, value)) return false;
     const cuts = [];
     let at = 0;
     block.runs.forEach((run) => {
@@ -371,7 +445,11 @@
     });
     // Every letter still has its style: otherwise the layer's own data stays as it was
     if (out.length && out[0].from === ranges[0].from && out[out.length - 1].to === ranges[ranges.length - 1].to) ranges.splice(0, ranges.length, ...out);
+    return true;
   };
+  // The texts the document's block spoke for (by their list of runs): TypeR's own list of
+  // what a layer can't say (see lettersForSave) is for the others
+  const saidByBlock = new WeakSet();
 
   const isTurned = (transform) => Boolean(transform) && (Math.abs(transform[1]) > 0.001 || Math.abs(transform[2]) > 0.001);
 
@@ -391,7 +469,7 @@
       if (at > from) ranges.push({ from, to: at, textStyle: styleFromPsd(Object.assign({}, base, run.style), scale, doc.resolution) });
     });
     if (!ranges.length) ranges.push({ from: 0, to: value.length, textStyle: styleFromPsd(base, scale, doc.resolution) });
-    blockStyles(ranges, value, block);
+    if (blockStyles(ranges, value, block)) saidByBlock.add(ranges);
     const alignment = JUSTIFY(text.paragraphStyle && text.paragraphStyle.justification);
     // Paragraph text: its top left and size, in the document's pixels
     const bounds = text.shapeType === "box" && text.boxBounds && text.boxBounds[2] > text.boxBounds[0] ? text.boxBounds : null;
@@ -758,7 +836,9 @@
   // What a text layer's own data can't say (see textBlockOf), kept for TypeR itself: a text set
   // in Optical, or with its Contextual alternates off, comes back so from a PSD TypeR wrote.
   // Each entry: the layer's name and text, then for each run its length, its kerning (2 for
-  // Optical) and its alternates (0 when off).
+  // Optical) and its alternates (0 when off). The file's text block says the same to Photoshop
+  // (see textBlockOut) and is believed first; this list speaks for the texts with no entry
+  // there (see blockModel).
   const lettersForSave = (doc) => doc.state.layers
     .filter((layer) => layer.kind === "text" && layer.params.layerText.textStyleRange.some((range) => range.textStyle.autoKern === "opticalKern" || range.textStyle.contextualLigatures === false))
     .map((layer) => ({
@@ -770,7 +850,7 @@
     const taken = new Set();
     listOfXmp(xmp, "letters").forEach((entry) => {
       if (!entry || !Array.isArray(entry.runs) || typeof entry.text !== "string") return;
-      const layer = layers.find((item) => item.kind === "text" && !taken.has(item) && item.name === entry.name && item.params.layerText.textKey === entry.text);
+      const layer = layers.find((item) => item.kind === "text" && !taken.has(item) && !saidByBlock.has(item.params.layerText.textStyleRange) && item.name === entry.name && item.params.layerText.textKey === entry.text);
       if (!layer) return;
       taken.add(layer);
       const runs = entry.runs.filter((run) => Array.isArray(run) && run[0] > 0).map((run) => ({ length: run[0], kerning: run[1] === 2 ? 2 : undefined, contextual: run[2] === 0 ? false : undefined }));
@@ -1195,8 +1275,9 @@
       });
     };
     walk(psd.children, null);
-    // A file Photoshop saved since says it all in its own text block
-    if (!textBlock.length) attachLetters(layers, psd.imageResources && psd.imageResources.xmpMetadata);
+    // For the texts the document's text block doesn't speak for: those TypeR wrote without
+    // an entry there (see blockModel)
+    attachLetters(layers, psd.imageResources && psd.imageResources.xmpMetadata);
     attachWarps(layers, psd.imageResources && psd.imageResources.xmpMetadata);
     attachOffSurface(layers, psd.imageResources && psd.imageResources.xmpMetadata);
     attachAcross(layers, psd.imageResources && psd.imageResources.xmpMetadata);
@@ -1347,6 +1428,290 @@
       if (covered !== value.length) delete out.styleRuns;
     }
     return out;
+  };
+
+  /* The document's text block for the file. Photoshop reads a text's kerning as Metrics and its
+     Contextual alternates as off unless the block says otherwise (see textBlockOf): each text
+     written here gets an entry of its own there, and Photoshop then shows it in Optical or
+     with its alternates, and sets it so when it lays the text out again. An entry says
+     everything of its text, not only these two: it is written as Photoshop 2026 itself turns a
+     layer's data into one (read from files it saved after laying such texts out again), key for
+     key, so that nothing else of the text changes. Every text, even one in Metrics with its
+     alternates off, which Photoshop would read right without: as it opens the file, Photoshop
+     shows a text that has an entry as TypeR drew it, and one without a little heavier, and a
+     page's texts should not differ by that. A text an entry can't be written for (see
+     blockModel) gets none and its layer says so (its number is -1, as Photoshop writes it):
+     Photoshop reads it from its layer, as it always did. */
+  // A number as the block writes one that may have decimals: 12.0, .5, 166.66667
+  const blockReal = (value) => {
+    const number = Math.fround(Number.isFinite(value) ? value : 0);
+    let out = number.toFixed(5).replace(/0+$/, "");
+    if (out.endsWith(".")) out += "0";
+    if (Number(out) === 0) return "0.0";
+    return out.replace(/^(-?)0\./, "$1.");
+  };
+  const blockWhole = (value) => (Number.isInteger(value) ? String(value) : blockReal(value));
+  // A string for a block written as text: its characters behind the UTF-16 mark
+  const blockQuoted = (text) => "(\uFEFF" + String(text).replace(/[\\()]/g, "\\$&") + ")";
+  // A block written as text into its tree. Strings: ( ) around their characters, in UTF-16
+  // when they start with the mark, with \ before a parenthesis or a \ of their own.
+  const blockFromSource = (source) => {
+    const bytes = [];
+    for (let i = 0; i < source.length; i++) {
+      if (source[i] !== "(") {
+        bytes.push(source.charCodeAt(i));
+        continue;
+      }
+      bytes.push(0x28);
+      const wide = source[i + 1] === "\uFEFF";
+      for (i++; i < source.length && source[i] !== ")"; i++) {
+        if (source[i] === "\\") i++;
+        const code = source.charCodeAt(i);
+        (wide ? [code >> 8, code & 255] : [code]).forEach((byte) => {
+          if (byte === 0x28 || byte === 0x29 || byte === 0x5c) bytes.push(0x5c);
+          bytes.push(byte);
+        });
+      }
+      bytes.push(0x29);
+    }
+    return blockTree(Uint8Array.from(bytes));
+  };
+  const blockNode = (source) => blockFromSource(" /0 " + source).d[0][1];
+  // The block of a document whose texts are all read from their layers, as Photoshop 2026
+  // writes it, with no text in it yet: its two fonts (the second is the named styles'), its
+  // sets for Japanese text, its named styles, its list styles, then the document's settings
+  // (the quotes of each language among them) and its two default sheets.
+  const BLOCK_FRESH = " /98 << /0 14 >> /0 <<" +
+    " /1 << /0 [ << /0 << /99 /CoolTypeFont /0 << /0 (\uFEFFAdobeInvisFont) /2 0 >> >> >> << /0 << /99 /CoolTypeFont /0 << /0 (\uFEFFMyriadPro-Regular) /2 0 >> >> >> ] >>" +
+    " /2 << /0 [ << /0 << /0 (\uFEFF) >> >> ] /1 [ << /0 0 >> ] >>" +
+    " /3 << /0 [ << /0 << /0 (\uFEFFPhotoshop6MojiKumiSet4) /5 << /0 0 /3 2 >> >> >> << /0 << /0 (\uFEFFPhotoshop6MojiKumiSet3) /5 << /0 0 /3 4 >> >> >> << /0 << /0 (\uFEFFPhotoshop6MojiKumiSet2) /5 << /0 0 /3 3 >> >> >> << /0 << /0 (\uFEFFPhotoshop6MojiKumiSet1) /5 << /0 0 /3 1 >> >> >> << /0 << /0 (\uFEFFYakumonoHankaku) /5 << /0 0 /3 1 >> >> >> << /0 << /0 (\uFEFFGyomatsuYakumonoHankaku) /5 << /0 0 /3 3 >> >> >> << /0 << /0 (\uFEFFGyomatsuYakumonoZenkaku) /5 << /0 0 /3 4 >> >> >> << /0 << /0 (\uFEFFYakumonoZenkaku) /5 << /0 0 /3 2 >> >> >> << /0 << /0 (\uFEFFGyomatsuYakumonoZenkakuOrHankaku) /5 << /0 0 /3 5 >> >> >> ] /1 [ << /0 0 >> << /0 1 >> << /0 2 >> << /0 3 >> << /0 4 >> << /0 5 >> << /0 6 >> << /0 7 >> << /0 8 >> ] >>" +
+    " /4 << /0 [ << /0 << /0 (\uFEFFNone) /5 << /0 (\uFEFF) /1 (\uFEFF) /2 (\uFEFF) /3 (\uFEFF) /4 0 >> >> >> << /0 << /0 (\uFEFFPhotoshopKinsokuHard) /5 << /0 (\uFEFF!\\),.:;?]}¢—’”‰℃℉、。々〉》」』】〕ぁぃぅぇぉっゃゅょゎ゛゜ゝゞァィゥェォッャュョヮヵヶ・ーヽヾ！％），．：；？］｝) /1 (\uFEFF\\([{£§‘“〈《「『【〒〔＃＄（＠［｛￥) /2 (\uFEFF—‥…) /3 (\uFEFF、。，．) /4 1 >> >> >> << /0 << /0 (\uFEFFPhotoshopKinsokuSoft) /5 << /0 (\uFEFF’”、。々〉》」』】〕ゝゞ・ヽヾ！），．：；？］｝) /1 (\uFEFF‘“〈《「『【〔（［｛) /2 (\uFEFF—‥…) /3 (\uFEFF、。，．) /4 2 >> >> >> << /0 << /0 (\uFEFFHard) /5 << /0 (\uFEFF!\\),.:;?]}¢—’”‰℃℉、。々〉》」』】〕ぁぃぅぇぉっゃゅょゎ゛゜ゝゞァィゥェォッャュョヮヵヶ・ーヽヾ！％），．：；？］｝) /1 (\uFEFF\\([{£§‘“〈《「『【〒〔＃＄（＠［｛￥) /2 (\uFEFF—‥…) /3 (\uFEFF、。，．) /4 1 >> >> >> << /0 << /0 (\uFEFFSoft) /5 << /0 (\uFEFF’”、。々〉》」』】〕ゝゞ・ヽヾ！），．：；？］｝) /1 (\uFEFF‘“〈《「『【〔（［｛) /2 (\uFEFF—‥…) /3 (\uFEFF、。，．) /4 2 >> >> >> << /0 << /0 (\uFEFFSoft_v2) /5 << /0 (\uFEFF’”、。々〉》」』】〕ゝゞ・ヽヾ！），．：；？］｝〵〟〙〗\\)]}⦆».,) /1 (\uFEFF‘“\\(〔[{〈《「『【⦅〘〖«〝（［｛〳〴) /2 (\uFEFF—‥…―) /3 (\uFEFF、。，．\u3000) /4 3 >> >> >> ] /1 [ << /0 0 >> << /0 1 >> << /0 2 >> << /0 3 >> << /0 4 >> << /0 5 >> ] >>" +
+    " /5 << /0 [ << /0 << /0 (\uFEFFNormal RGB) /6 << /0 1 /1 12.0 /2 false /3 false /4 true /5 0.0 /6 1.0 /7 1.0 /8 0 /9 0.0 /10 0.0 /11 1 /12 0 /13 0 /14 0 /15 0 /16 0 /17 0.0 /18 true /19 false /20 false /21 false /22 false /23 false /24 false /25 false /26 false /27 false /28 false /29 false /30 0 /31 false /32 false /33 false /34 false /35 2 /36 0.0 /37 2 /38 0 /39 0 /40 false /41 2 /42 0 /43 << /0 .5 >> /44 2 /45 2 /46 7 /47 0 /48 0 /49 -1.0 /50 -1.0 /51 0 /52 false /53 << /99 /SimplePaint /0 << /0 1 /1 [ 1.0 0.0 0.0 0.0 ] >> >> /54 << /99 /SimplePaint /0 << /0 1 /1 [ 1.0 0.0 0.0 0.0 ] >> >> /55 << /99 /SimpleBlender >> /56 true /57 false /58 true /59 false /60 false /61 0 /62 0 /63 1.0 /64 4.0 /65 0.0 /66 [ ] /67 [ ] /68 0 /69 0 /70 0 /71 4 /72 0.0 /73 0.0 /74 false /75 false /76 false /77 true /78 true /79 << /99 /SimplePaint /0 << /0 1 /1 [ 1.0 1.0 1.0 0.0 ] >> >> /80 false /81 0 /82 3.0 /83 3.0 /84 false /85 0 /86 << /99 /SimpleCustomFeature >> /87 100.0 /88 true /91 8 /92 0.0 /95 << /0 0.0 /1 0 >> /96 true >> >> >> << /0 << /0 (\uFEFFNone) /5 0 /6 << >> >> >> ] /1 [ << /0 0 >> << /0 1 >> ] >>" +
+    " /9 << /0 [ << /0 << /0 (\uFEFFkPredefinedNumericListStyleTag) /6 1 >> >> << /0 << /0 (\uFEFFkPredefinedUppercaseAlphaListStyleTag) /6 2 >> >> << /0 << /0 (\uFEFFkPredefinedLowercaseAlphaListStyleTag) /6 3 >> >> << /0 << /0 (\uFEFFkPredefinedUppercaseRomanNumListStyleTag) /6 4 >> >> << /0 << /0 (\uFEFFkPredefinedLowercaseRomanNumListStyleTag) /6 5 >> >> << /0 << /0 (\uFEFFkPredefinedBulletListStyleTag) /6 6 >> >> << /0 << /0 (\uFEFFkPredefinedDashBulletListStyleTag) /6 6 >> >> << /0 << /0 (\uFEFFkPredefinedEmptyCircleBulletListStyleTag) /6 6 >> >> << /0 << /0 (\uFEFFkPredefinedFilledSquareBulletListStyleTag) /6 6 >> >> << /0 << /0 (\uFEFFkPredefinedSingleZeroPrefixNumericListStyleTag) /6 7 >> >> << /0 << /0 (\uFEFFkPredefinedDoubleZeroPrefixNumericListStyleTag) /6 8 >> >> ] /1 [ << /0 0 >> << /0 1 >> << /0 2 >> << /0 3 >> << /0 4 >> << /0 5 >> << /0 6 >> << /0 7 >> << /0 8 >> << /0 9 >> << /0 10 >> ] >>" +
+    " /6 << /0 [ << /0 << /0 (\uFEFFNormal RGB) /5 << /0 0 /1 0.0 /2 0.0 /3 0.0 /4 0.0 /5 0.0 /6 1 /7 1.2 /8 0 /9 true /10 6 /11 2 /12 2 /13 0 /14 36.0 /15 true /16 .5 /17 [ .8 1.0 1.33 ] /18 [ 0.0 0.0 0.0 ] /19 [ 1.0 1.0 1.0 ] /20 6 /21 false /22 0 /23 true /24 0 /25 0 /27 /nil /26 false /28 /nil /29 false /30 << >> /31 36.0 /32 << >> /33 0 /34 7 /35 1 /36 /nil /37 0 /38 false /39 0 /40 2 /41 0 /47 false /48 /nil >> >> >> ] /1 [ << /0 0 >> ] >>" +
+    " /8 << /0 [ ] >>" +
+    " >> /1 <<" +
+    " /4 << /0 7 /1 11 /2 0 /3 (\uFEFFPhotoshop) >>" +
+    " /0 << /0 << /0 3 /1 [ << /0 (\uFEFF ) /1 (\uFEFF1) >> << /0 (\uFEFF\r) /1 (\uFEFF6) >> << /0 (\uFEFF\t) /1 (\uFEFF0) >> << /0 (\uFEFF\u2029) /1 (\uFEFF5) >> << /0 (\uFEFF\u0003) /1 (\uFEFF5) >> << /0 (\uFEFF\u3000) /1 (\uFEFF1) >> << /0 (\uFEFF\u00ad) /1 (\uFEFF3) >> ] >> /1 0 /2 0 /3 .583 /4 .333 /5 .583 /6 .333 /7 .7 /8 true /9 [ << /0 0 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 1 /1 (\uFEFF”) /2 (\uFEFF”) /3 (\uFEFF’) /4 (\uFEFF’) >> << /0 2 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 3 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 4 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‚) /4 (\uFEFF‘) >> << /0 5 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‚) /4 (\uFEFF‘) >> << /0 6 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‹) /4 (\uFEFF›) >> << /0 7 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 8 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 9 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 10 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 11 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 12 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 13 /1 (\uFEFF”) /2 (\uFEFF”) /3 (\uFEFF’) /4 (\uFEFF’) >> << /0 14 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 15 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 16 /1 (\uFEFF”) /2 (\uFEFF”) /3 (\uFEFF’) /4 (\uFEFF’) >> << /0 17 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 18 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 19 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 20 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‚) /4 (\uFEFF‘) >> << /0 21 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‚) /4 (\uFEFF‘) >> << /0 22 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‚) /4 (\uFEFF‘) >> << /0 23 /1 (\uFEFF„) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 24 /1 (\uFEFF„) /2 (\uFEFF”) /3 (\uFEFF‚) /4 (\uFEFF’) >> << /0 25 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‹) /4 (\uFEFF›) >> << /0 26 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 27 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 28 /1 (\uFEFF„) /2 (\uFEFF”) /3 (\uFEFF’) /4 (\uFEFF’) >> << /0 29 /1 (\uFEFF〝) /2 (\uFEFF〞) >> << /0 30 /1 (\uFEFF「) /2 (\uFEFF」) >> << /0 31 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 32 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 33 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‚) /4 (\uFEFF‘) >> << /0 34 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 35 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 36 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‚) /4 (\uFEFF‘) >> << /0 37 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 38 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‚) /4 (\uFEFF‘) >> << /0 39 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF<) /4 (\uFEFF>) >> << /0 40 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‚) /4 (\uFEFF‘) >> << /0 41 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF<) /4 (\uFEFF>) >> << /0 42 /1 (\uFEFF„) /2 (\uFEFF“) /3 (\uFEFF‚) /4 (\uFEFF‘) >> << /0 43 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> << /0 44 /1 (\uFEFF«) /2 (\uFEFF») /3 (\uFEFF‹) /4 (\uFEFF›) >> << /0 45 /1 (\uFEFF“) /2 (\uFEFF”) /3 (\uFEFF‘) /4 (\uFEFF’) >> ] /15 << /0 (\uFEFF) >> /16 true /17 0 >>" +
+    " /5 [ << /0 0 /1 << /0 7 /1 11 /2 0 /3 (\uFEFFPhotoshop) >> /2 (0010000001001001111011100011100011101100000010000110000000) /3 (01110) /4 [ ] >> ]" +
+    " /1 [ ]" +
+    " /2 << /0 1 /1 12.0 /2 false /3 false /4 true /5 0.0 /6 1.0 /7 1.0 /8 0 /9 0.0 /10 0.0 /11 1 /12 0 /13 0 /14 0 /15 0 /16 0 /17 0.0 /18 true /19 false /20 false /21 false /22 false /23 false /24 false /25 false /26 false /27 false /28 false /29 false /30 0 /31 false /32 false /33 false /34 false /35 2 /36 0.0 /37 2 /38 0 /39 0 /40 false /41 2 /42 0 /43 << /0 .5 >> /44 2 /45 2 /46 7 /47 0 /48 0 /49 -1.0 /50 -1.0 /51 0 /52 false /53 << /99 /SimplePaint /0 << /0 1 /1 [ 1.0 0.0 0.0 0.0 ] >> >> /54 << /99 /SimplePaint /0 << /0 1 /1 [ 1.0 0.0 0.0 0.0 ] >> >> /55 << /99 /SimpleBlender >> /56 true /57 false /58 true /59 false /60 false /61 0 /62 0 /63 1.0 /64 4.0 /65 0.0 /66 [ ] /67 [ ] /68 0 /69 0 /70 0 /71 4 /72 0.0 /73 0.0 /74 false /75 false /76 false /77 true /78 true /79 << /99 /SimplePaint /0 << /0 1 /1 [ 1.0 1.0 1.0 0.0 ] >> >> /80 false /81 0 /82 3.0 /83 3.0 /84 false /85 0 /86 << /99 /SimpleCustomFeature >> /87 100.0 /88 true /91 8 /92 0.0 /95 << /0 0.0 /1 0 >> /96 true >>" +
+    " /3 << /0 0 /1 0.0 /2 0.0 /3 0.0 /4 0.0 /5 0.0 /6 1 /7 1.2 /8 0 /9 true /10 6 /11 2 /12 2 /13 0 /14 36.0 /15 true /16 .5 /17 [ .8 1.0 1.33 ] /18 [ 0.0 0.0 0.0 ] /19 [ 1.0 1.0 1.0 ] /20 6 /21 false /22 0 /23 true /24 0 /25 0 /27 /nil /26 false /28 /nil /29 false /30 << >> /31 36.0 /32 << >> /33 0 /34 7 /35 1 /36 /nil /37 0 /38 false /39 0 /40 2 /41 0 /47 false /48 /nil >>" +
+    " >>";
+  // What a layer's data says of a run of letters and of a paragraph, as textToPsd and the
+  // PSD library write them. Photoshop gives each of these a key in the block; a text with
+  // anything else gets no entry (it is read from its layer, as before).
+  const BLOCK_STYLE = { fontSize: [1, "real"], fauxBold: [2], fauxItalic: [3], autoLeading: [4], leading: [5, "real"], horizontalScale: [6, "real"], verticalScale: [7, "real"], tracking: [8], baselineShift: [9, "real"], fontCaps: [12], fontBaseline: [13], strikethrough: [15, "flag"], underline: [16, "flag"], ligatures: [18], dLigatures: [19], language: [38], fillColor: [53, "paint"], strokeColor: [54, "paint"], strokeFlag: [57], fillFirst: [58], outlineWidth: [63, "real"] };
+  const BLOCK_STYLE_ALSO = ["font", "autoKerning", "kerning"];
+  const BLOCK_PARAGRAPH = { justification: "left", firstLineIndent: 0, startIndent: 0, endIndent: 0, spaceBefore: 0, spaceAfter: 0, autoHyphenate: true, hyphenatedWordSize: 6, preHyphen: 2, postHyphen: 2, consecutiveHyphens: 8, zone: 36, autoLeading: 1.2, leadingType: 0, hanging: false };
+  const BLOCK_JUSTIFY = { left: 0, right: 1, center: 2 };
+  const BLOCK_TEXT = ["text", "transform", "antiAlias", "shapeType", "style", "paragraphStyle", "boxBounds", "warp", "styleRuns"];
+  // The anti-aliasing has a key in an entry too, but for Smooth (seen in the files of three
+  // versions of Photoshop for these four)
+  const BLOCK_ANTI_ALIAS = { crisp: 1, strong: 2, smooth: 3, sharp: 4 };
+  const blockValue = (value, kind) => {
+    if (kind === "real") return blockReal(value);
+    if (kind === "flag") return value ? "1" : "0";
+    if (kind === "paint") return `<< /99 /SimplePaint /0 << /0 1 /1 [ 1.0 ${blockReal(value.r / 255)} ${blockReal(value.g / 255)} ${blockReal(value.b / 255)} ] >> >>`;
+    return typeof value === "boolean" ? String(value) : blockWhole(value);
+  };
+  // A text's entry: its characters, its paragraphs, its runs of letters and the pairs kerned
+  // by hand, with `fontAt(name)` the font's place in the block. `said`: what the block alone
+  // says, letter by letter (see blockSaysOf). The block says a pair's kerning on its first
+  // letter, the layer's data on its second: Photoshop moves both one letter back, a hand
+  // kerning's number from the first letter of its run only.
+  // Null for a text with something Photoshop's own conversion was not read for.
+  const blockModel = (text, said, fontAt) => {
+    const smoothing = BLOCK_ANTI_ALIAS[text.antiAlias];
+    if (Object.keys(text).some((key) => !BLOCK_TEXT.includes(key)) || (text.shapeType !== "box" && text.shapeType !== "point") || !smoothing) return null;
+    const value = String(text.text || "").replace(/\r?\n/g, "\r") + "\r";
+    const paragraph = Object.assign({}, BLOCK_PARAGRAPH, text.paragraphStyle);
+    if (Object.keys(paragraph).some((key) => !(key in BLOCK_PARAGRAPH)) || BLOCK_JUSTIFY[paragraph.justification] === undefined) return null;
+    // The runs as the layer's data has them: each over the text's own style, the last one
+    // with the closing return, the text's own style for what they leave
+    const base = Object.assign({ kerning: 0, autoKerning: true, fillColor: { r: 0, g: 0, b: 0 } }, text.style);
+    const given = text.styleRuns && text.styleRuns.length ? text.styleRuns : [{ length: value.length, style: {} }];
+    const styles = [];
+    const starts = new Set();
+    let left = value.length;
+    given.forEach((run, k) => {
+      let length = Math.min(run.length, left);
+      left -= length;
+      if (!length) return;
+      if (left === 1 && k === given.length - 1) {
+        length++;
+        left--;
+      }
+      starts.add(styles.length);
+      const style = Object.assign({}, base, run.style);
+      for (let i = 0; i < length; i++) styles.push(style);
+    });
+    if (left) starts.add(styles.length);
+    while (styles.length < value.length) styles.push(base);
+    const known = (style) => Object.keys(style).every((key) => {
+      if (style[key] === undefined || BLOCK_STYLE_ALSO.includes(key)) return true;
+      const entry = BLOCK_STYLE[key];
+      return Boolean(entry) && (entry[1] !== "paint" || (style[key].r !== undefined && style[key].a === undefined));
+    });
+    if (!styles.every(known) || styles.some((style) => !style.font || !style.font.name)) return null;
+    const sheet = (at) => {
+      const style = styles[at];
+      const next = Math.min(at + 1, value.length - 1);
+      const pair = styles[next].autoKerning === false ? 0 : said.optical[next] ? 2 : 1;
+      const keys = [[0, String(fontAt(style.font.name))]];
+      Object.keys(BLOCK_STYLE).forEach((name) => {
+        if (style[name] !== undefined) keys.push([BLOCK_STYLE[name][0], blockValue(style[name], BLOCK_STYLE[name][1])]);
+      });
+      keys.push([11, String(pair)], [14, "0"], [20, String(Boolean(said.alternates[at]))], [92, "0.0"]);
+      return "<< " + keys.sort((a, b) => a[0] - b[0]).map(([key, word]) => `/${key} ${word}`).join(" ") + " >>";
+    };
+    const runs = [];
+    for (let at = 0; at < value.length; at++) {
+      const source = sheet(at);
+      const last = runs[runs.length - 1];
+      if (last && last.source === source) last.length++;
+      else runs.push({ source, length: 1 });
+    }
+    const kerned = [];
+    for (let at = 0; at + 1 < value.length; at++) {
+      const number = starts.has(at + 1) ? styles[at + 1].kerning || 0 : 0;
+      const last = kerned[kerned.length - 1];
+      if (!number && last && !last.number) last.length++;
+      else kerned.push({ number, length: 1 });
+    }
+    // The closing return goes with the last stretch that has no number
+    if (kerned.length && !kerned[kerned.length - 1].number) kerned[kerned.length - 1].length++;
+    else kerned.push({ number: 0, length: 1 });
+    const properties = `<< /0 ${BLOCK_JUSTIFY[paragraph.justification]} /1 ${blockReal(paragraph.firstLineIndent)} /2 ${blockReal(paragraph.startIndent)} /3 ${blockReal(paragraph.endIndent)} /4 ${blockReal(paragraph.spaceBefore)} /5 ${blockReal(paragraph.spaceAfter)} /7 ${blockReal(paragraph.autoLeading)} /8 ${blockWhole(paragraph.leadingType)} /9 ${Boolean(paragraph.autoHyphenate)} /10 ${blockWhole(paragraph.hyphenatedWordSize)} /11 ${blockWhole(paragraph.preHyphen)} /12 ${blockWhole(paragraph.postHyphen)} /13 ${blockWhole(paragraph.consecutiveHyphens)} /14 ${blockReal(paragraph.zone)} /17 [ .8 1.0 1.33 ] /18 [ 0.0 0.0 0.0 ] /19 [ 1.0 1.0 1.0 ] /21 ${Boolean(paragraph.hanging)} /23 true /24 0 /25 0 /29 false >>`;
+    const paragraphs = value.split("\r").slice(0, -1).map((line) => `<< /0 << /0 << /0 ${blockQuoted("")} /5 ${properties} /6 0 >> >> /1 ${line.length + 1} >>`);
+    return "<< /0 " + blockQuoted(value)
+      + ` /5 << /0 [ ${paragraphs.join(" ")} ] >>`
+      + ` /6 << /0 [ ${runs.map((run) => `<< /0 << /0 << /0 ${blockQuoted("")} /5 0 /6 ${run.source} >> >> /1 ${run.length} >>`).join(" ")} ] >>`
+      + (kerned.some((run) => run.number) ? ` /8 << /0 [ ${kerned.map((run) => `<< /0 <<${run.number ? ` /0 ${blockWhole(run.number)}` : ""} >> /1 ${run.length} >>`).join(" ")} ] >>` : "")
+      + (smoothing !== BLOCK_ANTI_ALIAS.smooth ? ` /10 << /0 ${smoothing} /2 true >>` : "")
+      + " >>";
+  };
+  // The frame a text is set in: a point, or its box as a path of four sides. `fresh`: as
+  // Photoshop writes them since the block's version 14
+  const blockFrame = (text, fresh) => {
+    const last = fresh ? " /22 .025" : "";
+    if (text.shapeType !== "box") return `<< /0 << /2 << /6 [ -1.0 -1.0 ] /11 << /4 -1 /18 -1.0${last} >> >> >> >>`;
+    const [left, top, right, bottom] = (text.boxBounds || [0, 0, 0, 0]).map(blockReal);
+    const corners = [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]];
+    const path = [];
+    for (let k = 0; k < 4; k++) path.push(...corners[k], ...corners[k], ...corners[k + 1], ...corners[k + 1]);
+    return `<< /0 << /1 << /0 [ ${path.join(" ")} ] >> /2 << /0 1 /6 [ -2.0 -2.0 ] /10 << /0 2 /1 0.0 >> /11 << /4 -2 /18 -2.0${last} >> >> >> >>`;
+  };
+  // What the block alone says of a text set here, place by place in the text as the file has
+  // it (its letters, then the closing return): in Optical, with its Contextual alternates
+  const blockSaysOf = (layer, text) => {
+    const lt = layer.params.layerText;
+    const length = String(lt.textKey || "").length;
+    const ranges = lt.textStyleRange || [];
+    const of = (style) => ({ optical: Boolean(style) && style.autoKern === "opticalKern" && !style.kerning, alternates: !style || style.contextualLigatures !== false });
+    const optical = [];
+    const alternates = [];
+    // One style for the whole text, as textToPsd writes it when the runs don't cover it
+    const whole = text.styleRuns ? null : of(ranges[0] && ranges[0].textStyle);
+    for (let at = 0; at < length; at++) {
+      const range = whole ? null : ranges.find((item) => at >= item.from && at < item.to);
+      const here = whole || of(range && range.textStyle);
+      optical.push(here.optical);
+      alternates.push(here.alternates);
+    }
+    const end = whole || (length ? { optical: optical[length - 1], alternates: alternates[length - 1] } : of(ranges[0] && ranges[0].textStyle));
+    optical.push(end.optical);
+    alternates.push(end.alternates);
+    return { optical, alternates };
+  };
+  const base64Of = (bytes) => {
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(binary);
+  };
+  // Puts the file's text block in order, in `root.engineData`. `written`: the text layers
+  // TypeR wrote (not Photoshop's own, gone back as they came), each with the layer it is of.
+  // - No text written here: the file's block, if it had one, as it was.
+  // - A text written here: its entry takes the place of the one it had, or comes last, in
+  //   the file's block or in a new one. Nothing else moves: an entry counts on its place.
+  // - A text written here that an entry can't be written for (see blockModel): it is
+  //   numbered -1; the file's block stays as it was, with the entries of the texts left alone.
+  // A text left alone whose entry is not of its own characters (a layer that came from
+  // another document) is numbered -1 too.
+  // False when the file goes without a block: Photoshop then reads every text from its layer.
+  const textBlockOut = (root, written) => {
+    const had = typeof root.engineData === "string" && root.engineData ? root.engineData : null;
+    if (!written.size) return Boolean(had);
+    const nodes = [];
+    const collect = (list) => (list || []).forEach((node) => {
+      if (node.text) nodes.push(node);
+      collect(node.children);
+    });
+    collect(root.children);
+    const unnumbered = (node) => {
+      node.text = Object.assign({}, node.text, { index: -1 });
+    };
+    try {
+      const block = had ? blockOf(root) : blockFromSource(BLOCK_FRESH);
+      const models = dig(block, "1", "1").l;
+      const frames = dig(block, "0", "8", "0").l;
+      const fonts = dig(block, "0", "1", "0").l;
+      const fresh = wordOf(dig(block, "98", "0")) >= 14;
+      const fontAt = (name) => {
+        const at = fonts.findIndex((font) => stringOf(dig(font, "0", "0", "0")) === name && !dig(font, "0", "0", "3"));
+        if (at >= 0) return at;
+        fonts.push(blockNode(`<< /0 << /99 /CoolTypeFont /0 << /0 ${blockQuoted(name)} /2 0 >> >> >>`));
+        return fonts.length - 1;
+      };
+      // The entries the texts left alone still count on
+      const kept = new Set();
+      nodes.forEach((node) => {
+        if (written.has(node)) return;
+        const at = node.text.index;
+        const own = had && Number.isInteger(at) && at >= 0 && at < models.length && blockHas(stringOf(dig(models[at], "0", "0")), String(node.text.text || "").replace(/\r?\n/g, "\r"));
+        if (own) kept.add(at);
+        else unnumbered(node);
+      });
+      const made = [];
+      written.forEach((layer, node) => {
+        const said = blockSaysOf(layer, node.text);
+        const source = blockModel(node.text, said, fontAt);
+        if (source) made.push({ node, layer, model: blockNode(source), frame: blockNode(blockFrame(node.text, fresh)) });
+        else unnumbered(node);
+      });
+      // Nothing to add: the file's block as it was, or none
+      if (!made.length) {
+        if (!had) delete root.engineData;
+        return Boolean(had);
+      }
+      // How many entries use each frame: one of its own is written over, with its entry
+      const framed = new Map();
+      models.forEach((model) => listAt(model, "1", "0").forEach((frame) => {
+        const at = wordOf(dig(frame, "0"));
+        framed.set(at, (framed.get(at) || 0) + 1);
+      }));
+      made.forEach(({ node, layer, model, frame }) => {
+        const was = had && layer.raw && layer.raw.text ? layer.raw.text.index : -1;
+        let at = models.length;
+        let frameAt = frames.length;
+        if (Number.isInteger(was) && was >= 0 && was < models.length && !kept.has(was)) {
+          at = was;
+          const own = listAt(models[was], "1", "0").map((item) => wordOf(dig(item, "0")));
+          if (own.length === 1 && Number.isInteger(own[0]) && own[0] >= 0 && own[0] < frames.length && framed.get(own[0]) === 1) frameAt = own[0];
+        }
+        kept.add(at);
+        frames[frameAt] = frame;
+        models[at] = { d: [["0", model], ["1", blockNode(`<< /0 [ << /0 ${frameAt} >> ] >>`)]] };
+        node.text.index = at;
+      });
+      root.engineData = base64Of(blockBytes(block));
+      return true;
+    } catch (error) {
+      // As before: without a block, Photoshop reads every text from its layer
+      console.warn("TypeR web: could not write the document's text block", error);
+      delete root.engineData;
+      return false;
+    }
   };
 
   // One stroke for the file, over the file's own entry if it had one: what TypeR doesn't know
@@ -1595,6 +1960,8 @@
       }
       flags.editedText = true;
       node.text = textToPsd(layer, doc);
+      // What the document's text block may have to say of it (see textBlockOut)
+      if (flags.written) flags.written.set(node, layer);
       // A text's pixels are only its letters, even a hollow one's, which Photoshop hides at
       // Fill 0%: Photoshop draws the layer style's stroke and effects around them
       // As opaque as the letters cover them (`unblended`): Photoshop blends them itself
@@ -1871,7 +2238,7 @@
   const write = async (doc, target = doc.name) => {
     await nextFrame();
     const engine = PS();
-    const flags = { editedText: false };
+    const flags = { editedText: false, written: new Map() };
     const children = [];
     const groups = new Map();
     const byId = new Map(doc.state.layers.map((layer) => [layer.id, layer]));
@@ -1982,7 +2349,10 @@
       if (!root.linkedFiles.length) delete root.linkedFiles;
     }
     const psb = /\.psb$/i.test(target) || doc.width > 30000 || doc.height > 30000;
-    const options = { psb, invalidateTextLayers: flags.editedText, trimImageData: true, noBackground: !(bottom && bottom.isBackground), logMissingFeatures: false };
+    // The document's text block: kept, completed or made for the texts written here that
+    // need it; else left out, as the PSD library does for a file whose texts changed
+    const block = textBlockOut(root, flags.written);
+    const options = { psb, invalidateTextLayers: flags.editedText && !block, trimImageData: true, noBackground: !(bottom && bottom.isBackground), logMissingFeatures: false };
     return encode(root, options, composite);
   };
 

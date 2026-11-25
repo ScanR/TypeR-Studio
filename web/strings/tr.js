@@ -936,7 +936,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Kerning": "Kerning",
     "Metrics": "Metrik",
     "Optical": "Optik",
-    "Optical is kept with the text. TypeR draws it with the font's own kerning, as Metrics.": "Optik, metinle birlikte korunur. TypeR bunu, Metrik gibi yazı tipinin kendi kerning değeriyle çizer.",
+    "TypeR draws Optical with the font's own kerning, as Metrics. Saved as PSD, the text is in Optical in Photoshop, which sets it so once it is edited there.": "TypeR, Optik’i Metrik gibi yazı tipinin kendi kerning değeriyle çizer. PSD olarak kaydedildiğinde metin Photoshop’ta Optik olur; Photoshop bunu, metin orada düzenlenir düzenlenmez uygular.",
     "Click between two letters to set their kerning. For selected letters, use Tracking.": "Kerning ayarlamak için iki harfin arasına tıklayın. Seçili harfler için İzleme’yi kullanın.",
     "Alt + left or right arrow: kerning at the cursor, or tracking of the selection.": "Alt + sol veya sağ ok: imleçte kerning ya da seçimin izlemesi.",
     "There is no PSD, PNG, JPEG or WebP in this folder.": "Bu klasörde PSD, PNG, JPEG veya WebP yok.",

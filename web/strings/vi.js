@@ -936,7 +936,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Kerning": "Kerning",
     "Metrics": "Theo phông",
     "Optical": "Quang học",
-    "Optical is kept with the text. TypeR draws it with the font's own kerning, as Metrics.": "Quang học được giữ cùng văn bản. TypeR vẽ nó bằng kerning riêng của phông, như Theo phông.",
+    "TypeR draws Optical with the font's own kerning, as Metrics. Saved as PSD, the text is in Optical in Photoshop, which sets it so once it is edited there.": "TypeR vẽ Quang học bằng kerning riêng của phông, như Theo phông. Khi lưu thành PSD, văn bản ở chế độ Quang học trong Photoshop, và Photoshop áp dụng ngay khi văn bản được sửa ở đó.",
     "Click between two letters to set their kerning. For selected letters, use Tracking.": "Nhấp vào giữa hai chữ để đặt kerning cho chúng. Với các chữ đã chọn, hãy dùng Tracking.",
     "Alt + left or right arrow: kerning at the cursor, or tracking of the selection.": "Alt + mũi tên trái hoặc phải: kerning tại con trỏ, hoặc tracking của vùng chọn.",
     "There is no PSD, PNG, JPEG or WebP in this folder.": "Thư mục này không có PSD, PNG, JPEG hoặc WebP.",

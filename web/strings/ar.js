@@ -936,7 +936,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Kerning": "تقنين الحروف",
     "Metrics": "مقاييس الخط",
     "Optical": "بصري",
-    "Optical is kept with the text. TypeR draws it with the font's own kerning, as Metrics.": "يُحفَظ «بصري» مع النص. يرسمه TypeR بتقنين الحروف الخاص بالخط، مثل «مقاييس الخط».",
+    "TypeR draws Optical with the font's own kerning, as Metrics. Saved as PSD, the text is in Optical in Photoshop, which sets it so once it is edited there.": "يرسم TypeR «بصري» بتقنين الحروف الخاص بالخط، مثل «مقاييس الخط». عند الحفظ بصيغة PSD يكون النص «بصري» في Photoshop، الذي يطبّقه فور تعديل النص هناك.",
     "Click between two letters to set their kerning. For selected letters, use Tracking.": "انقر بين حرفين لضبط تقنين الحروف بينهما. للحروف المحددة، استخدم التتبع.",
     "Alt + left or right arrow: kerning at the cursor, or tracking of the selection.": "Alt + السهم الأيسر أو الأيمن: تقنين الحروف عند المؤشر أو تباعد الأحرف في التحديد.",
     "There is no PSD, PNG, JPEG or WebP in this folder.": "لا يوجد ملف PSD أو PNG أو JPEG أو WebP في هذا المجلد.",

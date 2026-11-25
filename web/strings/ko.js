@@ -936,7 +936,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Kerning": "커닝",
     "Metrics": "메트릭",
     "Optical": "시각적",
-    "Optical is kept with the text. TypeR draws it with the font's own kerning, as Metrics.": "시각적은 텍스트와 함께 유지됩니다. TypeR은 메트릭처럼 폰트 자체의 커닝으로 그립니다.",
+    "TypeR draws Optical with the font's own kerning, as Metrics. Saved as PSD, the text is in Optical in Photoshop, which sets it so once it is edited there.": "TypeR은 시각적을 메트릭처럼 폰트 자체의 커닝으로 그립니다. PSD로 저장하면 Photoshop에서 텍스트가 시각적으로 설정되며, 그곳에서 텍스트를 편집하는 즉시 적용됩니다.",
     "Click between two letters to set their kerning. For selected letters, use Tracking.": "두 글자 사이를 클릭해 커닝을 설정하세요. 선택한 글자에는 자간을 사용하세요.",
     "Alt + left or right arrow: kerning at the cursor, or tracking of the selection.": "Alt + 왼쪽 또는 오른쪽 화살표: 커서 위치의 커닝 또는 선택 영역의 자간.",
     "There is no PSD, PNG, JPEG or WebP in this folder.": "이 폴더에 PSD, PNG, JPEG, WebP 파일이 없습니다.",
