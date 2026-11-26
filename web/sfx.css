@@ -94,8 +94,8 @@
 html.touch .pane--sfx { display: none; }
 
 /* The guide: where the practice points on the page */
-.sfx-mark { fill: none; stroke: #f0a020; stroke-width: 2.5; pointer-events: none; animation: sfx-mark 1.1s ease-in-out infinite; }
-@keyframes sfx-mark { 0%, 100% { r: 11px; opacity: 1; } 50% { r: 17px; opacity: 0.45; } }
+.sfx-mark { fill: none; stroke: #f0a020; stroke-width: 2.5; pointer-events: none; transform-box: fill-box; transform-origin: center; animation: sfx-mark 1.1s ease-in-out infinite; }
+@keyframes sfx-mark { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.55); opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) { .sfx-mark { animation: none; } }
 
 /* The guide's small drawings */
