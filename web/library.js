@@ -178,7 +178,7 @@
     }
     const file = await one("files", record.fileId);
     if (!file) throw new Error("file");
-    const { brush } = await ask({ op: "load", file: file.bytes, index: record.index || 0 });
+    const { brush } = await ask({ op: "load", file: file.bytes, index: record.index || 0 }, file.bytes instanceof ArrayBuffer ? [file.bytes] : []);
     loaded.set(record.id, brush);
     while (loaded.size > KEEP_LOADED) loaded.delete(loaded.keys().next().value);
     return brush;
@@ -604,6 +604,7 @@
   const Workspace = () => window.TypeRWorkspace;
   // The panel brought out: on a touch screen it is a sheet, opened from More (touch.js)
   const show = () => {
+    ensureLoaded();
     if (Shell.touch) return;
     const workspace = Workspace();
     if (workspace && workspace.isVisible && !workspace.isVisible("library") && workspace.toggle) workspace.toggle("library");
@@ -692,15 +693,28 @@
     choose,
   };
 
-  Promise.all([all("brushes"), all("materials")]).then(([brushes, materials]) => {
-    lib.brushes = brushes.concat(lib.brushes);
-    lib.materials = materials.concat(lib.materials);
-    lib.ready = true;
-    render();
-  }).catch((error) => {
-    console.error(error);
-    lib.ready = true;
-    render();
-  });
+  let loadingLib = null;
+  const ensureLoaded = () => {
+    if (loadingLib) return loadingLib;
+    loadingLib = Promise.all([all("brushes"), all("materials")]).then(([brushes, materials]) => {
+      lib.brushes = brushes.concat(lib.brushes);
+      lib.materials = materials.concat(lib.materials);
+      lib.ready = true;
+      render();
+    }).catch((error) => {
+      console.error(error);
+      lib.ready = true;
+      render();
+    });
+    return loadingLib;
+  };
+  const scheduleLoad = () => {
+    if (loadingLib) return;
+    if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(() => ensureLoaded(), { timeout: 2500 });
+    else setTimeout(ensureLoaded, 800);
+  };
+  if (pane.offsetParent !== null) ensureLoaded();
+  else if (A.booted) scheduleLoad();
+  else window.addEventListener("typer-booted", scheduleLoad, { once: true });
   render();
 })();

@@ -636,7 +636,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .layers { --thumb: 28px; flex: 1; min-height: 40px; margin: 0; padding: 0; overflow-y: auto; list-style: none; background: var(--ui-dark); }
 .layers[data-thumbs="small"] { --thumb: 20px; }
 .layers[data-thumbs="large"] { --thumb: 44px; }
-.layer { position: relative; display: flex; align-items: center; gap: 5px; height: calc(var(--thumb) + 8px); padding-right: 6px; border-bottom: 1px solid var(--line); background: var(--ui); cursor: default; transition: background-color 0.08s ease-out; }
+.layer { position: relative; display: flex; align-items: center; gap: 5px; height: calc(var(--thumb) + 8px); padding-right: 6px; border-bottom: 1px solid var(--line); background: var(--ui); cursor: default; transition: background-color 0.08s ease-out; contain: layout style paint; }
 .layer:hover { background: var(--ui-2); }
 .layer.is-on, .layer.is-on:hover { background: rgb(var(--blue-rgb) / 0.24); box-shadow: inset 2px 0 0 var(--blue); color: var(--strong); }
 .layer.is-hidden .layer__thumb, .layer.is-hidden .layer__name, .layer.is-hidden .layer__mask { opacity: 0.5; }
@@ -781,7 +781,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 
 /* history */
 .history { flex: 1; min-height: 40px; margin: 0; padding: 0; overflow-y: auto; list-style: none; background: var(--ui-dark); }
-.history li { height: 22px; line-height: 22px; padding: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+.history li { height: 22px; line-height: 22px; padding: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; contain: layout style paint; }
 .history li:hover { background: var(--ui-2); }
 .history li.is-on { background: var(--blue-dark); color: var(--on-blue); }
 .history li.is-after { color: var(--disabled); }

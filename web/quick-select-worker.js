@@ -689,6 +689,10 @@ if (typeof module !== "undefined" && module.exports) {
         page = prepare(new Uint8ClampedArray(payload.data), payload.width, payload.height);
         pageKey = payload.key;
         self.postMessage({ id, result: true });
+      } else if (type === "clear") {
+        page = null;
+        pageKey = "";
+        self.postMessage({ id, result: true });
       } else if (type === "select") {
         if (!page || pageKey !== payload.key) {
           self.postMessage({ id, result: { stale: true } });

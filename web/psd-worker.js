@@ -78,7 +78,19 @@ const read = ({ buffer }) => {
   return psd;
 };
 
+const restoreImages = (node) => {
+  if (!node || typeof node !== "object") return;
+  if (node.imageData && node.imageData.typerImage) {
+    const { width, height, data } = node.imageData;
+    node.imageData = new ImageData(data, width, height);
+  }
+  if (node.mask) restoreImages(node.mask);
+  if (node.realMask) restoreImages(node.realMask);
+  if (node.children) node.children.forEach(restoreImages);
+};
+
 const write = ({ psd, options, thumbnail }) => {
+  restoreImages(psd);
   if (thumbnail) {
     const { width, height, url } = thumbnail;
     psd.imageResources = Object.assign({}, psd.imageResources, { thumbnail: { width, height, toDataURL: () => url } });

@@ -2142,15 +2142,17 @@
     }
   };
 
-  const pixelsForWorker = (holder, transfer) => {
+  const pixelsForWorker = (holder, transfer, readPixels) => {
     const { canvas } = holder;
     delete holder.canvas;
     if (!canvas || !canvas.width || !canvas.height) return;
-    holder.imageData = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
-    transfer.push(holder.imageData.data.buffer);
+    const image = (readPixels && readPixels.get(canvas)) || canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+    if (readPixels) readPixels.delete(canvas);
+    holder.imageData = { typerImage: true, width: image.width, height: image.height, data: image.data };
+    transfer.push(image.data.buffer);
   };
   // The same tree with arrays of pixels instead of canvases, which can't leave the page
-  const nodeForWorker = async (from, transfer, { psb, colorMode }) => {
+  const nodeForWorker = async (from, transfer, { psb, colorMode, readPixels }) => {
     const node = Object.assign({}, from);
     const parts = node.typerRaw;
     delete node.typerRaw;
@@ -2165,13 +2167,13 @@
       if (node.mask) delete node.mask.canvas;
       if (node.realMask) delete node.realMask.canvas;
     } else {
-      pixelsForWorker(node, transfer);
-      if (node.mask) pixelsForWorker(node.mask, transfer);
-      if (node.realMask) pixelsForWorker(node.realMask, transfer);
+      pixelsForWorker(node, transfer, readPixels);
+      if (node.mask) pixelsForWorker(node.mask, transfer, readPixels);
+      if (node.realMask) pixelsForWorker(node.realMask, transfer, readPixels);
     }
     if (node.children) {
       const children = [];
-      for (const child of node.children) children.push(await nodeForWorker(child, transfer, { psb, colorMode }));
+      for (const child of node.children) children.push(await nodeForWorker(child, transfer, { psb, colorMode, readPixels }));
       node.children = children;
     }
     return node;
@@ -2182,16 +2184,24 @@
     const ctx = small.getContext("2d");
     ctx.scale(scale, scale);
     ctx.drawImage(composite, 0, 0);
-    return { width: small.width, height: small.height, url: small.toDataURL("image/jpeg", 1) };
+    const result = { width: small.width, height: small.height, url: small.toDataURL("image/jpeg", 1) };
+    small.width = 0;
+    small.height = 0;
+    return result;
   };
 
   // Colour that a greyscale file would lose. A trace too faint to see (a grey mixed in Oklab
   // that rounds apart, an almost clear edge) doesn't count.
   const COLOUR_LEVELS = 3;
   const colourOf = (color) => Boolean(color) && color.r !== undefined && Math.max(color.r, color.g, color.b) - Math.min(color.r, color.g, color.b) >= COLOUR_LEVELS;
-  const canvasHasColour = (canvas) => {
+  const canvasHasColour = (canvas, readPixels) => {
     if (!canvas || !canvas.width || !canvas.height) return false;
-    const { data } = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+    let image = readPixels && readPixels.get(canvas);
+    if (!image) {
+      image = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+      if (readPixels) readPixels.set(canvas, image);
+    }
+    const { data } = image;
     for (let i = 0; i < data.length; i += 4) {
       const a = data[i + 3];
       if (!a) continue;
@@ -2202,7 +2212,7 @@
   };
   // A layer's pixels as they go into the file, and the colours Photoshop draws itself: the
   // text's, its stroke's. A layer taken back untouched from the file has only its greys.
-  const nodesHaveColour = (nodes) => nodes.some((node) => {
+  const nodesHaveColour = (nodes, readPixels) => nodes.some((node) => {
     const strokes = (node.effects && node.effects.stroke) || [];
     if (strokes.some((stroke) => stroke.enabled !== false && colourOf(stroke.color))) return true;
     // A text's shadow, glows and overlays, in colour
@@ -2212,18 +2222,18 @@
     })) return true;
     const text = node.text;
     if (text && [text.style, ...(text.styleRuns || []).map((run) => run.style)].some((style) => style && (colourOf(style.fillColor) || colourOf(style.strokeColor)))) return true;
-    if (!node.typerRaw && canvasHasColour(node.canvas)) return true;
-    return Boolean(node.children) && nodesHaveColour(node.children);
+    if (!node.typerRaw && canvasHasColour(node.canvas, readPixels)) return true;
+    return Boolean(node.children) && nodesHaveColour(node.children, readPixels);
   });
 
   // A PSD's tree into its bytes, in the worker when there is one. `composite`: the picture its
   // thumbnail is made of (none for the PSD a smart object holds).
-  const encode = async (root, options, composite) => {
+  const encode = async (root, options, composite, readPixels) => {
     if (await startWorker()) {
       try {
         const transfer = [];
         const thumbnail = composite ? thumbnailOf(composite, root.width, root.height) : undefined;
-        const psd = await nodeForWorker(root, transfer, { psb: Boolean(options.psb), colorMode: root.colorMode });
+        const psd = await nodeForWorker(root, transfer, { psb: Boolean(options.psb), colorMode: root.colorMode, readPixels });
         return await askWorker("write", { psd, options, thumbnail }, transfer);
       } catch (error) {
         console.warn("TypeR web: saving without the worker", error);
@@ -2263,13 +2273,14 @@
     });
 
     const composite = engine.newCanvas(doc.width, doc.height);
-    const ctx = composite.getContext("2d");
+    const ctx = composite.getContext("2d", { willReadFrequently: true });
     const bottom = doc.state.layers[0];
     if (bottom && bottom.isBackground) {
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, doc.width, doc.height);
     }
     engine.paintDoc(doc, ctx, { keep: true });
+    const readPixels = new WeakMap();
 
     const source = (doc.psd && doc.psd.source) || {};
     const imageResources = Object.assign({}, source.imageResources, {
@@ -2289,7 +2300,7 @@
     // A greyscale file given colour here (a Gradient, a coloured text, a pasted picture…) goes
     // on in RGB, as Photoshop's Image > Mode > RGB Color would: in greyscale it would get only
     // the greys. Its grey profile can't describe RGB: Photoshop takes its own instead.
-    if (root.colorMode === 1 && (nodesHaveColour(children) || canvasHasColour(composite))) {
+    if (root.colorMode === 1 && (nodesHaveColour(children, readPixels) || canvasHasColour(composite, readPixels))) {
       root.colorMode = 3;
       delete imageResources.iccProfile;
     }
@@ -2353,7 +2364,12 @@
     // need it; else left out, as the PSD library does for a file whose texts changed
     const block = textBlockOut(root, flags.written);
     const options = { psb, invalidateTextLayers: flags.editedText && !block, trimImageData: true, noBackground: !(bottom && bottom.isBackground), logMissingFeatures: false };
-    return encode(root, options, composite);
+    try {
+      return await encode(root, options, composite, readPixels);
+    } finally {
+      composite.width = 0;
+      composite.height = 0;
+    }
   };
 
   window.TypeRPSD = { read, readText, write, library, sfxOfXmp, xmpWithSfx, effectsFromPsd, strokeFromEffects };

@@ -2354,9 +2354,23 @@
   const RASTER_BUDGET = 512 * 1024 * 1024;
   const rasterCache = new Map();
   let rasterBytes = 0;
+  const releaseCanvas = (canvas) => {
+    if (canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+  };
+  const releaseVisual = (visual) => {
+    if (!visual) return;
+    releaseCanvas(visual.canvas);
+    if (visual.under) visual.under.forEach((item) => releaseCanvas(item.canvas));
+  };
   const forgetRaster = (id, entry) => {
     rasterBytes -= entry.bytes;
     rasterCache.delete(id);
+    releaseCanvas(entry.canvas);
+    entry.marks.forEach((mark) => releaseCanvas(mark.canvas));
+    entry.marks.length = 0;
   };
   const keepRasterInBudget = () => {
     for (const [id, entry] of rasterCache) {
@@ -2376,14 +2390,47 @@
       while (entry.marks.length) {
         const gone = entry.marks.shift();
         const bytes = gone.canvas.width * gone.canvas.height * 4;
+        releaseCanvas(gone.canvas);
         entry.bytes -= bytes;
         rasterBytes -= bytes;
       }
     }
   };
+  const releaseScratch = () => {
+    releaseCanvas(scratch);
+    releaseCanvas(scratchShape);
+    releaseCanvas(scratchRing);
+    scratch = scratchShape = scratchRing = null;
+  };
   const forgetDocPixels = (doc) => {
+    if (!doc) return;
     for (const [id, entry] of rasterCache) {
       if (entry.docId === doc.id) forgetRaster(id, entry);
+    }
+    for (const [id, entry] of maskCache) {
+      if (entry.docId === doc.id) {
+        maskCache.delete(id);
+        releaseMask(entry, true);
+      }
+    }
+    for (const [id, entry] of maskedVisuals) {
+      if (entry.docId === doc.id) {
+        maskedVisuals.delete(id);
+        releaseVisual(entry.visual);
+      }
+    }
+    for (const [id, entry] of groupVisuals) {
+      if (entry.docId === doc.id) {
+        groupVisuals.delete(id);
+        releaseVisual(entry.visual);
+      }
+    }
+    const textPrefix = objectKey(doc) + "|";
+    for (const [key, item] of drawnTexts) {
+      if (key.startsWith(textPrefix)) {
+        forgetRough(item);
+        drawnTexts.delete(key);
+      }
     }
     doc.sampleCache = null;
     doc.sampleKey = null;
@@ -2433,6 +2480,7 @@
     if (entry.marks.length > 2) {
       const gone = entry.marks.shift();
       change -= gone.canvas.width * gone.canvas.height * 4;
+      releaseCanvas(gone.canvas);
     }
     entry.bytes += change;
     rasterBytes += change;
@@ -5410,6 +5458,7 @@
     while (bytes > MASK_MARKS_BYTES && entry.marks.length > 1) {
       const gone = entry.marks.shift();
       bytes -= gone.canvas.width * gone.canvas.height * 4;
+      releaseCanvas(gone.canvas);
     }
   };
   // The canvas as it was at a mark: only where the steps made since reach
@@ -5444,6 +5493,10 @@
     }
     entry.paint = mark.ops;
     entry.version++;
+  };
+  const releaseMask = (entry, marks) => {
+    releaseCanvas(entry.canvas);
+    if (marks) entry.marks.forEach((mark) => releaseCanvas(mark.canvas));
   };
 
   // A painted mask keeps one canvas of alpha, over the page and its picture, and only draws
@@ -5514,8 +5567,14 @@
       }
       const replaced = entry;
       entry = { canvas, ctx, x0, y0, x1, y1, base, defaultColor: Boolean(mask.defaultColor), paint: done, version: done.length ? replaced.version + 1 : 0, docId: doc.id, marks: kin ? replaced.marks : [] };
+      if (replaced) releaseMask(replaced, !kin);
       maskCache.set(holder.id, entry);
-      if (maskCache.size > 24) maskCache.delete(maskCache.keys().next().value);
+      if (maskCache.size > 24) {
+        const oldestKey = maskCache.keys().next().value;
+        const oldest = maskCache.get(oldestKey);
+        maskCache.delete(oldestKey);
+        if (oldest) releaseMask(oldest, true);
+      }
     }
     if (entry.paint.length < paint.length) {
       for (let i = entry.paint.length; i < paint.length; i++) {
@@ -5887,8 +5946,11 @@
     const masked = { canvas: cut(visual.canvas, visual.x, visual.y), x: visual.x, y: visual.y };
     if (visual.under) masked.under = visual.under.map((item) => Object.assign({}, item, { canvas: cut(item.canvas, item.x, item.y) }));
     maskedVisuals.delete(layer.id);
-    maskedVisuals.set(layer.id, { key, fixed, version, maskVersion: mask ? mask.version || 0 : 0, visual: masked });
-    if (maskedVisuals.size > 32) maskedVisuals.delete(maskedVisuals.keys().next().value);
+    maskedVisuals.set(layer.id, { key, fixed, version, maskVersion: mask ? mask.version || 0 : 0, visual: masked, docId: doc.id });
+    if (maskedVisuals.size > 32) {
+      const oldestKey = maskedVisuals.keys().next().value;
+      maskedVisuals.delete(oldestKey);
+    }
     return masked;
   };
 
@@ -6069,9 +6131,18 @@
   };
   // Kept by the picture filtered, a few places of it (copies of a text share their letters)
   const filteredVisuals = new WeakMap();
+  const filterKeys = new WeakMap();
+  const filterKeyOf = (filters) => {
+    let key = filterKeys.get(filters);
+    if (key === undefined) {
+      key = JSON.stringify(filters);
+      filterKeys.set(filters, key);
+    }
+    return key;
+  };
   const filteredVisual = (visual, filters, doc) => {
     if (!visual || !visual.canvas || !visual.canvas.width || !visual.canvas.height) return visual;
-    const key = [JSON.stringify(filters), visual.x, visual.y, visual.version || 0, doc.width, doc.height].concat((visual.under || NONE).map((item) => [identity(item.canvas), item.x, item.y, item.blend].join(","))).join("|");
+    const key = [filterKeyOf(filters), visual.x, visual.y, visual.version || 0, doc.width, doc.height].concat((visual.under || NONE).map((item) => [identity(item.canvas), item.x, item.y, item.blend].join(","))).join("|");
     let kept = filteredVisuals.get(visual.canvas);
     if (!kept) {
       kept = new Map();
@@ -6450,7 +6521,7 @@
     const stroke = groupStroke(group);
     const effects = effectsOn(group);
     const groupNormal = blendOf(group) === "source-over";
-    const key = parts.map((part) => (part.invert ? [part.key, part.alpha].join(",") : [part.key, part.visual.x, part.visual.y, part.alpha, part.blend, part.clips.map((item) => [item.visual.key, item.visual.x, item.visual.y, item.alpha, item.blend].join(":")).join("/")].join(","))).join(";") + "|" + JSON.stringify(stroke) + "|" + fillOf(group) + "|" + masksKey(group, doc) + "|" + (effects ? fxKeyOf(effects) + groupNormal : "");
+    const key = parts.map((part) => (part.invert ? [part.key, part.alpha].join(",") : [part.key, part.visual.x, part.visual.y, part.alpha, part.blend, part.clips.map((item) => [item.visual.key, item.visual.x, item.visual.y, item.alpha, item.blend].join(":")).join("/")].join(","))).join(";") + "|" + (stroke ? strokeKeyOf(stroke) : "") + "|" + fillOf(group) + "|" + masksKey(group, doc) + "|" + (effects ? fxKeyOf(effects) + groupNormal : "");
     // Kept apart without its stroke, shadow and glow: a gradient clipped to an SFX asks for both
     const keptId = stroke || outerEffectsOn(group) ? group.id : `${group.id}:bare`;
     const kept = skip ? null : groupVisuals.get(keptId);
@@ -6582,8 +6653,11 @@
       });
     }
     if (skip) return visual;
-    if (groupVisuals.size > 200) groupVisuals.clear();
-    groupVisuals.set(keptId, { key, visual });
+    if (groupVisuals.size > 200) {
+      groupVisuals.forEach((entry) => releaseVisual(entry.visual));
+      groupVisuals.clear();
+    }
+    groupVisuals.set(keptId, { key, visual, docId: doc.id });
     return visual;
   };
 
@@ -6812,22 +6886,41 @@
         drawBase(ctx, alpha, blend);
         continue;
       }
-      if (!scratch || scratch.width !== doc.width || scratch.height !== doc.height) scratch = newCanvas(doc.width, doc.height);
+      if (rect && !styledTop) {
+        const baseMoving = live && live.ids.has(layer.id);
+        const baseTurning = doc.liveTransform && doc.liveTransform.ids.has(layer.id);
+        if (!baseMoving && !baseTurning && onPage(layer, doc) === layer) {
+          const known = visualBoxes.get(layer);
+          if (known && (known.x >= rect.right || known.y >= rect.bottom || known.x + known.width <= rect.left || known.y + known.height <= rect.top)) continue;
+        }
+      }
+      const rx = rect ? Math.max(0, Math.floor(rect.left)) : 0;
+      const ry = rect ? Math.max(0, Math.floor(rect.top)) : 0;
+      const rw = rect ? Math.min(doc.width, Math.ceil(rect.right)) - rx : doc.width;
+      const rh = rect ? Math.min(doc.height, Math.ceil(rect.bottom)) - ry : doc.height;
+      if (rw <= 0 || rh <= 0) continue;
+      if (!scratch || scratch.width !== doc.width || scratch.height !== doc.height) {
+        releaseCanvas(scratch);
+        scratch = newCanvas(doc.width, doc.height);
+      }
       const c = scratch.getContext("2d");
       c.globalAlpha = 1;
       c.globalCompositeOperation = "source-over";
-      if (rect) c.clearRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
-      else c.clearRect(0, 0, doc.width, doc.height);
+      c.clearRect(rx, ry, rw, rh);
       drawBase(c, 1, "source-over", ringed ? withoutStroke(layer) : layer);
       let shaped = false;
       // The base's shape, taken once something needs it
       const baseShape = () => {
         if (!shaped) {
-          if (!scratchShape || scratchShape.width !== doc.width || scratchShape.height !== doc.height) scratchShape = newCanvas(doc.width, doc.height);
+          if (!scratchShape || scratchShape.width !== doc.width || scratchShape.height !== doc.height) {
+            releaseCanvas(scratchShape);
+            scratchShape = newCanvas(doc.width, doc.height);
+          }
           const s = scratchShape.getContext("2d");
-          s.globalCompositeOperation = "copy";
-          s.drawImage(scratch, 0, 0);
+          s.globalAlpha = 1;
           s.globalCompositeOperation = "source-over";
+          s.clearRect(rx, ry, rw, rh);
+          s.drawImage(scratch, rx, ry, rw, rh, rx, ry, rw, rh);
           shaped = true;
         }
         return scratchShape;
@@ -6845,27 +6938,29 @@
         place(item, c, itemAlpha, itemBlend, { clip: baseShape });
         c.globalAlpha = 1;
         c.globalCompositeOperation = "destination-in";
-        c.drawImage(scratchShape, 0, 0);
+        c.drawImage(scratchShape, rx, ry, rw, rh, rx, ry, rw, rh);
       });
       let composed = scratch;
       if (ringed) {
         // The base with its stroke, and its letters with what is clipped to them over it
-        if (!scratchRing || scratchRing.width !== doc.width || scratchRing.height !== doc.height) scratchRing = newCanvas(doc.width, doc.height);
+        if (!scratchRing || scratchRing.width !== doc.width || scratchRing.height !== doc.height) {
+          releaseCanvas(scratchRing);
+          scratchRing = newCanvas(doc.width, doc.height);
+        }
         const r = scratchRing.getContext("2d");
         r.globalAlpha = 1;
         r.globalCompositeOperation = "source-over";
-        if (rect) r.clearRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
-        else r.clearRect(0, 0, doc.width, doc.height);
+        r.clearRect(rx, ry, rw, rh);
         // Its shadow and glow straight onto the page, in their own blend mode
         drawBase(r, 1, "source-over", layer, { underTo: ctx, underAlpha: alpha });
         r.globalAlpha = 1;
         r.globalCompositeOperation = "source-over";
-        r.drawImage(scratch, 0, 0);
+        r.drawImage(scratch, rx, ry, rw, rh, rx, ry, rw, rh);
         composed = scratchRing;
       }
       ctx.globalAlpha = alpha;
       ctx.globalCompositeOperation = blend;
-      ctx.drawImage(composed, 0, 0);
+      ctx.drawImage(composed, rx, ry, rw, rh, rx, ry, rw, rh);
     }
     if (options.screen) {
       ctx.globalAlpha = 1;
@@ -7117,12 +7212,14 @@
   const MIN_STEPS = 10;
   const pixelsOfLayer = (layer, found) => {
     [layer.bitmap, layer.raster && layer.raster.bitmap, layer.raster && layer.raster.display, layer.mask && layer.mask.canvas].forEach((canvas) => { if (canvas) found.add(canvas); });
-    (layer.paint || NONE).forEach((op) => {
+    const collectOps = (list) => (list || NONE).forEach((op) => {
       if (op.clip && op.clip.canvas) found.add(op.clip.canvas);
       if (op.source && op.source.canvas) found.add(op.source.canvas);
       if (op.canvas) found.add(op.canvas);
       if (op.pieces) op.pieces.forEach((piece) => found.add(piece.canvas));
     });
+    collectOps(layer.paint);
+    if (layer.mask) collectOps(layer.mask.paint);
   };
   const pixelsOfState = (state, found, seen) => {
     state.layers.forEach((layer) => {
@@ -7130,8 +7227,14 @@
       seen.add(layer);
       pixelsOfLayer(layer, found);
     });
-    if (state.selection && state.selection.mask) found.add(state.selection.mask.data);
-    if (state.lastSelection && state.lastSelection.mask) found.add(state.lastSelection.mask.data);
+    if (state.selection && state.selection.mask) {
+      if (state.selection.mask.data) found.add(state.selection.mask.data);
+      if (state.selection.mask.alpha) found.add(state.selection.mask.alpha);
+    }
+    if (state.lastSelection && state.lastSelection.mask) {
+      if (state.lastSelection.mask.data) found.add(state.lastSelection.mask.data);
+      if (state.lastSelection.mask.alpha) found.add(state.lastSelection.mask.alpha);
+    }
   };
   const bytesOf = (item) => (ArrayBuffer.isView(item) ? item.byteLength : item.width * item.height * 4);
   const historyOnlyBytes = (doc) => {
@@ -9586,6 +9689,27 @@
     return shifted(next, to[0] - now[0], to[1] - now[1], doc);
   };
 
+  // A text's parameters at `ratio` times its size: every run, a fixed leading and a box's frame
+  // follow, as when its size is typed for the whole layer
+  const scaledTextParams = (source, ratio) => {
+    const params = clone(source);
+    const lt = params.layerText;
+    lt.textStyleRange.forEach((range) => {
+      const style = range.textStyle;
+      style.size = Math.max(0.1, (style.impliedFontSize || style.size) * ratio);
+      if (style.impliedFontSize != null) style.impliedFontSize = style.size;
+      if (style.autoLeading || style.leading == null) return;
+      style.leading = Math.max(0.1, (style.impliedLeading || style.leading) * ratio);
+      if (style.impliedLeading != null) style.impliedLeading = style.leading;
+    });
+    const shape = boxShape(lt);
+    if (shape) {
+      shape.box.width = Math.max(1, shape.box.width * ratio);
+      shape.box.height = Math.max(1, shape.box.height * ratio);
+    }
+    return params;
+  };
+
   const centredOn = (layer, doc, x, y) => {
     // A text on a surface stays there: the surface is what sets its place
     if (layer.warp) return layer;
@@ -11859,8 +11983,14 @@
         const px = Math.floor(x - visual.x);
         const py = Math.floor(y - visual.y);
         if (px < 0 || py < 0 || px >= visual.canvas.width || py >= visual.canvas.height) continue;
-        const ctx = visual.canvas.getContext("2d");
-        if (ctx && ctx.getImageData(px, py, 1, 1).data[3] > 24) return layer;
+        if (!ops._hitCtx) {
+          const hit = newCanvas(1, 1);
+          ops._hitCtx = hit.getContext("2d", { willReadFrequently: true });
+        }
+        const hctx = ops._hitCtx;
+        hctx.clearRect(0, 0, 1, 1);
+        hctx.drawImage(visual.canvas, px, py, 1, 1, 0, 0, 1, 1);
+        if (hctx.getImageData(0, 0, 1, 1).data[3] > 24) return layer;
       }
       return null;
     },
@@ -14944,6 +15074,7 @@
       if (at < 0) return;
       app.docs.splice(at, 1);
       forgetDocPixels(doc);
+      if (!app.docs.length) releaseScratch();
       if (app.doc === doc) setDoc(app.docs[Math.min(at, app.docs.length - 1)] || null);
       else emit("document", app.doc);
     },
@@ -14955,6 +15086,8 @@
       emit("history");
     },
     closeAll() {
+      app.docs.forEach(forgetDocPixels);
+      releaseScratch();
       app.docs = [];
       app.doc = null;
     },
@@ -15937,28 +16070,14 @@
       let layers = doc.state.layers;
       selected.forEach((layer) => {
         const box = boxOf(layer, doc);
-        const params = clone(layer.params);
-        const lt = params.layerText;
         // The step applies to the displayed size; the other runs, a fixed leading and
         // a box frame follow by the same ratio
-        const first = lt.textStyleRange[0].textStyle;
+        const first = layer.params.layerText.textStyleRange[0].textStyle;
         const shown = first.impliedFontSize || first.size;
         // The step is in the panel's unit; the sizes here are in points
         const step = Number(value) * pointsPerTypeUnit(typeUnitAt(doc.resolution), doc.resolution);
         const ratio = Math.max(pointsPerTypeUnit(typeUnitAt(doc.resolution), doc.resolution), shown + step) / shown;
-        lt.textStyleRange.forEach((range) => {
-          const style = range.textStyle;
-          style.size = Math.max(0.1, (style.impliedFontSize || style.size) * ratio);
-          if (style.impliedFontSize != null) style.impliedFontSize = style.size;
-          if (style.autoLeading || style.leading == null) return;
-          style.leading = Math.max(0.1, (style.impliedLeading || style.leading) * ratio);
-          if (style.impliedLeading != null) style.impliedLeading = style.leading;
-        });
-        const shape = boxShape(lt);
-        if (shape) {
-          shape.box.width = Math.max(1, shape.box.width * ratio);
-          shape.box.height = Math.max(1, shape.box.height * ratio);
-        }
+        const params = scaledTextParams(layer.params, ratio);
         centreLayer(doc, params, null, box.xMid, box.yMid);
         layers = layers.map((entry) => (entry.id === layer.id ? Object.assign({}, entry, { params, raster: null }) : entry));
       });

@@ -1073,10 +1073,14 @@
     quickTimer = setTimeout(() => schedule(false), 170);
   };
 
+  const updateZoomStatus = () => {
+    const zoomInput = $("status-zoom");
+    const zoomText = `${Math.round(view().zoom * 1000) / 10}%`;
+    if (document.activeElement !== zoomInput && zoomInput.value !== zoomText) zoomInput.value = zoomText;
+  };
   const viewChanged = () => {
     schedule(false);
-    renderStatus();
-    renderTabs();
+    updateZoomStatus();
     placeEditor();
     PS.announce("view");
     if (Flow) Flow.rested();
@@ -1225,6 +1229,8 @@
   const ringsToD = (rings) => rings.map((ring) => "M" + ring.map((p) => `${p[0]} ${p[1]}`).join("L") + "Z").join("");
   const showSelection = (selection) => {
     const d = selection ? ringsToD(selection.rings) : "";
+    ui.antsA.removeAttribute("transform");
+    ui.antsB.removeAttribute("transform");
     ui.antsA.setAttribute("d", d);
     ui.antsB.setAttribute("d", d);
     ui.antsB.classList.toggle("is-live", Boolean(selection));
@@ -5556,11 +5562,10 @@
   let taskBarKey = "";
   // Its size, measured when it's built again, or a few times a second: measuring it on every
   // frame, after the overlay was written, costs a layout each time
-  let taskBarMeasured = { key: null, built: null, at: 0, width: 0, height: 0 };
+  let taskBarMeasured = { key: null, built: null, width: 0, height: 0 };
   const taskBarSize = () => {
-    const now = performance.now();
-    if (taskBarMeasured.key !== taskBarKey || taskBarMeasured.built !== taskBar.firstChild || now - taskBarMeasured.at > 250) {
-      taskBarMeasured = { key: taskBarKey, built: taskBar.firstChild, at: now, width: taskBar.offsetWidth, height: taskBar.offsetHeight };
+    if (taskBarMeasured.key !== taskBarKey || taskBarMeasured.built !== taskBar.firstChild || !taskBarMeasured.width) {
+      taskBarMeasured = { key: taskBarKey, built: taskBar.firstChild, width: taskBar.offsetWidth, height: taskBar.offsetHeight };
     }
     return taskBarMeasured;
   };
@@ -9592,7 +9597,8 @@
       placeEditor();
     } else if (current.kind === "clean" && current.shape === "lasso") {
       current.points.push(point);
-      setDrag("M" + current.points.map((p) => `${p[0]} ${p[1]}`).join("L"));
+      current.pathD = current.pathD ? `${current.pathD}L${point[0]} ${point[1]}` : "M" + current.points.map((p) => `${p[0]} ${p[1]}`).join("L");
+      setDrag(current.pathD);
     } else if (current.kind === "textBox" || current.kind === "clean") {
       keysLetGo(current, event);
       const [x0, y0, x1, y1] = marqueeBox(current, event);
@@ -9600,19 +9606,25 @@
       hud(`${Math.round(x1 - x0)} × ${Math.round(y1 - y0)} px`, event);
     } else if (current.kind === "stroke") {
       const events = event.getCoalescedEvents ? event.getCoalescedEvents() : [event];
-      (events.length ? events : [event]).forEach((item) => strokeTo(current, straightStroke(current, toDoc(item), event.shiftKey), item));
+      const rect = stageRectOf(event);
+      const v = view();
+      (events.length ? events : [event]).forEach((item) => {
+        const pt = [(item.clientX - rect.left - v.x) / v.zoom, (item.clientY - rect.top - v.y) / v.zoom];
+        strokeTo(current, straightStroke(current, pt, event.shiftKey), item);
+      });
     } else if (current.kind === "moveSelection") {
       const dx = point[0] - current.start[0];
       const dy = point[1] - current.start[1];
-      const d = app.doc.state.selection.rings.map((ring) => "M" + ring.map((p) => `${p[0] + dx} ${p[1] + dy}`).join("L") + "Z").join("");
-      ui.antsA.setAttribute("d", d);
-      ui.antsB.setAttribute("d", d);
+      const shift = `translate(${dx} ${dy})`;
+      ui.antsA.setAttribute("transform", shift);
+      ui.antsB.setAttribute("transform", shift);
       hud(`Δ ${Math.round(dx)}, ${Math.round(dy)} px`, event);
     } else if (isMarquee(current.kind)) {
       drawMarquee(current, event);
     } else if (current.kind === "lasso") {
       current.points.push(point);
-      setDrag("M" + current.points.map((p) => `${p[0]} ${p[1]}`).join("L"));
+      current.pathD = current.pathD ? `${current.pathD}L${point[0]} ${point[1]}` : "M" + current.points.map((p) => `${p[0]} ${p[1]}`).join("L");
+      setDrag(current.pathD);
     } else if (current.kind === "polygonCorner" && polygon) {
       // Alt held while the button is down draws freehand, as the Lasso would
       if (event.altKey) {
@@ -9655,6 +9667,15 @@
     if (!gesture || event.pointerId !== gesture.id) return;
     const current = gesture;
     gesture = null;
+    if (deferredState) {
+      deferredState = false;
+      queueMicrotask(() => {
+        if (gesture === null) {
+          renderAfterState();
+          if ((app.tool === "move" || app.tool === "text") && optionsSignature() !== optionsShown) renderOptions();
+        }
+      });
+    }
     schedule(false);
     showSampling(event);
     setDrag("");
@@ -9768,6 +9789,8 @@
       }
       beginEdit(ops.newText(point[0], point[1] + app.textDefaults.size * 0.35 * (doc.resolution / 72)), true);
     } else if (kind === "moveSelection") {
+      ui.antsA.removeAttribute("transform");
+      ui.antsB.removeAttribute("transform");
       if (current.moved) ops.nudgeSelection(Math.round(point[0] - current.start[0]), Math.round(point[1] - current.start[1]));
       else if (current.leaves) leaveOut(app.doc, app.doc.state.selection, current.leaves);
       else if (current.tool === "polygon") {
@@ -11265,11 +11288,25 @@
     const pixels = thumbPixels();
     const kept = thumbs.get(layer.id);
     if (kept && kept.layer === layer && kept.pixels === pixels) return kept.canvas;
+    const visual = PS.visualOf(layer, doc);
+    const vCanvas = visual ? visual.canvas : null;
+    const vVersion = visual ? (visual.version || 0) : 0;
+    const vx = visual ? visual.x : 0;
+    const vy = visual ? visual.y : 0;
+    if (kept && kept.pixels === pixels && kept.vCanvas === vCanvas && kept.vVersion === vVersion && kept.vx === vx && kept.vy === vy && kept.dw === doc.width && kept.dh === doc.height) {
+      kept.layer = layer;
+      return kept.canvas;
+    }
     if (thumbs.size > 400) {
       const alive = new Set(app.docs.flatMap((item) => item.state.layers.map((each) => each.id)));
-      thumbs.forEach((item, id) => { if (!alive.has(id)) thumbs.delete(id); });
+      thumbs.forEach((item, id) => {
+        if (!alive.has(id)) {
+          item.canvas.width = 0;
+          item.canvas.height = 0;
+          thumbs.delete(id);
+        }
+      });
     }
-    const visual = PS.visualOf(layer, doc);
     const canvas = document.createElement("canvas");
     const scale = pixels / Math.max(doc.width, doc.height);
     canvas.width = Math.max(1, Math.round(doc.width * scale));
@@ -11281,7 +11318,11 @@
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(visual.canvas, visual.x * scale, visual.y * scale, visual.canvas.width * scale, visual.canvas.height * scale);
     }
-    thumbs.set(layer.id, { layer, pixels, canvas });
+    if (kept && kept.canvas) {
+      kept.canvas.width = 0;
+      kept.canvas.height = 0;
+    }
+    thumbs.set(layer.id, { layer, vCanvas, vVersion, vx, vy, dw: doc.width, dh: doc.height, pixels, canvas });
     return canvas;
   };
 
@@ -11302,13 +11343,18 @@
     const rect = range.getBoundingClientRect();
     return rect.width > 0 && event.clientX >= rect.left - 2 && event.clientX <= rect.right + 2;
   };
-  // Kept by layer: a layer that changes in any way is a new one
+  // Kept by the mask object itself so non-mask edits to a layer don't redraw its mask thumbnail
   const maskThumbs = new WeakMap();
   const maskThumbOf = (layer, doc, part) => {
-    let kept = maskThumbs.get(layer);
-    if (!kept) maskThumbs.set(layer, (kept = {}));
+    const source = part === "vector" ? layer.vectorMask : layer.mask;
+    if (!source) return null;
+    let kept = maskThumbs.get(source);
+    if (!kept) maskThumbs.set(source, (kept = {}));
     const pixels = thumbPixels();
-    const name = `${part}:${pixels}`;
+    const linked = source.linked !== false;
+    const dx = linked ? (layer.dx || 0) : 0;
+    const dy = linked ? (layer.dy || 0) : 0;
+    const name = `${part}:${pixels}:${doc.width}x${doc.height}:${dx},${dy}`;
     if (kept[name]) return kept[name];
     const scale = pixels / Math.max(doc.width, doc.height);
     kept[name] = ops.maskThumb(layer, part, Math.max(1, Math.round(doc.width * scale)), Math.max(1, Math.round(doc.height * scale)));
@@ -12314,26 +12360,55 @@
   /* -------------------------------- history ------------------------------- */
 
   let historyKey = "";
+  let historyDocId = null;
+  let historyIds = [];
+  ui.history.addEventListener("click", (event) => {
+    const row = event.target.closest("li");
+    if (!row || row.parentNode !== ui.history) return;
+    const index = Array.prototype.indexOf.call(ui.history.children, row);
+    if (index >= 0) ops.jump(index);
+  });
   const renderHistory = () => {
     const doc = app.doc;
     if (!doc) {
-      ui.history.textContent = "";
-      historyKey = "";
+      if (historyKey) {
+        ui.history.textContent = "";
+        historyKey = "";
+        historyDocId = null;
+        historyIds = [];
+      }
       return;
     }
-    const key = doc.id + ":" + doc.historyIndex + ":" + doc.history.length + ":" + doc.history[0].id;
+    const list = doc.history;
+    const key = doc.id + ":" + doc.historyIndex + ":" + list.length + ":" + list[0].id + ":" + list[list.length - 1].id;
     if (key === historyKey) return;
     historyKey = key;
-    ui.history.textContent = "";
-    doc.history.forEach((entry, index) => {
-      const row = document.createElement("li");
-      row.textContent = T(entry.name);
-      if (index === doc.historyIndex) row.className = "is-on";
-      else if (index > doc.historyIndex) row.className = "is-after";
-      row.addEventListener("click", () => ops.jump(index));
-      ui.history.appendChild(row);
-    });
-    const on = ui.history.querySelector(".is-on");
+    const rows = ui.history.children;
+    if (historyDocId !== doc.id) {
+      ui.history.textContent = "";
+      historyIds = [];
+      historyDocId = doc.id;
+    }
+    // Reuse existing <li> nodes in place, updating only changed text/classes
+    while (rows.length > list.length) {
+      ui.history.lastChild.remove();
+      historyIds.pop();
+    }
+    for (let index = 0; index < list.length; index++) {
+      const entry = list[index];
+      let row = rows[index];
+      if (!row) {
+        row = document.createElement("li");
+        ui.history.appendChild(row);
+      }
+      if (historyIds[index] !== entry.id) {
+        row.textContent = T(entry.name);
+        historyIds[index] = entry.id;
+      }
+      const cls = index === doc.historyIndex ? "is-on" : index > doc.historyIndex ? "is-after" : "";
+      if (row.className !== cls) row.className = cls;
+    }
+    const on = rows[doc.historyIndex];
     if (on) on.scrollIntoView({ block: "nearest" });
   };
 
@@ -20867,7 +20942,7 @@
       fillMenuList(list, items, runMenuItem);
       const open = () => {
         closeMenus();
-        renderMenusState();
+        renderMenusState(true);
         menu.classList.add("is-open");
         list.hidden = false;
         button.setAttribute("aria-expanded", "true");
@@ -20941,8 +21016,9 @@
   };
   let menuItems = null;
   const allMenuItems = () => menuItems || (menuItems = MENUS.flatMap(([, list]) => list).flatMap((item) => (item && item.submenu ? [item, ...item.submenu] : [item])).filter(Boolean));
-  const renderMenusState = () => {
+  const renderMenusState = (force = false) => {
     renderPageDisplay();
+    if (!force && !openMenu) return;
     allMenuItems().forEach((item) => {
       if (!item.row) return;
       if (item.submenu) {
@@ -22001,13 +22077,18 @@
 
   // A change announces itself twice (history, then the page): the panels look once
   let refreshedFor = null;
+  let deferredState = false;
   const refreshAfterChange = () => {
     const key = app.doc ? app.doc.state : NO_STATE;
     if (refreshedFor === key) return;
     refreshedFor = key;
     queueMicrotask(() => { refreshedFor = null; });
+    if (gesture !== null) {
+      deferredState = true;
+      return;
+    }
     renderAfterState();
-    if (gesture === null && (app.tool === "move" || app.tool === "text") && optionsSignature() !== optionsShown) renderOptions();
+    if ((app.tool === "move" || app.tool === "text") && optionsSignature() !== optionsShown) renderOptions();
   };
   PS.on((type, detail) => {
     if (type === "saved" || type === "history" || type === "document") watchSpreads(type, detail);
@@ -22810,7 +22891,7 @@
     KOFI,
     dialog,
     toast,
-    renderMenusState,
+    renderMenusState: () => renderMenusState(true),
     renderOptions,
     activeTexts,
     activeLayer,

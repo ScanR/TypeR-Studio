@@ -120,7 +120,12 @@ const load = () => {
     const [model, wasm, runtime] = await Promise.all([fetchFile(FILES.model, tell("model")), fetchFile(FILES.wasm, tell("wasm")), fetchFile(FILES.runtime, tell("runtime"))]);
     progressOf({ phase: "start" });
     const script = URL.createObjectURL(new Blob([runtime], { type: "text/javascript" }));
-    const ort = await import(script);
+    let ort;
+    try {
+      ort = await import(script);
+    } finally {
+      URL.revokeObjectURL(script);
+    }
     ort.env.wasm.wasmBinary = wasm;
     ort.env.logLevel = "error";
     if (!self.crossOriginIsolated) ort.env.wasm.numThreads = 1;

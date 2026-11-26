@@ -99,6 +99,15 @@
     return sentKey;
   };
 
+  const releaseWorkerPage = () => {
+    if (!worker || !sentKey) return;
+    sentKey = "";
+    ask("clear", null).catch(() => {});
+  };
+  PS.on((type) => {
+    if ((type === "document" && (!app.docs.length || app.tool !== "quickSelect")) || (type === "tool" && app.tool !== "quickSelect")) releaseWorkerPage();
+  });
+
   /* ------------------------------ a stroke ------------------------------ */
 
   let strokes = 0;

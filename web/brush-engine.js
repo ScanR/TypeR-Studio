@@ -423,6 +423,12 @@
       const thin = Math.min(1, w) * Math.min(1, h);
       const rw = Math.max(hw, 0.5);
       const rh = Math.max(hh, 0.5);
+      const invRw = 1 / rw;
+      const invRh = 1 / rh;
+      const maxR = 1 + 0.5 / radius;
+      const maxR2 = maxR * maxR;
+      const edgeScale = Math.max(radius, 0.5);
+      const invSoft = inner < 1 ? Math.PI / (1 - inner) : 0;
       const texture = perDabPaper ? ready.texture : null;
       for (let ty = Math.floor(top / TILE); ty * TILE < bottom; ty++) {
         for (let tx = Math.floor(left / TILE); tx * TILE < right; tx++) {
@@ -431,18 +437,23 @@
           const y1 = Math.min(bottom, (ty + 1) * TILE);
           const x0 = Math.max(left, tx * TILE);
           const x1 = Math.min(right, (tx + 1) * TILE);
+          const dx0 = x0 + 0.5 - cx;
           for (let py = y0; py < y1; py++) {
             const dy = py + 0.5 - cy;
-            for (let px = x0; px < x1; px++) {
-              const dx = px + 0.5 - cx;
-              let u = dx * cos + dy * sin;
-              let v = -dx * sin + dy * cos;
+            let baseU = dx0 * cos + dy * sin;
+            let baseV = -dx0 * sin + dy * cos;
+            for (let px = x0; px < x1; px++, baseU += cos, baseV -= sin) {
+              let u = baseU;
+              let v = baseV;
               let d;
               if (round) {
-                const r = Math.sqrt((u / rw) * (u / rw) + (v / rh) * (v / rh));
-                if (r >= 1 + 0.5 / radius) continue;
-                if (inner >= 1 || hard) d = clamp((1 - r) * Math.max(radius, 0.5) + 0.5, 0, 1);
-                else d = r <= inner ? 1 : r >= 1 ? 0 : (Math.cos(((r - inner) / (1 - inner)) * Math.PI) + 1) / 2;
+                const ru = u * invRw;
+                const rv = v * invRh;
+                const r2 = ru * ru + rv * rv;
+                if (r2 >= maxR2) continue;
+                const r = Math.sqrt(r2);
+                if (inner >= 1 || hard) d = clamp((1 - r) * edgeScale + 0.5, 0, 1);
+                else d = r <= inner ? 1 : r >= 1 ? 0 : (Math.cos((r - inner) * invSoft) + 1) / 2;
                 d *= thin;
                 sample.g = 0;
               } else {
@@ -500,7 +511,7 @@
               const half = from.half + (to.half - from.half) * t;
               let nx = from.nx + (to.nx - from.nx) * t;
               let ny = from.ny + (to.ny - from.ny) * t;
-              const length = Math.hypot(nx, ny) || 1;
+              const length = Math.sqrt(nx * nx + ny * ny) || 1;
               nx /= length;
               ny /= length;
               const side = (x - cx) * nx + (y - cy) * ny;

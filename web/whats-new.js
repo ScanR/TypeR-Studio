@@ -57,18 +57,19 @@
   const byTime = (a, b) => time(b) - time(a);
   const valid = (note) => note && note.id && note.at && note.text;
 
-  // Asked for as soon as the page loads: by boot, it's here
+  // Loaded on demand: skipped at start when What's New is muted or in the mobile app
   const fetchJson = (url) => fetch(url, { cache: "no-cache" })
     .then((response) => (response.ok ? response.json() : null))
     .catch(() => null);
-  const loaded = Promise.all([fetchJson("whats-new.json"), fetchJson(`${MEDIA}highlights.json`)]).then(([data, extra]) => {
+  let loaded = null;
+  const load = () => loaded || (loaded = Promise.all([fetchJson("whats-new.json"), fetchJson(`${MEDIA}highlights.json`)]).then(([data, extra]) => {
     const commits = data && Array.isArray(data.notes) ? data.notes.filter(valid) : [];
     const more = extra && Array.isArray(extra.notes) ? extra.notes.filter(valid) : [];
     const highlights = extra && Array.isArray(extra.highlights) ? extra.highlights.filter((item) => item && item.id && item.at && item.title).sort(byTime) : [];
     return { commits, notes: commits.concat(more).sort(byTime), highlights };
-  });
+  }));
   const EMPTY = { commits: [], notes: [], highlights: [] };
-  const sources = () => Promise.race([loaded, new Promise((resolve) => setTimeout(() => resolve(EMPTY), WAIT))]);
+  const sources = () => Promise.race([load(), new Promise((resolve) => setTimeout(() => resolve(EMPTY), WAIT))]);
 
   const read = (key) => {
     try {
@@ -385,9 +386,10 @@
 
   // Called by app.js's boot, before anything else is said
   const atStart = async () => {
+    if (muted() || read(STORE) === undefined) return;
     const data = await sources();
     const { commits, notes, highlights } = data;
-    if ((!notes.length && !highlights.length) || read(STORE) === undefined) return;
+    if (!notes.length && !highlights.length) return;
     const seen = lastSeen();
     const newest = newestOf(data);
     let fresh;
@@ -413,7 +415,7 @@
   };
 
   const show = async () => {
-    const data = await loaded;
+    const data = await load();
     if (!data.notes.length && !data.highlights.length) {
       if (App()) App().toast(T("What's new can't be read right now."), true);
       return;

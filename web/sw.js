@@ -9,7 +9,8 @@
 const CACHE = "typer-web-1";
 // A slow connection gets the copied page after this long, and the answer goes in the copy for next time
 const WAIT = 1500;
-const CORE = ["./", "app.css", "touch.css", "shell.js", "keyclick.js", "fonts.js", "fontfinder.js", "kit.js", "inpaint.js", "outline.js", "textwarp.js", "photoshop.js", "psd.js", "atn.js", "asl.js", "indesign.js", "psd-worker.js", "align-worker.js", "lama-worker.js", "session.js", "session-worker.js", "recent.js", "workspace.js", "generative.js", "generative-debug.js", "textmask.js", "whats-new.js", "whats-new.json", "whats-new/highlights.json", "feedback.js", "stats.js", "onboarding.js", "flow.js", "flow-worker.js", "across.js", "app.js", "actions.js", "styles.js", "library.js", "swatches.js", "brush-engine.js", "csp.js", "csp-worker.js", "vendor/pako_inflate.min.js", "sfx.js", "retouch.js", "reshape.js", "reshape-tool.js", "perspective.js", "perspective-tool.js", "pen.js", "quick-select.js", "quick-select-worker.js", "tool-guide.js", "sfx-guide.js", "perspective-guide.js", "sfx.css", "guide.js", "guide.css", "hyphenation.js", "breaks.js", "breaks-guide.js", "flow-guide.js", "touch.js", "bridge.js", "manifest.webmanifest", "vendor/ag-psd.js", "../i18n.js", "panel/index.html"];
+const CORE = ["./", "app.css", "shell.js", "keyclick.js", "fonts.js", "fontfinder.js", "kit.js", "inpaint.js", "outline.js", "textwarp.js", "photoshop.js", "psd.js", "atn.js", "asl.js", "indesign.js", "psd-worker.js", "align-worker.js", "lama-worker.js", "session.js", "session-worker.js", "recent.js", "workspace.js", "generative.js", "textmask.js", "whats-new.js", "whats-new.json", "whats-new/highlights.json", "feedback.js", "stats.js", "onboarding.js", "flow.js", "flow-worker.js", "across.js", "app.js", "actions.js", "styles.js", "library.js", "swatches.js", "brush-engine.js", "csp.js", "csp-worker.js", "vendor/pako_inflate.min.js", "sfx.js", "retouch.js", "reshape.js", "reshape-tool.js", "perspective.js", "perspective-tool.js", "pen.js", "quick-select.js", "quick-select-worker.js", "tool-guide.js", "sfx-guide.js", "perspective-guide.js", "sfx.css", "guide.js", "guide.css", "hyphenation.js", "breaks.js", "breaks-guide.js", "flow-guide.js", "bridge.js", "manifest.webmanifest", "../i18n.js", "panel/index.html"];
+const PANEL_SKIP = /^(assets\/typer-basics-page\.png|modern\.modal-(studio-promo|update|uxp-migration|whats-new)\.|modern\.text-shaper-patterns\.)/;
 
 const keyOf = (url) => {
   const { origin, pathname } = new URL(url, self.location.href);
@@ -45,15 +46,34 @@ const keepAll = async (urls) => {
 const panelFiles = async () => {
   try {
     const response = await fetch("panel/files.json", { cache: "no-cache" });
-    return (await response.json()).map((name) => `panel/${name}`);
+    const list = await response.json();
+    return {
+      all: list.map((name) => `panel/${name}`),
+      eager: list.filter((name) => !PANEL_SKIP.test(name)).map((name) => `panel/${name}`),
+    };
   } catch (error) {
-    return [];
+    return { all: [], eager: [] };
   }
+};
+
+// Remove old hashed panel chunks from the cache once a newer files.json replaces them
+const prunePanel = async (all) => {
+  if (!all.length) return;
+  try {
+    const cache = await caches.open(CACHE);
+    const keepKeys = new Set(all.map(keyOf));
+    const keys = await cache.keys();
+    await Promise.all(keys
+      .filter((req) => /\/web\/panel\/modern\..*\.[0-9a-f]{12}\.(index\.js|css)$/.test(req.url) && !keepKeys.has(keyOf(req.url)))
+      .map((req) => cache.delete(req)));
+  } catch (error) {}
 };
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
-    await keepAll(CORE.concat(await panelFiles(), ["panel/files.json"]));
+    const panel = await panelFiles();
+    await keepAll(CORE.concat(panel.eager, ["panel/files.json"]));
+    await prunePanel(panel.all);
     await self.skipWaiting();
   })());
 });
@@ -99,7 +119,10 @@ self.addEventListener("fetch", (event) => {
     const answer = asked.then((response) => (response.ok ? response : held)).catch(() => held);
     if (request.mode !== "navigate") return fromCopy.has(event.clientId) ? held : answer;
     const page = await Promise.race([answer, new Promise((resolve) => setTimeout(() => resolve(held), WAIT))]);
-    if (page === held && event.resultingClientId) fromCopy.add(event.resultingClientId);
+    if (page === held && event.resultingClientId) {
+      if (fromCopy.size >= 64) fromCopy.delete(fromCopy.values().next().value);
+      fromCopy.add(event.resultingClientId);
+    }
     return page;
   })());
 });

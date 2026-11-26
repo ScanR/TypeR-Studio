@@ -2,6 +2,8 @@
 // page: layers, masks, selection, history, tabs and zoom. Each document is one record;
 // its pixels are stored apart, each canvas once, as the app never draws on a canvas again
 // after filling it. So typing a word rewrites a small record, and no pixels at all.
+// The pages of one InDesign file keep its package once between them, and large arrays
+// (selections, the package's stories) are kept compressed.
 
 (function () {
   "use strict";
@@ -13,6 +15,10 @@
   // Bigger arrays (a whole page's selection) are stored apart, like the canvases
   const LARGE_ARRAY = 65536;
   const TAG = "__typerPixels";
+  // The files of an InDesign package, kept once for all its open pages ("packages")
+  const PACKAGE = "__typerPackage";
+  // A package's files smaller than this stay as they are, the others are compressed
+  const SMALL_FILE = 1024;
 
   /* ------------------------------ the database ------------------------------ */
 
@@ -20,24 +26,43 @@
   const openDb = () => {
     if (!opening) {
       opening = new Promise((done, fail) => {
-        const request = indexedDB.open("typer-web-documents", 1);
-        request.onupgradeneeded = () => {
-          request.result.createObjectStore("documents", { keyPath: "uid" });
-          request.result.createObjectStore("pixels", { keyPath: "key" });
+        const request = indexedDB.open("typer-web-documents", 2);
+        request.onupgradeneeded = (event) => {
+          const db = request.result;
+          if (event.oldVersion < 1) {
+            db.createObjectStore("documents", { keyPath: "uid" });
+            db.createObjectStore("pixels", { keyPath: "key" });
+          }
+          if (event.oldVersion < 2) {
+            db.createObjectStore("packages", { keyPath: "key" });
+            // The pages using a package: when none is left, it goes
+            request.transaction.objectStore("documents").createIndex("package", "package");
+          }
         };
-        request.onsuccess = () => done(request.result);
-        request.onerror = () => fail(request.error);
+        request.onsuccess = () => {
+          // A newer version of the app opening in another tab isn't kept waiting
+          request.result.onversionchange = () => {
+            request.result.close();
+            opening = null;
+          };
+          done(request.result);
+        };
+        request.onerror = () => {
+          opening = null;
+          fail(request.error);
+        };
       });
     }
     return opening;
   };
 
+  // `name`: one store, handed to `act`, or several, `act` getting the transaction
   const inStore = async (name, mode, act) => {
     const db = await openDb();
     return new Promise((done, fail) => {
       const tx = db.transaction(name, mode);
-      const request = act(tx.objectStore(name));
-      tx.oncomplete = () => done(request.result);
+      const request = act(Array.isArray(name) ? tx : tx.objectStore(name));
+      tx.oncomplete = () => done(request && request.result);
       tx.onabort = () => fail(tx.error || new Error("The browser refused to keep this document"));
       tx.onerror = () => fail(tx.error || new Error("The browser refused to keep this document"));
     });
@@ -63,11 +88,11 @@
   /* --------------------------------- saving --------------------------------- */
 
   const kept = new Map();
-  const newKeep = (uid) => ({ uid, ids: new WeakMap(), next: 1, written: new Set(), content: null, view: "", release: null });
+  const newKeep = (uid) => ({ uid, ids: new WeakMap(), next: 1, written: new Set(), content: null, view: "", release: null, package: null });
   const newUid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
   // What makes a document differ from its record. Every change makes a new state.
-  const contentOf = (doc) => [doc.state, doc.historyIndex, doc.history.length, doc.history[doc.historyIndex], doc.savedId, doc.name, doc.path, doc.stamp, doc.handle, app.docs.indexOf(doc)];
+  const contentOf = (doc) => [doc.state, doc.historyIndex, doc.history.length, doc.history[doc.historyIndex], doc.savedId, doc.name, doc.path, doc.stamp, doc.handle, app.docs.indexOf(doc), doc.idml && doc.idml.pkg && doc.idml.pkg.files];
   const viewOf = (doc) => `${doc.view.zoom}:${doc.view.x}:${doc.view.y}`;
   const isKept = (doc) => {
     const keep = kept.get(doc);
@@ -157,8 +182,22 @@
       return null;
     }
   };
+  // An array compressed, when the browser can and it is the smaller for it (a selection is
+  // mostly the same byte, a story mostly words). Null otherwise: it is kept as it is.
+  const deflated = async (source) => {
+    if (typeof CompressionStream !== "function") return null;
+    try {
+      const blob = await new Response(new Blob([source]).stream().pipeThrough(new CompressionStream("deflate"))).blob();
+      return blob.size < source.byteLength ? blob : null;
+    } catch (error) {
+      return null;
+    }
+  };
   const encoded = async (source) => {
-    if (ArrayBuffer.isView(source)) return { ctor: source.constructor.name, blob: new Blob([source]) };
+    if (ArrayBuffer.isView(source)) {
+      const packed = await deflated(source);
+      return packed ? { ctor: source.constructor.name, blob: packed, encoding: "deflate" } : { ctor: source.constructor.name, blob: new Blob([source]) };
+    }
     const row = { width: source.width, height: source.height, blob: null };
     if (!source.width || !source.height) return row;
     row.blob = await encodedAway(source) || await new Promise((done, fail) => {
@@ -168,6 +207,59 @@
       }, "image/png");
     });
     return row;
+  };
+
+  // The pages of an .idml share its package, files and all (indesign.js): they are kept once,
+  // under a key that changes with them (a save gives the package new files), and each page's
+  // record names it. The pages' own part of the package (its name, its frames) stays in them.
+  const packageKeys = new WeakMap();
+  const storedPackages = new Set();
+  const packageKey = (pkg) => {
+    if (!packageKeys.has(pkg.files)) packageKeys.set(pkg.files, `${pkg.id}#${pkg.saves || 0}#${newUid()}`);
+    return packageKeys.get(pkg.files);
+  };
+  const sharedIdml = (idml, key) => idml && key ? Object.assign({}, idml, { pkg: Object.assign({}, idml.pkg, { files: { [PACKAGE]: key }, previews: null }) }) : idml;
+  const packageRow = async (key, files) => {
+    const out = {};
+    for (const path of Object.keys(files)) {
+      const data = files[path];
+      out[path] = ArrayBuffer.isView(data) && data.byteLength > SMALL_FILE ? await encoded(data) : data;
+    }
+    return { key, files: out };
+  };
+  // The record, with the package it names, in one go: one is never there without the other.
+  // A package another tab let go of in the meantime is written again. `previous`: the package
+  // the record named until now, which goes if no page names it any more.
+  const putRecord = async (record, files, previous, alive) => {
+    const key = record.package;
+    for (let attempt = 0; ; attempt++) {
+      const row = key && !storedPackages.has(key) ? await packageRow(key, files) : null;
+      if (alive && !alive()) return false;
+      let gone = false;
+      const dropped = [];
+      try {
+        await inStore(["documents", "packages"], "readwrite", (tx) => {
+          const packages = tx.objectStore("packages");
+          if (row) packages.put(row);
+          else if (key) {
+            packages.getKey(key).onsuccess = (event) => {
+              if (event.target.result !== undefined) return;
+              gone = true;
+              tx.abort();
+            };
+          }
+          const put = tx.objectStore("documents").put(record);
+          if (previous && previous !== key) put.onsuccess = () => dropUnused(tx, [previous], dropped);
+          return put;
+        });
+        if (key) storedPackages.add(key);
+        dropped.forEach((old) => storedPackages.delete(old));
+        return true;
+      } catch (error) {
+        if (!gone || attempt) throw error;
+        storedPackages.delete(key);
+      }
+    }
   };
 
   const saveDoc = async (doc) => {
@@ -181,6 +273,8 @@
     const content = contentOf(doc);
     const view = viewOf(doc);
     const used = new Map();
+    const pkg = doc.idml && doc.idml.pkg;
+    const shared = pkg && pkg.files && typeof pkg.files === "object" ? packageKey(pkg) : null;
     const record = packer(keep, used)({
       uid: keep.uid,
       at: app.docs.indexOf(doc),
@@ -193,7 +287,7 @@
       height: doc.height,
       resolution: doc.resolution,
       psd: doc.psd,
-      idml: doc.idml,
+      idml: sharedIdml(doc.idml, shared),
       state: doc.state,
       history: doc.history,
       historyIndex: doc.historyIndex,
@@ -201,6 +295,7 @@
       view: doc.view,
     });
     record.next = keep.next;
+    if (shared) record.package = shared;
     // The pixels first: a record never points at something that isn't there
     for (const [number, source] of used) {
       if (keep.written.has(number)) continue;
@@ -209,7 +304,8 @@
       await inStore("pixels", "readwrite", (store) => store.put(Object.assign(row, { key: [keep.uid, number] })));
       keep.written.add(number);
     }
-    await inStore("documents", "readwrite", (store) => store.put(record));
+    if (!(await putRecord(record, shared ? pkg.files : null, keep.package, () => app.docs.includes(doc)))) return;
+    keep.package = shared;
     keep.content = content;
     keep.view = view;
     const gone = Array.from(keep.written).filter((number) => !used.has(number));
@@ -223,8 +319,42 @@
     }
   };
 
+  // Packages no page names any more. `keys`: those to look at (all of them without it). In the
+  // same go as what is checked, so a page saved meanwhile in another tab keeps its package.
+  const dropUnused = (tx, keys, dropped) => {
+    const packages = tx.objectStore("packages");
+    const byPackage = tx.objectStore("documents").index("package");
+    const check = (key) => {
+      byPackage.count(key).onsuccess = (event) => {
+        if (event.target.result) return;
+        packages.delete(key);
+        dropped.push(key);
+      };
+    };
+    if (keys) keys.forEach(check);
+    else packages.getAllKeys().onsuccess = (event) => event.target.result.forEach(check);
+  };
+
   const forget = async (uid) => {
-    await inStore("documents", "readwrite", (store) => store.delete(uid));
+    const dropped = [];
+    await inStore(["documents", "packages"], "readwrite", (tx) => {
+      const documents = tx.objectStore("documents");
+      // Only the key of the package it names, not the whole record
+      const named = documents.index("package").openKeyCursor();
+      let key = null;
+      named.onsuccess = () => {
+        const cursor = named.result;
+        if (cursor && cursor.primaryKey !== uid) {
+          cursor.continue();
+          return;
+        }
+        if (cursor) key = cursor.key;
+        documents.delete(uid).onsuccess = () => {
+          if (key) dropUnused(tx, [key], dropped);
+        };
+      };
+    });
+    dropped.forEach((key) => storedPackages.delete(key));
     await inStore("pixels", "readwrite", (store) => store.delete(pixelsOf(uid)));
   };
 
@@ -334,7 +464,11 @@
   /* -------------------------------- restoring ------------------------------- */
 
   const decoded = async (row) => {
-    if (row.ctor) return new window[row.ctor](await row.blob.arrayBuffer());
+    if (row.ctor) {
+      // Without `encoding`, kept as it is: so are those kept before compression came
+      const bytes = row.encoding === "deflate" ? await new Response(row.blob.stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer() : await row.blob.arrayBuffer();
+      return new window[row.ctor](bytes);
+    }
     const canvas = PS.newCanvas(row.width, row.height);
     if (row.blob) {
       const bitmap = await createImageBitmap(row.blob, { colorSpaceConversion: "none" });
@@ -344,7 +478,28 @@
     return canvas;
   };
 
-  const unpacked = async (record, keep) => {
+  // A package's files, read once for all the pages that name it: they share them again
+  const packageFiles = (key, shelf) => {
+    if (!shelf.has(key)) {
+      shelf.set(key, (async () => {
+        const row = await inStore("packages", "readonly", (store) => store.get(key));
+        if (!row) throw Object.assign(new Error("Some of its pixels are missing"), { missing: true });
+        const files = {};
+        for (const path of Object.keys(row.files)) {
+          const data = row.files[path];
+          files[path] = data && data.ctor ? await decoded(data) : data;
+        }
+        packageKeys.set(files, key);
+        storedPackages.add(key);
+        return files;
+      })());
+      // A failed read is tried again by the next page that asks
+      shelf.get(key).catch(() => shelf.delete(key));
+    }
+    return shelf.get(key);
+  };
+
+  const unpacked = async (record, keep, shelf) => {
     const rows = await inStore("pixels", "readonly", (store) => store.getAll(pixelsOf(record.uid)));
     const byNumber = new Map(rows.map((row) => [row.key[1], row]));
     const spots = [];
@@ -359,6 +514,8 @@
       });
     };
     visit(record);
+    const pkg = record.idml && record.idml.pkg;
+    if (pkg && pkg.files && pkg.files[PACKAGE] !== undefined) pkg.files = await packageFiles(pkg.files[PACKAGE], shelf || new Map());
     const numbers = Array.from(new Set(spots.map((spot) => spot.number)));
     const made = new Map();
     // A few at a time: decoding happens away from the page
@@ -410,6 +567,10 @@
       await inStore("pixels", "readwrite", (store) => store.delete(pixelsOf(uid)));
       release();
     }
+    // Packages none of whose pages is kept any more
+    const dropped = [];
+    await inStore(["documents", "packages"], "readwrite", (tx) => dropUnused(tx, null, dropped));
+    dropped.forEach((key) => storedPackages.delete(key));
   };
 
   // The active document first, so there's something to work on at once. The others join
@@ -433,6 +594,7 @@
     const wanted = records.find((record) => record.uid === active) || records[0];
     const order = wanted ? [wanted].concat(records.filter((record) => record !== wanted)) : [];
     const rank = new Map();
+    const shelf = new Map();
     let first = null;
     let held = false;
     for (const record of order) {
@@ -448,7 +610,8 @@
       try {
         const keep = newKeep(record.uid);
         keep.release = release;
-        await unpacked(record, keep);
+        await unpacked(record, keep, shelf);
+        keep.package = record.package || null;
         await window.TypeRFonts.ready(fontsOf(record));
         const doc = ops.restoreDoc(record, record === first);
         rank.set(doc, place.get(record.uid));
