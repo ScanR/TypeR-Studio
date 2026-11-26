@@ -33,7 +33,11 @@
   const noWebpText = () => (IN_APP ? T("WebP can't be written on this device.") : T("This browser can't write WebP."));
   const keyNotKeptText = () => (IN_APP ? T("The key couldn't be kept on this device: it works until the app is closed.") : T("The key couldn't be kept on this device: it works until the page is closed."));
   const fontsPlace = () => `${T("More")} → ${T("Fonts")}`;
-  const notLoadedText = () => (Shell.touch ? fill(T("{font} isn't in TypeR yet. Add it in {menu}."), { menu: fontsPlace() }) : T("{font} isn't loaded. Use File > Use Installed Fonts, or load its file."));
+  const notLoadedText = () => (Shell.touch
+    ? fill(T("{font} isn't in TypeR yet. Add it in {menu}."), { menu: fontsPlace() })
+    : window.TypeRDesktop
+      ? fill(T("{font} isn't installed on this computer. Install it, or load its file with {menu}."), { menu: `${T("File")} → ${T("Load Font Files…")}` })
+      : T("{font} isn't loaded. Use File > Use Installed Fonts, or load its file."));
   // An error that stopped what the user asked for (an open, a save), counted without what it was
   // about, for Settings › Anonymous usage statistics (stats.js)
   const reportError = (error) => window.TypeRStats && window.TypeRStats.error(error);
