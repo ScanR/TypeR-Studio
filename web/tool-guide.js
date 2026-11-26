@@ -31,9 +31,13 @@
   const capOf = (token) => {
     if (token === "Cmd") return IS_MAC ? "⌘" : "Ctrl";
     if (token === "Alt") return IS_MAC ? "⌥" : "Alt";
-    if (token === "Shift") return IS_MAC ? "⇧" : "Shift";
-    if (token === "Backspace") return IS_MAC ? "⌫" : "Backspace";
+    if (token === "Shift") return IS_MAC ? "⇧" : T("Shift");
+    if (token === "Backspace") return IS_MAC ? "⌫" : T("Backspace");
+    if (token === "Enter") return IS_MAC ? "↩" : T("Enter");
+    if (token === "Esc") return T("Esc");
     if (token === "Space") return T("Space");
+    if (token === "PageDown") return T("Page Down");
+    if (token === "PageUp") return T("Page Up");
     return token;
   };
   // ["Alt", "drag"]: Alt + drag. "/" between two keys: either one.

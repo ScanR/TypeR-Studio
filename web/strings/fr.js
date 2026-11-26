@@ -1741,5 +1741,9 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "These texts stay on this page only.": "Ces textes restent sur cette page seulement.",
     "Put the text over the top or the bottom edge of its page first: it then continues on the page above or below.": "Placez d’abord le texte à cheval sur le haut ou le bas de sa page : il continue alors sur la page du dessus ou du dessous.",
     "{name} can't be opened: the text that continues on it only changed on this page.": "{name} ne peut pas être ouverte : le texte qui continue dessus n’a changé que sur cette page.",
+    "Enter": "Entrée",
+    "Esc": "Échap",
+    "Shift": "Maj",
+    "Backspace": "Retour arrière",
   },
 });

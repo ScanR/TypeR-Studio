@@ -862,9 +862,11 @@
     cutButton.setAttribute("aria-pressed", String(cutAnywhere));
   });
 
-  $("breaks-fewer").title = T("One line less");
+  const fewerKeys = App.setup && App.setup.IS_MAC ? "⌥⌘−" : "Alt+Ctrl+-";
+  const moreKeys = App.setup && App.setup.IS_MAC ? "⌥⌘+" : "Alt+Ctrl++";
+  $("breaks-fewer").title = `${T("One line less")} (${fewerKeys})`;
   $("breaks-fewer").setAttribute("aria-label", T("One line less"));
-  $("breaks-more").title = T("One line more");
+  $("breaks-more").title = `${T("One line more")} (${moreKeys})`;
   $("breaks-more").setAttribute("aria-label", T("One line more"));
   empty.textContent = T("Select a text layer to set its line breaks.");
 

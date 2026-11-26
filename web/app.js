@@ -3675,10 +3675,11 @@
     ui.bg = make("swatch--bg", T("Background colour"), "bg");
     swatches.append(ui.fg, ui.bg);
     ui.tools.appendChild(swatches);
+    const withShortcut = (label, keys) => (keys ? `${T(label)} (${keyLabel(keys)})` : T(label));
     const swap = document.createElement("button");
     swap.type = "button";
     swap.className = "tool";
-    swap.title = `${T("Swap colours")} (X)`;
+    swap.title = withShortcut("Swap colours", "X");
     swap.setAttribute("aria-label", T("Swap colours"));
     swap.innerHTML = ICON.swap;
     swap.addEventListener("click", swapColors);
@@ -3686,7 +3687,7 @@
     const quick = document.createElement("button");
     quick.type = "button";
     quick.className = "tool tool--quick";
-    quick.title = `${T("Edit in Quick Mask Mode")} (Q)`;
+    quick.title = withShortcut("Edit in Quick Mask Mode", "Q");
     quick.setAttribute("aria-label", T("Edit in Quick Mask Mode"));
     quick.setAttribute("aria-pressed", "false");
     quick.innerHTML = ICON.quickMask;
@@ -3696,13 +3697,13 @@
     const grow = document.createElement("span");
     grow.className = "tools__grow";
     ui.tools.appendChild(grow);
-    [["undo", "Undo", () => ops.undo()], ["redo", "Redo", () => ops.redo()]].forEach(([id, name, action]) => {
+    [["undo", "Undo", "Cmd+Z", () => ops.undo()], ["redo", "Redo", "Shift+Cmd+Z", () => ops.redo()]].forEach(([id, name, keys, action]) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "tool";
       button.id = `tool-${id}`;
       button.innerHTML = ICON[id];
-      button.title = T(name);
+      button.title = withShortcut(name, keys);
       button.setAttribute("aria-label", T(name));
       button.addEventListener("click", action);
       ui.tools.appendChild(button);
@@ -4930,7 +4931,7 @@
           { id: "flowPerRow", label: T("Pages per row in Flow"), value: settings.flowPerRow, type: "number", min: 0, max: 500, step: 1, hint: () => T("0: every page on one row.") },
           { id: "flowPairs", label: T("Pages two by two"), type: "checkbox", checked: settings.flowPairs, hint: () => fill(T("Side by side, as in a printed manga. TypeR finds which pages face each other from their white margins; if it gets them wrong, {keys} shifts them by one page."), { keys: keyLabel(setupKeysOf("Shift Pairs by One Page")) || `${T("View")} → ${T("Shift Pairs by One Page")}` }) },
         ] : []),
-        { id: "zoomSpeed", label: T("Zoom speed"), value: settings.zoomSpeed, options: [["normal", T("Normal")], ["fast", T("Fast")], ["veryFast", T("Very fast")]], hint: () => T("When dragging sideways with Ctrl + Space or the Zoom tool.") },
+        { id: "zoomSpeed", label: T("Zoom speed"), value: settings.zoomSpeed, options: [["normal", T("Normal")], ["fast", T("Fast")], ["veryFast", T("Very fast")]], hint: () => T("When dragging sideways with Ctrl + Space or the Zoom tool.").replace(/\bCtrl\b/g, IS_MAC ? "Cmd" : "Ctrl") },
         ...(Stats ? [{ id: "stats", label: T("Anonymous usage statistics"), type: "checkbox", checked: Stats.enabled(), hint: () => (IN_APP ? T("Once a day, TypeR Studio tells its team it was opened, so they know how many people use it and what to improve: a random number, the app and its system, the language, how often each tool and command was used and the errors the app ran into. Nothing about you or your files.") : T("Once a day, TypeR Studio tells its team it was opened, so they know how many people use it and what to improve: a random number, web or desktop app, the system, the language, how often each tool and command was used and the errors the app ran into. Nothing about you or your files.")) }] : []),
         ...(discord ? [{ id: "discord", label: T("Discord activity"), value: settings.discord, options: [["page", T("With the page's name")], ["app", T("Without the page's name")], ["off", T("Off")]], hint: () => T("What your Discord friends see while you work. Discord must be open on this computer.") }] : []),
         { id: "language", label: T("Language of new text"), value: d.language, options: PS.TEXT_LANGUAGES.map(([name, , own]) => [name, own]) },
@@ -4938,7 +4939,7 @@
         { id: "hyphenate", label: T("Hyphenate new paragraph text"), type: "checkbox", checked: Boolean(d.hyphenate), hint: () => T("Long words are cut at a syllable, with a hyphen, at the end of a line: in paragraph text, and in the text TypeR fits in a bubble.") },
         { id: "textOnTop", label: T("Always place new text on top"), type: "checkbox", checked: Boolean(d.textOnTop), hint: () => T("When off, new text goes right above the selected layer, as in Photoshop.") },
         { id: "typeUnit", label: T("Type units"), value: d.typeUnit === "pixels" ? "pixels" : "points", options: [["points", T("Points (pt)")], ["pixels", T("Pixels (px)")]], hint: (value) => (value === "pixels" ? T("Text sizes, leading and baseline shift are shown and typed in pixels of the page. Your texts and your styles stay as they are.") : T("Text sizes, leading and baseline shift are shown and typed in points, as in Photoshop. A point is a pixel at 72 ppi.")) },
-        { id: "sizeStep", label: T("Text size step"), value: settings.sizeStep, type: "number", min: 0.1, step: "any", hint: () => T("How much Ctrl + Shift + < and > change the size of the text. With Alt, five times as much.") },
+        { id: "sizeStep", label: T("Text size step"), value: settings.sizeStep, type: "number", min: 0.1, step: "any", hint: () => T("How much Ctrl + Shift + < and > change the size of the text. With Alt, five times as much.").replace(/\bCtrl\b/g, IS_MAC ? "Cmd" : "Ctrl") },
       ],
     });
     if (generative) generative.dispose();
@@ -5312,8 +5313,8 @@
     });
     const aligns = document.createElement("span");
     aligns.className = "obar__group";
-    [["left", "alignLeft", "Align left"], ["center", "alignCenter", "Centre"], ["right", "alignRight", "Align right"]].forEach(([value, icon, title]) => {
-      aligns.appendChild(iconButton(icon, T(title), (paragraph.alignment || "center") === value, () => applyTextPatch(null, { alignment: value })));
+    [["left", "alignLeft", "Align left", "Shift+Cmd+L"], ["center", "alignCenter", "Centre", "Shift+Cmd+C"], ["right", "alignRight", "Align right", "Shift+Cmd+R"]].forEach(([value, icon, title, keys]) => {
+      aligns.appendChild(iconButton(icon, `${T(title)} (${keyLabel(keys)})`, (paragraph.alignment || "center") === value, () => applyTextPatch(null, { alignment: value })));
     });
     // Point text has no box: there, the button only says what the next box will do
     const inBox = layer && inBoxOf(layer);
@@ -5720,8 +5721,8 @@
     const paragraph = c.layer.params.layerText.paragraphStyleRange[0].paragraphStyle;
     const aligns = document.createElement("span");
     aligns.className = "obar__group";
-    [["left", "alignLeft", "Align left"], ["center", "alignCenter", "Centre"], ["right", "alignRight", "Align right"]].forEach(([value, icon, title]) => {
-      aligns.appendChild(iconButton(icon, T(title), (paragraph.alignment || "center") === value, () => applyTextPatch(null, { alignment: value })));
+    [["left", "alignLeft", "Align left", "Shift+Cmd+L"], ["center", "alignCenter", "Centre", "Shift+Cmd+C"], ["right", "alignRight", "Align right", "Shift+Cmd+R"]].forEach(([value, icon, title, keys]) => {
+      aligns.appendChild(iconButton(icon, `${T(title)} (${keyLabel(keys)})`, (paragraph.alignment || "center") === value, () => applyTextPatch(null, { alignment: value })));
     });
     const hide = iconButton("close", T("Hide the contextual task bar"), false, () => setTaskBar(false));
     hide.classList.add("ctxbar__hide");
@@ -10751,17 +10752,17 @@
     // Photoshop's Link Layers: linked layers move and transform together
     const lock = iconButton("link", T("Link layers"), false, () => linkLayers());
     // As in Photoshop: several layers chosen go into the new group, otherwise it starts empty
-    const group = iconButton("folder", T("New group"), false, () => {
+    const group = iconButton("folder", `${T("New group")} (${keyLabel("Cmd+G")})`, false, () => {
       if (activeLayers().filter((layer) => !layer.isBackground).length > 1) ops.groupLayers(T("Group"));
       else ops.newGroup(T("Group"));
     });
     // Cmd + click: under the active layer
-    const add = iconButton("plus", T("New layer (Cmd: below)").replace(/Cmd/g, IS_MAC ? "Cmd" : "Ctrl"), false, (event) => {
+    const add = iconButton("plus", `${T("New layer (Cmd: below)").replace(/Cmd/g, IS_MAC ? "Cmd" : "Ctrl")} (${keyLabel(DESKTOP ? "Shift+Cmd+N" : "Alt+Shift+Cmd+N")})`, false, (event) => {
       if (event.metaKey || event.ctrlKey) ops.newLayerBelow(nextLayerName());
       else ops.newLayer(nextLayerName());
     });
-    const copy = iconButton("copy", T("Duplicate layer"), false, () => ops.duplicateLayers());
-    const bin = iconButton("trash", T("Delete layer"), false, deleteFromPanel);
+    const copy = iconButton("copy", `${T("Duplicate layer")} (${keyLabel("Cmd+J")})`, false, () => ops.duplicateLayers());
+    const bin = iconButton("trash", `${T("Delete layer")} (${keyLabel("Backspace")})`, false, deleteFromPanel);
     // Layers dragged onto the bin go, onto New Layer are copied, onto New Group go into one
     dropOnButton(bin, () => ops.deleteLayers(), true);
     dropOnButton(add, () => ops.duplicateLayers());
@@ -12737,7 +12738,8 @@
     hyphenRow.className = "character__row wide";
     const hyphenate = checkbox(T("Hyphenate"), isParagraph(layer) && hyphenates(layer), (on) => setHyphenate(on));
     hyphenate.querySelector("input").disabled = !isParagraph(layer);
-    hyphenate.title = isParagraph(layer) ? T("Cuts long words at the end of a line, with a hyphen, by the rules of the text's language.") : T("Hyphenation only cuts the words of paragraph text.");
+    const hyphenKeys = keyLabel(setupKeysOf("Hyphenate"));
+    hyphenate.title = (isParagraph(layer) ? T("Cuts long words at the end of a line, with a hyphen, by the rules of the text's language.") : T("Hyphenation only cuts the words of paragraph text.")) + (hyphenKeys ? ` (${hyphenKeys})` : "");
     hyphenRow.appendChild(hyphenate);
     // A point text has its lines as they were typed or fitted in their bubble: say so
     // beside the greyed box rather than only in its tooltip
@@ -13278,7 +13280,7 @@
     const painting = doc && maskPainting();
     const onMask = painting && (app.tool === "brush" || app.tool === "eraser");
     const hint = transform ? T(TRANSFORM_HINT) : onMask && painting.target === "quick" ? T("Quick Mask: black takes away from the selection, white adds to it. Q: back to the selection.") : onMask && painting.target === "mask" ? T("On the layer mask: black hides the layer, white shows it, grey half. X: swap the colours.") : warpedLayer() ? T("Drag the corners onto the surface, and the middle points to curve it (Alt: one edge only). Shift: stay straight. Esc: done.") : !ui.editor.hidden && !Shell.touch ? T(TYPING_HINT) : `${app.tool === "reshape" ? T("Experimental tool, still being improved.") + " " : ""}${T(TOOL_HINT[app.tool] || "")}`;
-    say("status-hint", hint.replace(/Cmd/g, IS_MAC ? "Cmd" : "Ctrl"));
+    say("status-hint", hint.replace(/\b(?:Cmd|Ctrl)\b/g, IS_MAC ? "Cmd" : "Ctrl"));
     ui.start.hidden = Boolean(doc);
   };
 
@@ -20411,7 +20413,7 @@
         make("div", "sk__group", host, T(group));
         // The keys the marquees and the lassos share: what each one does
         if (group === "Tools" && featured && TOOL_PAIRS.every((pair) => !pair.last || pairOf(pair.tools[0]))) make("p", "sk__hint", host, fill(T("{m} and {l} bring back the marquee and the lasso used last, {shiftM} and {shiftL} the other one, unless you give these tools other keys."), { m: "M", l: "L", shiftM: keyLabel("Shift+M"), shiftL: keyLabel("Shift+L") }));
-        if (group === "Mouse") make("p", "sk__hint", host, T("Hold the key as you would hold the button, to drag or paint. With Shift, Alt or Ctrl it clicks with them. Pick a key you don't type: in a text field, a letter stays a letter."));
+        if (group === "Mouse") make("p", "sk__hint", host, T("Hold the key as you would hold the button, to drag or paint. With Shift, Alt or Ctrl it clicks with them. Pick a key you don't type: in a text field, a letter stays a letter.").replace(/\bCtrl\b/g, IS_MAC ? "Cmd" : "Ctrl"));
         rows.forEach((one) => {
           shown++;
           const row = make("div", "sk__row", host);
