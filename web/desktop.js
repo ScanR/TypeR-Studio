@@ -592,6 +592,9 @@
       installingUpdate: App.T("Installing the update…"),
       restartingForUpdate: App.T("Restarting TypeR Studio…"),
       reopensItself: App.T("TypeR Studio will reopen by itself in a moment."),
+      crashed: App.T("TypeR Studio stopped working, maybe for lack of memory."),
+      tryAgain: App.T("Try Again"),
+      quit: App.T("Quit"),
       dir: document.documentElement.dir === "rtl" || (window.TYPER_I18N && window.TYPER_I18N.lang) === "ar" ? "rtl" : "ltr",
     });
     watchPresence();

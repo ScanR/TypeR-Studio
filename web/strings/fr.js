@@ -1763,5 +1763,8 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "Shift": "Maj",
     "Backspace": "Retour arrière",
     "{font} isn't installed on this computer. Install it, or load its file with {menu}.": "{font} n’est pas installée sur cet ordinateur. Installez-la, ou chargez son fichier avec {menu}.",
+    "TypeR Studio stopped working, maybe for lack of memory.": "TypeR Studio a cessé de fonctionner, peut-être par manque de mémoire.",
+    "Try Again": "Réessayer",
+    "Quit": "Quitter",
   },
 });
