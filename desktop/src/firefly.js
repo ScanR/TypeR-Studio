@@ -182,7 +182,13 @@ const createFirefly = ({ changed = () => {}, parent = () => null } = {}) => {
         restored = true;
         const version = epoch;
         const cookies = await adobe().cookies.get({});
-        if (version === epoch && !shuttingDown && cookies.some((cookie) => /(?:^|\.)adobelogin\.com$/.test(cookie.domain.replace(/^\./, "")))) open();
+        // Adobe's own sign-in leaves its session on adobelogin.com; one through Facebook leaves
+        // it as `ims_sid` on services.adobe.com only
+        const signedIn = (cookie) => {
+          const host = cookie.domain.replace(/^\./, "");
+          return /(?:^|\.)adobelogin\.com$/.test(host) || (cookie.name === "ims_sid" && /(?:^|\.)adobe\.com$/.test(host));
+        };
+        if (version === epoch && !shuttingDown && cookies.some(signedIn)) open();
       }
       await readSession();
       return state();
