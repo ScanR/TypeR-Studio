@@ -157,6 +157,28 @@ test("partner generation sends Adobe's current context only on the generation re
   }
 });
 
+test("the seed fits a signed 32-bit integer, as Gemini through Adobe requires", async () => {
+  const random = Math.random;
+  Math.random = () => 0.999999999;
+  try {
+    for (const model of ["gemini-nano-banana-2.1", "firefly-image-5"]) {
+      let body = null;
+      const client = clientFor(async (url, options) => {
+        if (url.includes("generate")) {
+          body = JSON.parse(options.body);
+          return reply(output);
+        }
+        if (url.includes("storage/image")) return reply({ images: [{ id: "ref" }] });
+        return new Response(png());
+      });
+      await client.generate({ model, image: png(), prompt: "x", size: "2K" });
+      assert.ok(body.seeds[0] >= 0 && body.seeds[0] <= 0x7fffffff, `${model}: ${body.seeds[0]}`);
+    }
+  } finally {
+    Math.random = random;
+  }
+});
+
 test("partner HTTP 408 identifies the failing stage without retrying or revealing server data", async () => {
   for (const phase of ["upload", "generation", "status", "download"]) {
     let submits = 0;
@@ -181,22 +203,34 @@ test("partner HTTP 408 identifies the failing stage without retrying or revealin
   }
 });
 
-test("a job's status answering 400 is checked again, without sending the generation again", async () => {
+test("a job's status answering a server error is checked again, without sending the generation again", async () => {
   for (const [failures, kind] of [[2, null], [9, "adobejob"]]) {
     let submits = 0;
     let checks = 0;
     const client = clientFor(async url => {
       if (url.includes("storage/image")) return reply({ images: [{ id: "ref" }] });
       if (url.includes("generate-async")) { submits++; return reply({ links: { result: { href: "https://bks-epo42.adobe.io/jobs/result/test" } } }, 202); }
-      if (url.includes("jobs/result")) return ++checks <= failures ? reply({ error_code: "bad_request" }, 400) : reply(output);
+      if (url.includes("jobs/result")) return ++checks <= failures ? reply({ error_code: "internal_error" }, 503) : reply(output);
       return new Response(png());
     });
     const generation = client.generate({ model: "gemini-nano-banana-2.1", image: png(), prompt: "x" });
-    if (kind) await assert.rejects(generation, (error) => error.kind === kind && /Adobe HTTP 400 \(bad_request\)/.test(error.message));
+    if (kind) await assert.rejects(generation, (error) => error.kind === kind && /Adobe HTTP 503 \(internal_error\)/.test(error.message));
     else assert.deepEqual(await generation, new Uint8Array(png()));
     assert.equal(submits, 1);
     assert.equal(checks, kind ? 4 : failures + 1);
   }
+});
+
+test("a job's status answering 400 is not checked again: the request itself was refused", async () => {
+  let checks = 0;
+  const client = clientFor(async url => {
+    if (url.includes("storage/image")) return reply({ images: [{ id: "ref" }] });
+    if (url.includes("generate-async")) return reply({ links: { result: { href: "https://bks-epo42.adobe.io/jobs/result/test" } } }, 202);
+    if (url.includes("jobs/result")) { checks++; return reply({ error_code: "bad_request" }, 400); }
+    return new Response(png());
+  });
+  await assert.rejects(client.generate({ model: "gemini-nano-banana-2.1", image: png(), prompt: "x" }), (error) => error.kind === "other");
+  assert.equal(checks, 1);
 });
 
 test("cancelling a pending Adobe job invokes its cancel URL", async () => {

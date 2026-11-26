@@ -132,15 +132,16 @@ const createClient = ({ fetch: requestFetch = fetch, credentials, wait = delay }
       }
       return response;
     };
-    // A job Adobe has just accepted sometimes answers its first checks with a 400 or a server
-    // error, then finishes: checking again costs nothing and sends no new generation. Still
-    // failing, the job is said lost, not the picture refused.
+    // A job Adobe has just accepted sometimes answers its first checks with a server error, then
+    // finishes: checking again costs nothing and sends no new generation. Still failing, the job
+    // is said lost, not the picture refused. A 400 is the request itself refused: asked again,
+    // the answer stays the same.
     const poll = async (url) => {
       for (let attempt = 0; ; attempt++) {
         try {
           return await send(url, {}, false, "status");
         } catch (error) {
-          const passing = error instanceof FireflyError && error.kind === "other" && (error.status === 400 || error.status >= 500);
+          const passing = error instanceof FireflyError && error.kind === "other" && error.status >= 500;
           if (!passing) throw error;
           if (attempt >= 3) throw new FireflyError("adobejob", error.message);
           await wait(2000 * (attempt + 1), active);
@@ -156,7 +157,8 @@ const createClient = ({ fetch: requestFetch = fetch, credentials, wait = delay }
         return id;
       };
       const imageId = await upload(request.image);
-      const seeds = [Math.floor(Math.random() * 0xffffffff)];
+      // A signed 32-bit seed: Gemini refuses a larger one (HTTP 400 on the job, about one time in two)
+      const seeds = [Math.floor(Math.random() * 0x7fffffff)];
       // Image 5 is Adobe's instruction-based editor. Its reference is the source image;
       // it does not accept Fill & Expand's input/mask contract. No model fallback.
       const body = partner ? partnerBody(partner, request, imageId, partner.mask && request.mask ? await upload(request.mask) : null, ...pngSize(request.image), seeds) : image5 ? {
