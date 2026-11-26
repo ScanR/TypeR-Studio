@@ -54,12 +54,10 @@
   }
 
   // What an empty prompt asks: a page cleaned for lettering, the art behind the letters redrawn.
-  // It names the sound effects drawn by hand, however large, in any script: without it, Nano
-  // Banana 2 and Pro kept a big letter over a crowd as if it were a sign. And their white
-  // outline: Firefly Image 5 took the black letters away but left their white outlines on the
-  // screentone. It asks for no new balloon rather than to keep the balloons: told to keep them,
-  // Firefly Image 5 drew one over a sound effect. Measured on seven areas of four pages.
-  const DEFAULT_PROMPT = "Remove every piece of lettering from this comic image: the text in speech balloons and captions, and every hand-drawn sound effect, however large, including Japanese, Korean or Chinese characters, together with the white outline drawn around its letters, so that no trace of the letters or of their outlines is left. Where they were, redraw the artwork behind them so it continues what is around it: the same screentone dots, lines, colours and paper white. Add nothing: no new speech balloon, caption box, panel or object. Change nothing else: same framing, scale and tones.";
+  // It names the sound effects drawn by hand, however large, with their white outline: without
+  // it, Nano Banana 2 and Pro kept a big letter over a crowd as if it were a sign, and Nano
+  // Banana 2.1 left the ghost of the letters in a balloon
+  const DEFAULT_PROMPT = "Remove all lettering from this comic image: the text in speech balloons and captions, and every hand-drawn sound effect, however large, including Japanese, Korean or Chinese characters drawn with a white outline over the art. Keep every speech balloon, its outline and tail, and every panel border where they are, just empty. Where a letter covered artwork, screentone or a background, redraw what was behind it so it continues what is around it, with the same screentone dots, line art, colours and paper white. Change nothing else: same framing, scale and tones.";
   // The models that redraw only a mask (Ideogram, GPT Image) hear what to paint there, not what to
   // erase: told to keep the balloons empty, GPT Image drew an empty balloon over a sound effect
   const MASK_PROMPT = "Fill the selected area so it continues seamlessly what surrounds it: the comic's artwork, its screentone dots, lines, colours and paper white, or the empty inside of a speech balloon. No text, no letters, no sound effect, and nothing new: no balloon, box, panel or object that isn't already around it.";
