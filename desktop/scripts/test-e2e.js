@@ -640,7 +640,7 @@ const main = async () => {
     await page.click(`.menu__list--context .menu__item:has-text("${await page.evaluate(() => window.TypeRApp.T("Drop Shadow…"))}")`);
     await page.waitForSelector("dialog.fxdlg[open]");
     const pane = await page.evaluate(() => ({ current: document.querySelector(".fxdlg__item.is-current").dataset.fx, on: document.querySelector('.fxdlg__item[data-fx="dropShadow"] .fxdlg__switch').checked }));
-    await page.click("dialog.fxdlg .modal__foot .btn:not(.btn--main):not(.fxdlg__newstyle)");
+    await page.click(`dialog.fxdlg .modal__foot .btn:has-text("${await page.evaluate(() => window.TypeRApp.T("Cancel"))}")`);
     step("the Layers panel's fx button opens Layer Style on the effect picked, turned on", pane.current === "dropShadow" && pane.on, JSON.stringify(pane));
     // A pixel layer: Photoshop's Radius is the Gaussian's sigma, an edge becomes its curve
     const blurred = await page.evaluate(() => {
@@ -700,7 +700,7 @@ const main = async () => {
     // As the system's menu bar runs a command (desktop.js): through the page's own menu row
     const menu = (top, label) => page.evaluate(([top, label]) => {
       const App = window.TypeRApp;
-      const item = App.MENUS.find(([name]) => name === top)[1].find((one) => one && one.label === label);
+      const item = App.MENUS.find(([name]) => name === top)[1].flatMap((one) => (one && one.submenu ? [one, ...one.submenu] : [one])).find((one) => one && one.label === label);
       App.renderMenusState();
       item.row.click();
     }, [top, label]);
