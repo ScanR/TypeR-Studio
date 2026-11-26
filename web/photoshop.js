@@ -15350,6 +15350,16 @@
     lt.textShape = [{ textType: "point", orientation: "horizontal" }];
     return params;
   };
+  // The panel's Text Direction ("rtl" or "ltr"), set on every paragraph as Photoshop's
+  // Paragraph panel sets it: in Arabic or Hebrew text, what side a line's dots and other
+  // punctuation fall on. None given: the text keeps its own.
+  const withDirection = (params, direction) => {
+    if (direction !== "rtl" && direction !== "ltr") return params;
+    (params.layerText.paragraphStyleRange || []).forEach((range) => {
+      range.paragraphStyle = Object.assign(range.paragraphStyle || {}, { directionType: direction === "rtl" ? "dirRightToLeft" : "dirLeftToRight" });
+    });
+    return params;
+  };
 
   // Text the panel makes follows the settings for new text, as the Type tool's does. Its
   // styles say English, ligatures and hyphenation on because Photoshop and the panel start
@@ -15508,7 +15518,7 @@
   // the balloon allows, as tall as its lines.
   const classicParams = (doc, data, bounds, point) => {
     const padding = Number(data.padding) || 0;
-    const params = followTextDefaults(paramsFromStyle(scaleForPunctuation(data.style, data.text), data.text, data.richTextRuns, data.textSizeOverride, doc.resolution));
+    const params = withDirection(followTextDefaults(paramsFromStyle(scaleForPunctuation(data.style, data.text), data.text, data.richTextRuns, data.textSizeOverride, doc.resolution)), data.direction);
     const base = params.layerText.textStyleRange[0].textStyle;
     // The enlarged text must not wrap in a box sized for the selection
     const enlarged = !data.textSizeOverride && data.style && isPunctuationOnly(data.text) ? Math.max(1, parseFloat(data.style.punctuationOnlyScale) || 1) : 1;
@@ -15847,6 +15857,8 @@
         const kept = data.preserveActiveTextSize ? shownSize(layer.params.layerText.textStyleRange[0].textStyle) : null;
         const params = paramsFromStyle(style, text, data.richTextRuns, kept, data.style ? doc.resolution : 0);
         if (data.style) followTextDefaults(params, layer);
+        // Only its text pasted, a text turns right to left but isn't turned back, as in Photoshop
+        withDirection(params, data.style || data.direction === "rtl" ? data.direction : null);
         params.layerText.textClickPoint = clone(layer.params.layerText.textClickPoint);
         if (boxShape(layer.params.layerText)) params.layerText.textShape = clone(layer.params.layerText.textShape);
         else centreLayer(doc, params, null, box.xMid, box.yMid);
@@ -15865,7 +15877,7 @@
       if (!doc || !layer) return "layer";
       const box = boxOf(layer, doc);
       const base = layer.params.layerText.textStyleRange[0].textStyle;
-      const params = paramsFromStyle({ textProps: layer.params }, data.text, data.richTextRuns, shownSize(base));
+      const params = withDirection(paramsFromStyle({ textProps: layer.params }, data.text, data.richTextRuns, shownSize(base)), data.direction);
       params.layerText.textClickPoint = clone(layer.params.layerText.textClickPoint);
       const kept = boxShape(layer.params.layerText);
       if (!kept || layer.rotated || layer.warp) {
@@ -15918,6 +15930,7 @@
         const kept = item.preserveActiveTextSize ? shownSize(layer.params.layerText.textStyleRange[0].textStyle) : null;
         const params = paramsFromStyle(item.style ? scaleForPunctuation(item.style, text) : { textProps: layer.params }, text, item.richTextRuns, kept, item.style ? doc.resolution : 0);
         if (item.style) followTextDefaults(params, layer);
+        withDirection(params, item.direction);
         params.layerText.textClickPoint = clone(layer.params.layerText.textClickPoint);
         if (boxShape(layer.params.layerText)) params.layerText.textShape = clone(layer.params.layerText.textShape);
         else centreLayer(doc, params, null, box.xMid, box.yMid);
@@ -15971,7 +15984,7 @@
       selections.forEach((bounds, i) => {
         if (texts[i] == null) return;
         const style = styles[i] || styles[0];
-        const params = classicParams(doc, { text: texts[i], style, richTextRuns: runs[i] || null, textSizeOverride: size, padding: data.padding }, rectFrom(bounds.left, bounds.top, bounds.right, bounds.bottom), modes[i] === undefined ? point !== false : Boolean(modes[i]));
+        const params = classicParams(doc, { text: texts[i], style, richTextRuns: runs[i] || null, textSizeOverride: size, padding: data.padding, direction: data.direction },rectFrom(bounds.left, bounds.top, bounds.right, bounds.bottom), modes[i] === undefined ? point !== false : Boolean(modes[i]));
         const layer = newTextLayer(doc, params, style && style.stroke, texts[i]);
         layer.source = String(texts[i]);
         created.push(layer);
