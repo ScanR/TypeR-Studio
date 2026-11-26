@@ -13,8 +13,8 @@
         "fr": "Toutes les pages du chapitre sur une même surface : dézoomez pour les voir toutes, glissez jusqu’à la suivante et zoomez. La page au milieu de l’écran est celle sur laquelle vous travaillez, et le script la suit."
       },
       "where": {
-        "en": "Settings → Page display",
-        "fr": "Paramètres → Affichage des pages"
+        "en": "View → Flow Mode (Shift+F)",
+        "fr": "Affichage → Mode Flow (Maj+F)"
       },
       "demo": "flow-mode.mp4",
       "poster": "flow-mode.webp",
@@ -180,9 +180,9 @@
       "id": "x-type-units",
       "at": "2026-11-25T11:00:00+01:00",
       "kind": "feat",
-      "text": "Show text sizes, leading and baseline shift in pixels instead of points with Settings > Type units",
+      "text": "Show text sizes, leading and baseline shift in pixels instead of points with Settings → Type units",
       "lang": {
-        "fr": "Affichez la taille du texte, l'interligne et le décalage de la ligne de base en pixels plutôt qu'en points avec Paramètres > Unités du texte"
+        "fr": "Affichez la taille du texte, l’interligne et le décalage de la ligne de base en pixels plutôt qu’en points avec Paramètres → Unités du texte"
       }
     },
     {
