@@ -53,8 +53,16 @@
     adobeStatus().catch(() => {});
   }
 
-  // What an empty prompt asks: a page cleaned for lettering, the art behind the letters redrawn
-  const DEFAULT_PROMPT = "Erase only the lettering in this comic image: the words inside speech balloons and captions, and the sound effects drawn over the art. Keep every speech balloon, its outline and tail, and every panel border exactly where they are, just empty. Where a letter covered artwork, screentone or a background, redraw what was behind it so it continues what is around it. Change nothing else: same framing, scale, line art, screentone, tones and paper white.";
+  // What an empty prompt asks: a page cleaned for lettering, the art behind the letters redrawn.
+  // It names the sound effects drawn by hand, however large, in any script: without it, Nano
+  // Banana 2 and Pro kept a big letter over a crowd as if it were a sign. And their white
+  // outline: Firefly Image 5 took the black letters away but left their white outlines on the
+  // screentone. It asks for no new balloon rather than to keep the balloons: told to keep them,
+  // Firefly Image 5 drew one over a sound effect. Measured on seven areas of four pages.
+  const DEFAULT_PROMPT = "Remove every piece of lettering from this comic image: the text in speech balloons and captions, and every hand-drawn sound effect, however large, including Japanese, Korean or Chinese characters, together with the white outline drawn around its letters, so that no trace of the letters or of their outlines is left. Where they were, redraw the artwork behind them so it continues what is around it: the same screentone dots, lines, colours and paper white. Add nothing: no new speech balloon, caption box, panel or object. Change nothing else: same framing, scale and tones.";
+  // The models that redraw only a mask (Ideogram, GPT Image) hear what to paint there, not what to
+  // erase: told to keep the balloons empty, GPT Image drew an empty balloon over a sound effect
+  const MASK_PROMPT = "Fill the selected area so it continues seamlessly what surrounds it: the comic's artwork, its screentone dots, lines, colours and paper white, or the empty inside of a speech balloon. No text, no letters, no sound effect, and nothing new: no balloon, box, panel or object that isn't already around it.";
   // FLUX on this computer redraws only the selection: it has to hear that the characters drawn
   // over the art are text too, or it keeps a big katakana sound effect as part of the drawing
   const FLUX_PROMPT = "Remove all the text from this manga image: every word, letter and sound effect, including Japanese, Korean and Chinese characters and the large hand-drawn katakana sound effects. Redraw the artwork that was behind them so the line art, screentone and background continue naturally. Keep everything else exactly the same.";
@@ -515,7 +523,7 @@
     if (service === "adobe") {
       const model = modelOf(settings);
       const words = String(prompt || "").trim();
-      const asked = model !== "firefly-fill" ? (words ? `${words}\n\n${KEEP_FRAMING}` : DEFAULT_PROMPT) : words;
+      const asked = model !== "firefly-fill" ? (words ? `${words}\n\n${KEEP_FRAMING}` : model.startsWith("gpt-image-") ? MASK_PROMPT : DEFAULT_PROMPT) : words;
       return viaAdobe({ model, canvas, mask, prompt: asked, size, signal });
     }
     if (isLocal(service)) {
@@ -528,7 +536,7 @@
     if (!key) throw new GenerativeError("nokey");
     const model = modelOf(settings);
     const words = (prompt || "").trim();
-    const asked = words ? `${words}\n\n${KEEP_FRAMING}` : DEFAULT_PROMPT;
+    const asked = words ? `${words}\n\n${KEEP_FRAMING}` : takesMask(service, model) ? MASK_PROMPT : DEFAULT_PROMPT;
     const image = await encode(canvas);
     const masked = mask && takesMask(service, model) ? await encodeMask(mask) : null;
     const run = service === "fal" ? viaFal : viaGoogle;
