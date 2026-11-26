@@ -620,39 +620,108 @@
       worker = null;
     }, LOCAL_IDLE);
   };
+  // The area at the page's own size, drawn in squares of the model's size where the mask is.
+  // Shrunk to one square, a screentone's dots became a grey blur and the area a grid of blotches
+  // (an area of 800 to 1,400 pixels was drawn at 512). Each square keeps only what lies at least
+  // LOCAL_MARGIN inside it, unless it reaches the area's edge; the rest is left to a next square,
+  // which then sees what this one drew around it.
+  const LOCAL_MARGIN = 64;
   const viaLocal = async ({ canvas, mask, signal, onProgress }) => {
-    // The area, square, at the model's size: what is under the black of the mask gets drawn
-    const square = document.createElement("canvas");
-    square.width = LOCAL_SIZE;
-    square.height = LOCAL_SIZE;
-    const sctx = square.getContext("2d", { willReadFrequently: true });
-    sctx.imageSmoothingQuality = "high";
-    sctx.fillStyle = "#fff";
-    sctx.fillRect(0, 0, LOCAL_SIZE, LOCAL_SIZE);
-    sctx.drawImage(canvas, 0, 0, LOCAL_SIZE, LOCAL_SIZE);
-    const image = sctx.getImageData(0, 0, LOCAL_SIZE, LOCAL_SIZE).data;
-    const hole = new Uint8Array(LOCAL_SIZE * LOCAL_SIZE);
+    const N = LOCAL_SIZE;
+    const W = canvas.width;
+    const H = canvas.height;
+    const page = document.createElement("canvas");
+    page.width = W;
+    page.height = H;
+    const pctx = page.getContext("2d", { willReadFrequently: true });
+    pctx.drawImage(canvas, 0, 0);
+    const pixels = pctx.getImageData(0, 0, W, H);
+    // What is under the black of the mask gets drawn. Any grey at its edge counts, so no stroke
+    // of a letter stays half there.
+    const todo = new Uint8Array(W * H);
     if (mask) {
-      sctx.drawImage(mask, 0, 0, LOCAL_SIZE, LOCAL_SIZE);
-      const m = sctx.getImageData(0, 0, LOCAL_SIZE, LOCAL_SIZE).data;
-      // Any grey at the edge of the mask counts, so no stroke of a letter stays half there
-      for (let i = 0; i < hole.length; i++) hole[i] = m[i * 4] < 250 ? 1 : 0;
-    } else hole.fill(1);
-    if (signal && signal.aborted) throw new DOMException("Aborted", "AbortError");
-    const id = ++nextId;
+      pctx.drawImage(mask, 0, 0, W, H);
+      const m = pctx.getImageData(0, 0, W, H).data;
+      for (let i = 0; i < todo.length; i++) todo[i] = m[i * 4] < 250 ? 1 : 0;
+    } else todo.fill(1);
+    let left = W;
+    let top = H;
+    let right = -1;
+    let bottom = -1;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (!todo[y * W + x]) continue;
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+    // Where the squares start along one side: one if the side fits, else every N - 2 margins
+    const starts = (from, to, size) => {
+      if (size <= N) return [0];
+      const out = [];
+      for (let at = from - LOCAL_MARGIN; ; at += N - 2 * LOCAL_MARGIN) {
+        const start = Math.max(0, Math.min(size - N, at));
+        if (!out.includes(start)) out.push(start);
+        if (at + N - LOCAL_MARGIN > to) break;
+      }
+      return out;
+    };
     const thread = startWorker();
     workerJobs += 1;
     try {
-      const answer = await new Promise((resolve, reject) => {
-        pending.set(id, { resolve, reject, onProgress: onProgress || (() => {}) });
-        // A stopped job's answer is let go: the run itself can't be stopped halfway
-        if (signal) signal.addEventListener("abort", () => {
-          if (pending.delete(id)) reject(new DOMException("Aborted", "AbortError"));
-        }, { once: true });
-        thread.postMessage({ id, image: image.buffer, mask: hole.buffer }, [image.buffer, hole.buffer]);
-      });
-      console.info(`TypeR web: LaMa Manga drew in ${answer.ms} ms on ${answer.device === "webgpu" ? "the graphics card" : "the processor"}`);
-      return await createImageBitmap(new ImageData(new Uint8ClampedArray(answer.image), LOCAL_SIZE, LOCAL_SIZE));
+      const tw = Math.min(N, W);
+      const th = Math.min(N, H);
+      for (const sy of right < 0 ? [] : starts(top, bottom, H)) {
+        for (const sx of starts(left, right, W)) {
+          // The square: the page there, white beyond a side shorter than the model's
+          const image = new Uint8ClampedArray(N * N * 4).fill(255);
+          const hole = new Uint8Array(N * N);
+          let any = false;
+          for (let j = 0; j < th; j++) {
+            for (let i = 0; i < tw; i++) {
+              const p = (sy + j) * W + sx + i;
+              const q = j * N + i;
+              image[q * 4] = pixels.data[p * 4];
+              image[q * 4 + 1] = pixels.data[p * 4 + 1];
+              image[q * 4 + 2] = pixels.data[p * 4 + 2];
+              if (todo[p]) {
+                hole[q] = 1;
+                any = true;
+              }
+            }
+          }
+          if (!any) continue;
+          if (signal && signal.aborted) throw new DOMException("Aborted", "AbortError");
+          const id = ++nextId;
+          const answer = await new Promise((resolve, reject) => {
+            pending.set(id, { resolve, reject, onProgress: onProgress || (() => {}) });
+            // A stopped job's answer is let go: the run itself can't be stopped halfway
+            if (signal) signal.addEventListener("abort", () => {
+              if (pending.delete(id)) reject(new DOMException("Aborted", "AbortError"));
+            }, { once: true });
+            thread.postMessage({ id, image: image.buffer, mask: hole.buffer }, [image.buffer, hole.buffer]);
+          });
+          console.info(`TypeR web: LaMa Manga drew in ${answer.ms} ms on ${answer.device === "webgpu" ? "the graphics card" : "the processor"}`);
+          const drawn = new Uint8ClampedArray(answer.image);
+          for (let j = 0; j < th; j++) {
+            const inY = (j >= LOCAL_MARGIN || sy === 0) && (j < th - LOCAL_MARGIN || sy + th >= H);
+            if (!inY) continue;
+            for (let i = 0; i < tw; i++) {
+              const p = (sy + j) * W + sx + i;
+              if (!todo[p] || !((i >= LOCAL_MARGIN || sx === 0) && (i < tw - LOCAL_MARGIN || sx + tw >= W))) continue;
+              const q = (j * N + i) * 4;
+              pixels.data[p * 4] = drawn[q];
+              pixels.data[p * 4 + 1] = drawn[q + 1];
+              pixels.data[p * 4 + 2] = drawn[q + 2];
+              todo[p] = 0;
+            }
+          }
+        }
+      }
+      pctx.putImageData(pixels, 0, 0);
+      return await createImageBitmap(page);
     } finally {
       releaseWorker();
     }

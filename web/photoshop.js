@@ -13599,12 +13599,16 @@
         if (z > limit) return [limit - Math.round(length), limit];
         return [Math.round(a), Math.round(a) + Math.round(length)];
       };
-      // A fixed square bigger than the area: the area grows to it, so nothing is scaled
-      if (fixed && x1 - x0 < fixed && y1 - y0 < fixed) {
+      // A model that draws a fixed square (LaMa) gets the page at its own size, never scaled: a
+      // side shorter than the square grows to it, and a bigger area is drawn square by square
+      // (see viaLocal in generative.js)
+      if (fixed && x1 - x0 < fixed) {
         const cx = (x0 + x1) / 2;
-        const cy = (y0 + y1) / 2;
         x0 = cx - fixed / 2;
         x1 = cx + fixed / 2;
+      }
+      if (fixed && y1 - y0 < fixed) {
+        const cy = (y0 + y1) / 2;
         y0 = cy - fixed / 2;
         y1 = cy + fixed / 2;
       }
@@ -13624,9 +13628,9 @@
       actx.drawImage(drawn, 0, 0);
       // A big area goes smaller, a small one bigger: the models draw at one to four megapixels
       // anyway, and some refuse a picture under 256 pixels a side
-      const LONGEST = fixed || longest || 2048;
-      const SHORTEST = fixed || 512;
-      const scale = Math.min(LONGEST / Math.max(width, height), Math.max(1, SHORTEST / Math.min(width, height)));
+      const LONGEST = longest || 2048;
+      const SHORTEST = 512;
+      const scale = fixed ? 1 : Math.min(LONGEST / Math.max(width, height), Math.max(1, SHORTEST / Math.min(width, height)));
       let sent = area;
       if (scale !== 1) {
         sent = newCanvas(Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale)));
