@@ -6290,6 +6290,7 @@
         inPlace: Gen.drawsInPlace(job.account),
         matchTones: job.account.matchTones !== false,
         longest: Gen.longestFor(job.account),
+        context: Gen.contextFor(job.account),
         folder: job.folder,
         settle: settleFor(job),
         draw: async (canvas, info) => {

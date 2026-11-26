@@ -13563,10 +13563,12 @@
     // on this device): the area is that square at the page's own size when the selection fits
     // in it, and the picture needs no aligning. `inPlace`: the picture needs no aligning either
     // (FLUX on this computer, which redraws only the selection); `longest`: its largest side.
+    // `context`: how much of the page around the selection the model sees, in percent of the
+    // selection's larger side (40 unless said).
     // `folder`: { name, id }, for Remove Text: the layer goes in that folder, made under the
     // texts the first time (its id kept in `folder.id`) and made again if it was deleted.
     // `matchTones`: the inside then brought to the brightness of the page that borders it.
-    async generativeFill({ draw, ratios, name, settle, doc: wanted, selection: chosen, activeIds, hide, fixed, inPlace: drawnInPlace, longest, folder, matchTones: tones }, progress = () => {}) {
+    async generativeFill({ draw, ratios, name, settle, doc: wanted, selection: chosen, activeIds, hide, fixed, inPlace: drawnInPlace, longest, context, folder, matchTones: tones }, progress = () => {}) {
       const inPlace = Boolean(fixed || drawnInPlace);
       const doc = wanted || app.doc;
       if (!doc || !app.docs.includes(doc)) return { outcome: "gone" };
@@ -13576,7 +13578,7 @@
       const activeAtStart = (activeIds || doc.state.activeIds).slice();
       const sizeAtStart = [doc.width, doc.height];
       // Enough around the selection for the model to see the art it continues
-      const reach = Math.max(48, Math.round(Math.max(b.width, b.height) * 0.4));
+      const reach = Math.max(48, Math.round((Math.max(b.width, b.height) * (context || 40)) / 100));
       let x0 = b.left - reach;
       let y0 = b.top - reach;
       let x1 = b.right + reach;

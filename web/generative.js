@@ -324,6 +324,11 @@
   // FLUX on this computer: its time grows faster than the area, so the area goes no bigger than
   // this (a 600 × 900 area took 166 s on an M4, 560 × 560 about 55 s)
   const longestFor = (settings) => (isLocal(settings.service) && isFlux(modelOf(settings)) ? 768 : 0);
+  // How much of the page around the selection a model sees, in percent of the selection's larger
+  // side. FLUX less than the others: with 40, a sound effect's area (800 to 1,400 pixels) went to
+  // it shrunk to 768 and its screentone came back grey; with 15 it fits nearly whole, and three
+  // sound effects came back sharper and joined the page better, a fifth faster
+  const contextFor = (settings) => (isLocal(settings.service) && isFlux(modelOf(settings)) ? 15 : 40);
 
   // The shapes the models draw: the area sent grows to the nearest one, so nothing is squeezed
   const RATIOS = ["1:1", "4:5", "5:4", "3:4", "4:3", "2:3", "3:2", "9:16", "16:9", "21:9"];
@@ -882,5 +887,5 @@
     }
   };
 
-  window.TypeRGenerative = { SERVICES, DEFAULT_PROMPT, LOCAL_SIZE, LAMA_SIZE, load, save, modelOf, modelsOf, slugOf, ready, isLocal, isFlux, takesPrompt, fixedSize, drawsInPlace, longestFor, localReady, localDownload, localStatus, localRemove, ratiosFor, generate, GenerativeError, qualitiesOf, qualityOf, priceOf, costOf, refreshPrices, spent, resetSpent, adobeStatus, adobeConnect, adobeDisconnect, adobeCredits };
+  window.TypeRGenerative = { SERVICES, DEFAULT_PROMPT, LOCAL_SIZE, LAMA_SIZE, load, save, modelOf, modelsOf, slugOf, ready, isLocal, isFlux, takesPrompt, fixedSize, drawsInPlace, longestFor, contextFor, localReady, localDownload, localStatus, localRemove, ratiosFor, generate, GenerativeError, qualitiesOf, qualityOf, priceOf, costOf, refreshPrices, spent, resetSpent, adobeStatus, adobeConnect, adobeDisconnect, adobeCredits };
 })();
