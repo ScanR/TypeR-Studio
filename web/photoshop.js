@@ -11294,7 +11294,9 @@
       const doc = app.doc;
       const layer = doc && activeRaster(doc);
       if (!layer || layer.adjustment) return false;
-      if (lockOf(layer, "pixels") || lockOf(layer, "transparency")) {
+      // A Background's own locks (its transparency and its place, which a PSD's keeps) don't
+      // stop it: it becomes a layer, without them
+      if (lockOf(layer, "pixels") || (!layer.isBackground && lockOf(layer, "transparency"))) {
         emit("layer-locked");
         return false;
       }
@@ -11302,7 +11304,7 @@
       if (!region) return false;
       const op = { t: "fill", erase: true, clip: { canvas: region.canvas, x: region.x - (layer.dx || 0), y: region.y - (layer.dy || 0) } };
       const changes = { paint: (layer.paint || NONE).concat([op]) };
-      if (layer.isBackground) Object.assign(changes, { isBackground: false, name: `${(app.names && app.names.layer) || "Layer"} 0` });
+      if (layer.isBackground) Object.assign(changes, { isBackground: false, locks: undefined, name: `${(app.names && app.names.layer) || "Layer"} 0` });
       commitState(doc, "Magic Eraser", { layers: replaceLayer(doc, layer, changes) });
       return true;
     },
