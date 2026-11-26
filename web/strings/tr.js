@@ -1081,6 +1081,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "The model sent no picture back.": "Model hiç görsel döndürmedi.",
     "{service} couldn't be reached.": "{service} hizmetine ulaşılamadı.",
     "Generative Fill didn't go through.": "Üretken Dolgu tamamlanamadı.",
+    "Adobe lost this generation on its side, often for a moment. Try again, or choose fal.ai or Google in Generative Fill's settings.": "Adobe bu üretimi kendi tarafında kaybetti, çoğu zaman yalnızca kısa bir süre için. Yeniden deneyin ya da Üretken Dolgu ayarlarından fal.ai veya Google'ı seçin.",
     "The page was closed meanwhile.": "Bu arada sayfa kapatıldı.",
     "Leave the prompt empty to take the text out and redraw what it hid.": "Metni kaldırıp gizlediği yeri yeniden çizmek için istemi boş bırakın.",
     "Generate": "Üret",

@@ -1081,6 +1081,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "The model sent no picture back.": "模型没有返回图像。",
     "{service} couldn't be reached.": "无法连接到 {service}。",
     "Generative Fill didn't go through.": "创成式填充未完成。",
+    "Adobe lost this generation on its side, often for a moment. Try again, or choose fal.ai or Google in Generative Fill's settings.": "Adobe 在其服务端丢失了这次生成，通常只是暂时的。请重试，或在创成式填充设置中选择 fal.ai 或 Google。",
     "The page was closed meanwhile.": "页面在此期间已关闭。",
     "Leave the prompt empty to take the text out and redraw what it hid.": "提示词留空即可去除文字并重绘被遮住的部分。",
     "Generate": "生成",

@@ -1081,6 +1081,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "The model sent no picture back.": "Mô hình không trả về hình ảnh nào.",
     "{service} couldn't be reached.": "Không thể kết nối tới {service}.",
     "Generative Fill didn't go through.": "Tô tạo sinh không thành công.",
+    "Adobe lost this generation on its side, often for a moment. Try again, or choose fal.ai or Google in Generative Fill's settings.": "Adobe đã làm mất lần tạo này ở phía họ, thường chỉ trong chốc lát. Hãy thử lại, hoặc chọn fal.ai hay Google trong cài đặt Tô tạo sinh.",
     "The page was closed meanwhile.": "Trang đã bị đóng trong lúc đó.",
     "Leave the prompt empty to take the text out and redraw what it hid.": "Để trống câu lệnh để xóa chữ và vẽ lại phần chữ đã che.",
     "Generate": "Tạo",

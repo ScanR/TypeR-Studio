@@ -181,6 +181,24 @@ test("partner HTTP 408 identifies the failing stage without retrying or revealin
   }
 });
 
+test("a job's status answering 400 is checked again, without sending the generation again", async () => {
+  for (const [failures, kind] of [[2, null], [9, "adobejob"]]) {
+    let submits = 0;
+    let checks = 0;
+    const client = clientFor(async url => {
+      if (url.includes("storage/image")) return reply({ images: [{ id: "ref" }] });
+      if (url.includes("generate-async")) { submits++; return reply({ links: { result: { href: "https://bks-epo42.adobe.io/jobs/result/test" } } }, 202); }
+      if (url.includes("jobs/result")) return ++checks <= failures ? reply({ error_code: "bad_request" }, 400) : reply(output);
+      return new Response(png());
+    });
+    const generation = client.generate({ model: "gemini-nano-banana-2.1", image: png(), prompt: "x" });
+    if (kind) await assert.rejects(generation, (error) => error.kind === kind && /Adobe HTTP 400 \(bad_request\)/.test(error.message));
+    else assert.deepEqual(await generation, new Uint8Array(png()));
+    assert.equal(submits, 1);
+    assert.equal(checks, kind ? 4 : failures + 1);
+  }
+});
+
 test("cancelling a pending Adobe job invokes its cancel URL", async () => {
   const controller = new AbortController();
   let cancelled = false;

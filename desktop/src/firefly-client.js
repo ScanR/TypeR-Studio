@@ -126,10 +126,26 @@ const createClient = ({ fetch: requestFetch = fetch, credentials, wait = delay }
       });
       if (!response.ok) {
         const error = await errorOf(response);
+        error.status = response.status;
         error.message += ` [${phase}, ${Math.round((Date.now() - started) / 1000)}s]`;
         throw error;
       }
       return response;
+    };
+    // A job Adobe has just accepted sometimes answers its first checks with a 400 or a server
+    // error, then finishes: checking again costs nothing and sends no new generation. Still
+    // failing, the job is said lost, not the picture refused.
+    const poll = async (url) => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          return await send(url, {}, false, "status");
+        } catch (error) {
+          const passing = error instanceof FireflyError && error.kind === "other" && (error.status === 400 || error.status >= 500);
+          if (!passing) throw error;
+          if (attempt >= 3) throw new FireflyError("adobejob", error.message);
+          await wait(2000 * (attempt + 1), active);
+        }
+      }
     };
     try {
       progress({ phase: "start" });
@@ -171,7 +187,7 @@ const createClient = ({ fetch: requestFetch = fetch, credentials, wait = delay }
         if (result.outputs?.length && (!instructionEdit || !status || status === "COMPLETED")) break;
         if (!pollUrl) throw new FireflyError("noimage", "Adobe returned no image or job.");
         await wait(Math.min(10000, Math.max(1000, (Number(response.headers.get("retry-after")) || 2) * 1000)), active);
-        response = await send(pollUrl, {}, false, "status");
+        response = await poll(pollUrl);
         result = await json(response);
         if (nextPoll()) pollUrl = jobUrl(nextPoll());
       }

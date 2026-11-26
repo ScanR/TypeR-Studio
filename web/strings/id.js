@@ -1081,6 +1081,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "The model sent no picture back.": "Model tidak mengirim gambar apa pun.",
     "{service} couldn't be reached.": "{service} tidak dapat dihubungi.",
     "Generative Fill didn't go through.": "Isian Generatif gagal.",
+    "Adobe lost this generation on its side, often for a moment. Try again, or choose fal.ai or Google in Generative Fill's settings.": "Adobe kehilangan generasi ini di pihaknya, sering kali hanya sesaat. Coba lagi, atau pilih fal.ai atau Google di pengaturan Isian Generatif.",
     "The page was closed meanwhile.": "Halaman ditutup sementara itu.",
     "Leave the prompt empty to take the text out and redraw what it hid.": "Biarkan prompt kosong untuk menghapus teks dan menggambar ulang yang tertutup.",
     "Generate": "Buat",

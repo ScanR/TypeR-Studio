@@ -1081,6 +1081,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "The model sent no picture back.": "لم يُرجع النموذج أي صورة.",
     "{service} couldn't be reached.": "تعذّر الوصول إلى {service}.",
     "Generative Fill didn't go through.": "لم تكتمل التعبئة التوليدية.",
+    "Adobe lost this generation on its side, often for a moment. Try again, or choose fal.ai or Google in Generative Fill's settings.": "فقدت Adobe هذا التوليد من جهتها، وغالبًا لبرهة فقط. أعد المحاولة، أو اختر fal.ai أو Google في إعدادات التعبئة التوليدية.",
     "The page was closed meanwhile.": "أُغلقت الصفحة في هذه الأثناء.",
     "Leave the prompt empty to take the text out and redraw what it hid.": "اترك الطلب فارغًا لإزالة النص وإعادة رسم ما كان يخفيه.",
     "Generate": "توليد",

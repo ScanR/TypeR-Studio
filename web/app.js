@@ -6204,6 +6204,7 @@
     switch (error && error.kind) {
       case "adobeauth": return T("Reconnect to Adobe in Generative Fill settings.");
       case "adobeaccess": return T("Adobe refused access to Firefly. Check your plan and account on the Firefly website.") + detail;
+      case "adobejob": return T("Adobe lost this generation on its side, often for a moment. Try again, or choose fal.ai or Google in Generative Fill's settings.");
       case "download": return fill(T("{model} couldn't be downloaded. Check the connection and try again."), { model: modelName(settings) }) + detail;
       case "local": return (Gen.isFlux(Gen.modelOf(settings)) ? fill(T("{model} couldn't run on this computer."), { model: modelName(settings) }) : IN_APP ? T("LaMa Manga couldn't run on this device.") : T("LaMa Manga couldn't run in this browser.")) + detail;
       case "key": return fill(T("{service} refused the key. Check it in Generative Fill's settings."), { service }) + detail;

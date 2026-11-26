@@ -1081,6 +1081,7 @@ window.TYPER_WEB_STRINGS = Object.assign(window.TYPER_WEB_STRINGS || {}, {
     "The model sent no picture back.": "모델이 이미지를 보내지 않았습니다.",
     "{service} couldn't be reached.": "{service}에 연결할 수 없습니다.",
     "Generative Fill didn't go through.": "생성형 채우기에 실패했습니다.",
+    "Adobe lost this generation on its side, often for a moment. Try again, or choose fal.ai or Google in Generative Fill's settings.": "Adobe 쪽에서 이 생성이 유실되었습니다. 대개 잠시뿐입니다. 다시 시도하거나 생성형 채우기 설정에서 fal.ai 또는 Google을 선택하세요.",
     "The page was closed meanwhile.": "그사이 페이지가 닫혔습니다.",
     "Leave the prompt empty to take the text out and redraw what it hid.": "프롬프트를 비워 두면 글자를 지우고 가려진 부분을 다시 그립니다.",
     "Generate": "생성",
