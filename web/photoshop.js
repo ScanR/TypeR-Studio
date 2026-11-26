@@ -5359,8 +5359,96 @@
     return layer && layer.mask ? layer : null;
   };
 
+  // The part of a mask a stroke or a fill can touch, in the mask's own pixels: { left, top,
+  // right, bottom }, or null when it can be anywhere
+  const maskOpReaches = new WeakMap();
+  const maskOpReach = (op) => {
+    if (maskOpReaches.has(op)) return maskOpReaches.get(op);
+    let reach = null;
+    const sized = (x, y, width, height) => ({ left: Math.floor(x) - 1, top: Math.floor(y) - 1, right: Math.ceil(x + width) + 1, bottom: Math.ceil(y + height) + 1 });
+    const clipped = (clip) => (clip.canvas ? sized(clip.x, clip.y, clip.canvas.width, clip.canvas.height) : sized(clip.x, clip.y, clip.width, clip.height));
+    if (op.t === "stroke" && op.points.length) {
+      // Each piece is drawn on a box of its own (see strokeBox): none goes past this
+      const far = (op.size || 1) + 4;
+      reach = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+      op.points.forEach(([x, y]) => {
+        reach.left = Math.min(reach.left, Math.floor(x - far));
+        reach.top = Math.min(reach.top, Math.floor(y - far));
+        reach.right = Math.max(reach.right, Math.ceil(x + far));
+        reach.bottom = Math.max(reach.bottom, Math.ceil(y + far));
+      });
+    } else if (op.t === "gradient") reach = sized(op.x, op.y, op.width, op.height);
+    else if (op.t === "fill" && op.clip) reach = clipped(op.clip);
+    else if (op.t === "pixels") op.pieces.forEach((piece) => { reach = unionOf(reach, sized(piece.x, piece.y, piece.canvas.width, piece.canvas.height)); });
+    maskOpReaches.set(op, reach);
+    return reach;
+  };
+
+  // Undo of a stroke on a mask starts from the nearest picture saved along the way, as a painted
+  // layer's does (see markRaster), not from the first stroke: every MARK_EVERY steps, the part
+  // of the mask its strokes reach so far. For a letter's mask that is the letter, not the page.
+  const MASK_MARKS_BYTES = 24 * 1024 * 1024;
+  const maskMarkFits = (mark, entry) => mark.whole || (mark.x0 === entry.x0 && mark.y0 === entry.y0 && mark.x1 === entry.x1 && mark.y1 === entry.y1);
+  const markMask = (entry, paint, count) => {
+    if (entry.marks.some((mark) => mark.count === count && mark.ops[count - 1] === paint[count - 1] && maskMarkFits(mark, entry))) return;
+    let area = null;
+    for (let i = 0; i < count; i++) {
+      const reach = maskOpReach(paint[i]);
+      if (!reach) return;
+      area = unionOf(area, reach);
+    }
+    if (!area) return;
+    const part = { left: Math.max(area.left, entry.x0), top: Math.max(area.top, entry.y0), right: Math.min(area.right, entry.x1), bottom: Math.min(area.bottom, entry.y1) };
+    if (emptyRect(part)) return;
+    const [w, h] = [part.right - part.left, part.bottom - part.top];
+    const canvas = newCanvas(w, h);
+    canvas.getContext("2d").drawImage(entry.canvas, part.left - entry.x0, part.top - entry.y0, w, h, 0, 0, w, h);
+    // `whole`: none of it was cut by the canvas, so it holds for the mask wherever it moves
+    const whole = part.left === area.left && part.top === area.top && part.right === area.right && part.bottom === area.bottom;
+    entry.marks.push({ ops: paint.slice(0, count), count, canvas, left: part.left, top: part.top, whole, x0: entry.x0, y0: entry.y0, x1: entry.x1, y1: entry.y1 });
+    let bytes = entry.marks.reduce((sum, mark) => sum + mark.canvas.width * mark.canvas.height * 4, 0);
+    while (bytes > MASK_MARKS_BYTES && entry.marks.length > 1) {
+      const gone = entry.marks.shift();
+      bytes -= gone.canvas.width * gone.canvas.height * 4;
+    }
+  };
+  // The canvas as it was at a mark: only where the steps made since reach
+  const backToMark = (entry, mask, mark) => {
+    let area = null;
+    let all = false;
+    for (let i = mark.count; i < entry.paint.length && !all; i++) {
+      const reach = maskOpReach(entry.paint[i]);
+      if (reach) area = unionOf(area, reach);
+      else all = true;
+    }
+    const box = all ? { left: entry.x0, top: entry.y0, right: entry.x1, bottom: entry.y1 } : area && { left: Math.max(area.left, entry.x0), top: Math.max(area.top, entry.y0), right: Math.min(area.right, entry.x1), bottom: Math.min(area.bottom, entry.y1) };
+    if (box && !emptyRect(box)) {
+      const { ctx } = entry;
+      const [w, h] = [box.right - box.left, box.bottom - box.top];
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(box.left, box.top, w, h);
+      ctx.clip();
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "#000";
+      ctx.clearRect(box.left, box.top, w, h);
+      if (entry.defaultColor) ctx.fillRect(box.left, box.top, w, h);
+      if (entry.base) {
+        ctx.clearRect(0, 0, entry.base.width, entry.base.height);
+        ctx.drawImage(maskAlpha(mask), 0, 0);
+      }
+      ctx.clearRect(mark.left, mark.top, mark.canvas.width, mark.canvas.height);
+      ctx.drawImage(mark.canvas, mark.left, mark.top);
+      ctx.restore();
+    }
+    entry.paint = mark.ops;
+    entry.version++;
+  };
+
   // A painted mask keeps one canvas of alpha, over the page and its picture, and only draws
-  // what is new, as a painted layer does
+  // what is new, as a painted layer does. It moves with its layer: what it had drawn is kept,
+  // and only the part of the page it didn't cover is drawn from its strokes.
   const maskCache = new Map();
   const maskEntry = (holder, doc) => {
     const mask = holder.mask;
@@ -5368,13 +5456,25 @@
     const [ox, oy] = maskOrigin(holder);
     const base = mask.canvas || null;
     let entry = maskCache.get(holder.id);
+    const live = Boolean(doc.liveStroke && doc.liveStroke.target && doc.liveStroke.holderId === holder.id);
     const x0 = Math.floor(Math.min(-ox, base ? 0 : Infinity));
     const y0 = Math.floor(Math.min(-oy, base ? 0 : Infinity));
     const x1 = Math.ceil(Math.max(doc.width - ox, base ? base.width : -Infinity));
     const y1 = Math.ceil(Math.max(doc.height - oy, base ? base.height : -Infinity));
     const covers = entry && entry.x0 <= x0 && entry.y0 <= y0 && entry.x1 >= x1 && entry.y1 >= y1;
-    const usable = covers && entry.docId === doc.id && entry.base === base && entry.defaultColor === Boolean(mask.defaultColor) && entry.paint.length <= paint.length && entry.paint.every((op, i) => op === paint[i]);
-    if (!usable) {
+    // The same mask: its picture and its colour all round, whatever was painted since
+    const kin = Boolean(entry && entry.docId === doc.id && entry.base === base && entry.defaultColor === Boolean(mask.defaultColor));
+    const drawn = () => entry.paint.length <= paint.length && entry.paint.every((op, i) => op === paint[i]);
+    // Steps undone: back to the last mark they all come after
+    if (kin && !live && !drawn()) {
+      let mark = null;
+      entry.marks.forEach((item) => {
+        if (item.count <= paint.length && (!mark || item.count > mark.count) && maskMarkFits(item, entry) && item.ops.every((op, i) => op === paint[i] && op === entry.paint[i])) mark = item;
+      });
+      if (mark) backToMark(entry, mask, mark);
+    }
+    const same = kin && drawn();
+    if (!same || !covers) {
       const canvas = newCanvas(x1 - x0, y1 - y0);
       const ctx = canvas.getContext("2d");
       if (mask.defaultColor) ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -5383,15 +5483,48 @@
         ctx.clearRect(0, 0, base.width, base.height);
         ctx.drawImage(maskAlpha(mask), 0, 0);
       }
-      entry = { canvas, ctx, x0, y0, x1, y1, base, defaultColor: Boolean(mask.defaultColor), paint: NONE, version: 0, docId: doc.id };
+      // What the canvas before and this one both hold, in the mask's pixels
+      const held = same ? { left: Math.max(entry.x0, x0), top: Math.max(entry.y0, y0), right: Math.min(entry.x1, x1), bottom: Math.min(entry.y1, y1) } : null;
+      let done = NONE;
+      if (held && !emptyRect(held)) {
+        const [w, h] = [held.right - held.left, held.bottom - held.top];
+        ctx.clearRect(held.left, held.top, w, h);
+        ctx.drawImage(entry.canvas, held.left - entry.x0, held.top - entry.y0, w, h, held.left, held.top, w, h);
+        // All round it, the strokes that reach there, in their order
+        done = entry.paint;
+        [
+          { left: x0, top: y0, right: x1, bottom: held.top },
+          { left: x0, top: held.bottom, right: x1, bottom: y1 },
+          { left: x0, top: held.top, right: held.left, bottom: held.bottom },
+          { left: held.right, top: held.top, right: x1, bottom: held.bottom },
+        ].forEach((strip) => {
+          if (emptyRect(strip)) return;
+          const reaching = done.filter((op) => {
+            const reach = maskOpReach(op);
+            return !reach || (reach.left < strip.right && reach.right > strip.left && reach.top < strip.bottom && reach.bottom > strip.top);
+          });
+          if (!reaching.length) return;
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(strip.left, strip.top, strip.right - strip.left, strip.bottom - strip.top);
+          ctx.clip();
+          reaching.forEach((op) => maskDrawOp(ctx, op));
+          ctx.restore();
+        });
+      }
+      const replaced = entry;
+      entry = { canvas, ctx, x0, y0, x1, y1, base, defaultColor: Boolean(mask.defaultColor), paint: done, version: done.length ? replaced.version + 1 : 0, docId: doc.id, marks: kin ? replaced.marks : [] };
       maskCache.set(holder.id, entry);
       if (maskCache.size > 24) maskCache.delete(maskCache.keys().next().value);
     }
     if (entry.paint.length < paint.length) {
-      for (let i = entry.paint.length; i < paint.length; i++) maskDrawOp(entry.ctx, paint[i]);
+      for (let i = entry.paint.length; i < paint.length; i++) {
+        maskDrawOp(entry.ctx, paint[i]);
+        if ((i + 1) % MARK_EVERY === 0 && !live) markMask(entry, paint, i + 1);
+      }
       entry.paint = paint;
       entry.version++;
-    }
+    } else if (!live && paint.length && paint.length % MARK_EVERY === 0) markMask(entry, paint, paint.length);
     return entry;
   };
 
