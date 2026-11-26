@@ -383,7 +383,7 @@
   };
 
   const BEHIND_WORDS = {
-    fr: ["TypeR Studio {v} est disponible (vous avez la {mine}).", "Mettre à jour", "Plus tard", "Une fois le fichier téléchargé, fermez TypeR Studio et ouvrez-le pour installer la mise à jour. Vos pages et vos réglages sont conservés."],
+    fr: ["TypeR Studio {v} est disponible (vous avez la {mine}).", "Mettre à jour", "Plus tard", "Une fois le fichier téléchargé, fermez TypeR Studio puis ouvrez le fichier pour installer la mise à jour. Vos pages et vos réglages sont conservés."],
     es: ["TypeR Studio {v} está disponible (tienes la {mine}).", "Actualizar", "Más tarde", "Cuando termine la descarga, cierra TypeR Studio y abre el archivo para instalar la actualización. Tus páginas y ajustes se conservan."],
     it: ["È disponibile TypeR Studio {v} (hai la {mine}).", "Aggiorna", "Più tardi", "Al termine del download, chiudi TypeR Studio e apri il file per installare l'aggiornamento. Pagine e impostazioni vengono mantenute."],
     de: ["TypeR Studio {v} ist verfügbar (du hast {mine}).", "Aktualisieren", "Später", "Wenn der Download fertig ist, schließe TypeR Studio und öffne die Datei, um das Update zu installieren. Deine Seiten und Einstellungen bleiben erhalten."],

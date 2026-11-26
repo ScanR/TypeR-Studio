@@ -1992,7 +1992,7 @@
       cell.disabled = true;
       return;
     }
-    cell.setAttribute("aria-label", T(open ? "Collapse" : "Expand"));
+    cell.setAttribute("aria-label", TL(open ? "Actions: Collapse" : "Actions: Expand", open ? "Collapse" : "Expand"));
     cell.addEventListener("click", (event) => {
       event.stopPropagation();
       flip();
