@@ -8,10 +8,13 @@ const { fetchCredits } = require("./firefly-credits");
 const HOME = "https://firefly.adobe.com/generate/image?view=edit";
 const PARTITION = "persist:typer-adobe-firefly";
 const AUTH_HOSTS = ["adobe.com", "adobelogin.com", "adobe.io", "google.com", "apple.com", "facebook.com", "microsoftonline.com", "live.com"];
+// After a social sign-in (Facebook), Adobe passes the session through its other sites' sign-on
+// hosts before returning to the popup's opener. Only these exact hosts, not the whole domains.
+const SSO_HOSTS = ["sso.behance.net"];
 const authUrl = (value) => {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password && AUTH_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
+    return url.protocol === "https:" && !url.username && !url.password && (SSO_HOSTS.includes(url.hostname) || AUTH_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`)));
   } catch { return false; }
 };
 // This script is fixed, never constructed from editor input. Called only on firefly.adobe.com.
