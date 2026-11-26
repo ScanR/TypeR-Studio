@@ -1725,14 +1725,29 @@
     return layout.box;
   };
 
-  // The box the handles sit on: a paragraph's own box, the room a point text takes
-  const frameOf = (layer, doc) => {
+  // The paragraph box of a text: its own wrapping box, or where one starts if converted from
+  // point text (top at anchor - firstOffset so the first baseline stays where it is)
+  const textBoxOf = (layer, doc) => {
     if (layer.kind !== "text" || layer.rotated || meshOn(layer)) return boxOf(layer, doc);
     if (layer.warp) return boundsOfPoints(surfaceEdge(layer.warp, 0, 0, 1, 1));
     const layout = layoutLayer(layer, doc);
     if (layout.frame) return layout.frame;
     if (layer.raster) return boxOf(layer, doc);
     const b = layout.box;
+    return rectFrom(b.left, layout.anchor[1] - layout.relative.firstOffset, b.right, Math.max(b.bottom, layout.anchor[1] - layout.relative.firstOffset + 1));
+  };
+
+  // The selection frame around a text's content, as Photoshop's transform controls draw it:
+  // tightly around the letters (whether point text or paragraph text), falling back on the
+  // paragraph box or the first line while the text is still empty
+  const frameOf = (layer, doc) => {
+    if (layer.kind !== "text" || layer.rotated || meshOn(layer)) return boxOf(layer, doc);
+    if (layer.warp) return boundsOfPoints(surfaceEdge(layer.warp, 0, 0, 1, 1));
+    if (layer.raster) return boxOf(layer, doc);
+    const layout = layoutLayer(layer, doc);
+    const b = layout.box;
+    if (b.right > b.left || b.bottom > b.top) return b;
+    if (layout.frame) return layout.frame;
     return rectFrom(b.left, layout.anchor[1] - layout.relative.firstOffset, b.right, Math.max(b.bottom, layout.anchor[1] - layout.relative.firstOffset + 1));
   };
 
@@ -14292,8 +14307,9 @@
       // Every line, the ones a box too small doesn't show too: nothing typed gets lost
       const rows = layout.relative.wrapped.map((runs) => ({ runs }));
       if (!boxShape(layer.params.layerText)) {
-        const f = frameOf(layer, doc);
-        ops.setTextFrame(layer, { left: f.left, top: f.top, width: f.width + 2, height: f.height, autoHeight: true });
+        const f = textBoxOf(layer, doc);
+        const widest = layout.relative.lines.reduce((max, line) => Math.max(max, line.m.advance), 0);
+        ops.setTextFrame(layer, { left: f.left, top: f.top, width: Math.max(f.width, widest) + 2, height: f.height, autoHeight: true });
         return;
       }
       const params = clone(layer.params);
@@ -15470,17 +15486,19 @@
   // wraps again; its ink stays where it was
   const asParagraph = (layer, doc) => {
     const ink = boxOf(layer, doc);
-    const f = frameOf(layer, doc);
+    const rel = relativeLayout(layer.params.layerText, doc.resolution);
+    const f = textBoxOf(layer, doc);
     const params = clone(layer.params);
     const lt = params.layerText;
-    const lines = relativeLayout(lt, doc.resolution).lines.length;
+    const lines = rel.lines.length;
     const size = sizePxOf(lt.textStyleRange[0].textStyle, doc.resolution);
     lt.textClickPoint = { horizontal: (f.left / doc.width) * 100, vertical: (f.top / doc.height) * 100 };
-    let width = f.width + size + 2;
-    for (let attempt = 0; attempt < 4; attempt++) {
+    const widest = rel.lines.reduce((max, line) => Math.max(max, line.m.advance), 0);
+    let width = Math.max(f.width, widest) + 2;
+    for (let attempt = 0; attempt < 5; attempt++) {
       lt.textShape = [{ textType: "box", orientation: "horizontal", box: { width, height: Math.max(1, f.height), autoHeight: true, verticalAlign: app.textDefaults.verticalAlign } }];
       if (relativeLayout(lt, doc.resolution).lines.length <= lines) break;
-      width += size * 2;
+      width += size * (attempt < 2 ? 0.5 : 1.5);
     }
     return centredOn(Object.assign({}, layer, { params, raster: null }), doc, ink.xMid, ink.yMid);
   };
@@ -15859,7 +15877,7 @@
       // its middle, when a line is wider than it or the lines need more height
       const lt = params.layerText;
       const shape = clone(kept);
-      const before = frameOf(layer, doc);
+      const before = textBoxOf(layer, doc);
       let widest = 0;
       relativeLayout(Object.assign({}, lt, { textShape: [{ textType: "point" }] }), doc.resolution).lines.forEach((line) => { widest = Math.max(widest, line.m.advance); });
       if (widest + 1 > shape.box.width) {
@@ -15879,7 +15897,7 @@
       let next = Object.assign({}, layer, { params, raster: null, manualBreaks: true });
       // A box that follows its text's height keeps its middle where it was
       if (shape.box.autoHeight) {
-        const after = frameOf(next, doc);
+        const after = textBoxOf(next, doc);
         next = shifted(next, 0, (before.top + before.bottom) / 2 - (after.top + after.bottom) / 2, doc);
       }
       commitState(doc, "TyperTools Change", { layers: replaceLayer(doc, layer, next) });
@@ -16365,6 +16383,7 @@
     visualOf,
     boxOf,
     frameOf,
+    textBoxOf,
     onPage,
     turnOf,
     turnedFrame,

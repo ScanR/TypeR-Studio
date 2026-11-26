@@ -1636,6 +1636,7 @@
     drawHiddenChars();
     drawTypeMarks();
     ui.box.setAttribute("hidden", "");
+    ui.box.classList.remove("box--paragraph");
     pixelControls = null;
     turnControls = null;
     textGroup = null;
@@ -1672,13 +1673,19 @@
     const sfxLetters = (layers) => layers.flatMap((layer) => (layer.kind === "group" && layer.sfx ? doc.state.layers.filter((item) => item.kind === "text" && item.group === layer.id) : [layer]));
     const list = (typing ? doc.state.layers.filter((layer) => layer.id === editing.id) : sfxLetters(activeLayers()).filter((layer) => layer.kind !== "group" && !layer.isBackground && (!wandShows || layer.kind === "text"))).map((layer) => PS.onPage(layer, doc));
     if (!list.length) return;
+    // A straight paragraph text shows its wrapping box while it is typed in or its box handles
+    // are dragged (with a dashed line, as in Photoshop); everywhere else the selection frame
+    // wraps the text's content, adapting as the text changes
+    const resizingBox = Boolean(gesture && gesture.kind === "side");
+    const showTextBox = (layer) => layer.kind === "text" && !layer.rotated && !layer.warp && !PS.meshOk(layer.mesh) && (resizingBox ? gesture.layer.id === layer.id : Boolean(typing && inBoxOf(layer)));
+    const boxFor = (layer) => (layer.kind === "raster" ? ops.pixelBox(layer) : showTextBox(layer) ? PS.textBoxOf(layer, doc) : PS.frameOf(layer, doc));
     const live = doc.live;
     let left = Infinity;
     let top = Infinity;
     let right = -Infinity;
     let bottom = -Infinity;
     list.forEach((layer) => {
-      const b = layer.kind === "raster" ? ops.pixelBox(layer) : PS.frameOf(layer, doc);
+      const b = boxFor(layer);
       if (!b || (!b.width && !b.height)) return;
       left = Math.min(left, b.left);
       top = Math.min(top, b.top);
@@ -1704,6 +1711,7 @@
     ui.box.setAttribute("y", Math.round(y0) + 0.5);
     ui.box.setAttribute("width", Math.max(1, Math.round(x1 - x0)));
     ui.box.setAttribute("height", Math.max(1, Math.round(y1 - y0)));
+    ui.box.classList.toggle("box--paragraph", list.length === 1 && showTextBox(list[0]));
     // Show Transform Controls off: no frame around texts either, until one is typed in
     if (!(texts && !typing && !Shell.touch && !settings.transformControls)) ui.box.removeAttribute("hidden");
     if (texts) taskBarBox = { x0, y0, x1, y1 };
@@ -9111,7 +9119,11 @@
     const handled = handle && (handleWhileTyping ? doc.state.layers.find((layer) => layer.id === editing.id) : activeTexts()[0]);
     if (handled) {
       gestureCount++;
-      gesture = Object.assign(base, { kind: handle.kind.startsWith("warp") ? "warp" : handled.warp ? "surface" : boxHandle(handle, handled, handleWhileTyping, event) ? "side" : "scale", handle: handle.kind, layer: handled, frame: PS.frameOf(handled, doc), token: `gesture:${gestureCount}` });
+      const kind = handle.kind.startsWith("warp") ? "warp" : handled.warp ? "surface" : boxHandle(handle, handled, handleWhileTyping, event) ? "side" : "scale";
+      const fromBox = kind === "side" && handleWhileTyping && inBoxOf(handled) && !handled.rotated;
+      const frame = fromBox ? PS.textBoxOf(handled, doc) : PS.frameOf(handled, doc);
+      const boxTop = kind === "side" ? PS.textBoxOf(handled, doc).top : frame.top;
+      gesture = Object.assign(base, { kind, handle: handle.kind, layer: handled, frame, boxTop, token: `gesture:${gestureCount}` });
       if (Fonts.isMissing(handled.params.layerText.textStyleRange[0].textStyle.fontPostScriptName) && handled.raster) toast(T("This text's font is missing: it will be drawn with another font."), true);
       ui.stage.setPointerCapture(event.pointerId);
       event.preventDefault();
@@ -9568,31 +9580,35 @@
       const room = Math.max(4, (((style.impliedFontSize || style.size || 14) * doc.resolution) / 72) * 0.5);
       const shape = current.layer.params.layerText.textShape && current.layer.params.layerText.textShape[0];
       const wasBox = shape && shape.textType === "box" && shape.box;
-      const next = { left: f.left, top: f.top, width: f.width, height: f.height, autoHeight: wasBox ? Boolean(wasBox.autoHeight) : true };
+      const boxTop = current.boxTop;
+      const east = current.handle.includes("e");
+      const north = current.handle.includes("n");
+      const south = current.handle.includes("s");
+      const baseHeight = Math.max(1, f.bottom - boxTop);
+      const next = { left: f.left, top: boxTop, width: f.width, height: wasBox && !wasBox.autoHeight && !north && !south ? wasBox.height : baseHeight, autoHeight: wasBox ? Boolean(wasBox.autoHeight) : true };
       const dx = point[0] - current.start[0];
       const dy = point[1] - current.start[1];
       // A corner, while the text is typed in, moves both its sides: the box, not the letters
-      const east = current.handle.includes("e");
-      const north = current.handle.includes("n");
       if (east || current.handle.includes("w")) {
         const grow = (east ? dx : -dx) * (event.altKey ? 2 : 1);
         next.width = Math.max(room, f.width + grow);
         if (!east) next.left = f.right - next.width;
         if (event.altKey) next.left = f.xMid - next.width / 2;
       }
-      if (north || current.handle.includes("s")) {
+      if (north || south) {
         const grow = (north ? -dy : dy) * (event.altKey ? 2 : 1);
-        next.height = Math.max(room, f.height + grow);
+        const startHeight = north || event.altKey ? f.height : baseHeight;
+        next.height = Math.max(room, startHeight + grow);
         next.autoHeight = false;
-        if (north) next.top = f.bottom - next.height;
         if (event.altKey) next.top = f.yMid - next.height / 2;
+        else if (north) next.top = f.bottom - next.height;
       }
       ops.setTextFrame(current.layer, next, current.token);
       // The text may have left the page meanwhile: a text across two pages that no longer
       // reaches this one (across.js)
       const now = app.doc.state.layers.find((layer) => layer.id === current.layer.id);
       if (now) {
-        const shown = PS.frameOf(now, doc);
+        const shown = PS.textBoxOf(now, doc);
         hud(`${Math.round(shown.width)} × ${Math.round(shown.height)} px`, event);
       }
       placeEditor();
