@@ -9000,9 +9000,50 @@
       } else if (patch) lt.textStyleRange.forEach((item) => patched(item.textStyle));
       if (paragraphPatch) lt.paragraphStyleRange.forEach((range) => Object.assign(range.paragraphStyle, paragraphPatch));
       const next = Object.assign({}, layer, { params, raster: null });
-      if ((paragraphPatch && paragraphPatch.alignment) || boxShape(lt)) return next;
+      if (boxShape(lt)) return patch ? boxFollowsSize(layer, next, doc) : next;
+      if (paragraphPatch && paragraphPatch.alignment) return next;
       return centredOn(next, doc, box.xMid, box.yMid);
     });
+  };
+  // How much bigger a text's letters got, on average over its letters (1 when the same)
+  const sizeRatio = (before, after) => {
+    const sizeAt = (lt, at) => {
+      const ranges = lt.textStyleRange;
+      const style = (ranges.find((item) => at >= item.from && at < item.to) || ranges[ranges.length - 1]).textStyle;
+      return style.impliedFontSize || style.size || 0;
+    };
+    const length = Math.min((before.textKey || "").length, (after.textKey || "").length);
+    let sum = 0;
+    let count = 0;
+    for (let at = 0; at < length; at++) {
+      const was = sizeAt(before, at);
+      if (!(was > 0)) continue;
+      sum += sizeAt(after, at) / was;
+      count += 1;
+    }
+    return count ? sum / count : 1;
+  };
+  // A paragraph text whose letters changed size keeps its lines, as a point text does: unlike in
+  // Photoshop, its box grows or shrinks with them, around its middle, instead of the lines
+  // breaking again inside it (a word then cut in two) and the text going down past its bubble
+  const boxFollowsSize = (base, next, doc) => {
+    const ratio = sizeRatio(base.params.layerText, next.params.layerText);
+    if (!(ratio > 0) || Math.abs(ratio - 1) < 1e-6) return next;
+    const lt = next.params.layerText;
+    const shape = boxShape(lt);
+    const lines = relativeLayout(base.params.layerText, doc.resolution).lines.length;
+    const width = shape.box.width * ratio;
+    shape.box.height = Math.max(1, shape.box.height * ratio);
+    // Letters rounded to a tenth of a point may need a hair more room for the same lines
+    for (let attempt = 0; attempt < 4; attempt++) {
+      shape.box.width = Math.max(1, width * (1 + attempt * 0.01) + attempt);
+      if (relativeLayout(lt, doc.resolution).lines.length <= lines) break;
+    }
+    // A text on a perspective surface stays on it
+    if (next.warp) return next;
+    const [x0, y0] = middleOfText(base, doc);
+    const [x1, y1] = middleOfText(next, doc);
+    return shifted(next, x0 - x1, y0 - y1, doc);
   };
   // A font only tried out (ops.previewTextStyle) is only drawn (see onPage): the page's state
   // never holds it, so nothing done, kept or saved meanwhile can take it along. Whether there
@@ -15527,7 +15568,8 @@
         else centreLayer(doc, params, null, box.xMid, box.yMid);
         const changes = { params, raster: null, stroke: (data.style && strokeToApply(data.style.stroke)) || layer.stroke };
         if (data.text) Object.assign(changes, { source: String(data.text), name: String(data.text).replace(/[\r\n]+/g, " ").substring(0, 60) });
-        changed.set(layer.id, changes);
+        // A style of another size on a paragraph text: its box follows, as for a size typed
+        changed.set(layer.id, boxShape(layer.params.layerText) && !data.text ? boxFollowsSize(layer, Object.assign({}, layer, changes), doc) : changes);
       });
       const layers = doc.state.layers.map((item) => (changed.has(item.id) ? Object.assign({}, item, changed.get(item.id)) : item));
       commitState(doc, "TyperTools Change", { layers });
@@ -15596,7 +15638,9 @@
         if (boxShape(layer.params.layerText)) params.layerText.textShape = clone(layer.params.layerText.textShape);
         else centreLayer(doc, params, null, box.xMid, box.yMid);
         const stroke = (item.style && strokeToApply(item.style.stroke)) || layer.stroke;
-        layers = layers.map((entry) => (entry.id === layer.id ? Object.assign({}, entry, { params, raster: null, stroke }) : entry));
+        let next = Object.assign({}, layer, { params, raster: null, stroke });
+        if (boxShape(layer.params.layerText) && !item.text) next = boxFollowsSize(layer, next, doc);
+        layers = layers.map((entry) => (entry.id === layer.id ? next : entry));
       });
       commitState(doc, "TyperTools Change", { layers });
       return "";
