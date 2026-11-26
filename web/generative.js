@@ -69,12 +69,15 @@
   const KEEP_FRAMING = "Keep the framing, the scale and everything not mentioned exactly as it is.";
 
   const SERVICES = {
+    // Nano Banana 2.1 first, the model asked when none was chosen: on screentone it was the only
+    // one to remove every sound effect tried and keep the dots sharp (Nano Banana 2 and Pro left a
+    // big letter in place and banded a starry sky)
     google: {
       name: "Google Gemini",
       keyUrl: "https://aistudio.google.com/apikey",
       models: [
-        ["gemini-3.1-flash-image", "Nano Banana 2"],
         ["gemini-nano-banana-2.1", "Nano Banana 2.1"],
+        ["gemini-3.1-flash-image", "Nano Banana 2"],
         ["gemini-3-pro-image", "Nano Banana Pro"],
         ["gemini-3.1-flash-lite-image", "Nano Banana 2 Lite"],
         ["gemini-2.5-flash-image", "Nano Banana"],
@@ -84,8 +87,8 @@
       name: "fal.ai",
       keyUrl: "https://fal.ai/dashboard/keys",
       models: [
-        ["fal-ai/nano-banana-2/edit", "Nano Banana 2"],
         ["google/nano-banana-2.1/edit", "Nano Banana 2.1"],
+        ["fal-ai/nano-banana-2/edit", "Nano Banana 2"],
         ["fal-ai/nano-banana-pro/edit", "Nano Banana Pro"],
         ["fal-ai/flux-pro/kontext", "FLUX.1 Kontext [pro]"],
         ["ideogram/v4.5/edit", "Ideogram 4.5 Edit"],
