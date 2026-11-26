@@ -197,7 +197,8 @@
     return list.some(([value]) => value === wanted) ? wanted : PRICES[`${service}:${model}`].quality;
   };
   // What one picture costs, as the settings show it: { usd, large, unit, live } where `usd` is at
-  // the usual size (1K) and `large` for a big selection (sent at 2K). Null when no price is known.
+  // the size Generative Fill asks (2K for the models that take one, see photoshop.js) and `large`
+  // the same, kept for the callers that set the two apart. Null when no price is known.
   const priceOf = (settings, service, model) => {
     if (isLocal(service)) return { usd: 0, large: 0, unit: "image", free: true };
     const price = PRICES[`${service}:${model}`];
@@ -207,10 +208,15 @@
       const usd = price.qualities.find(([value]) => value === quality)[1];
       return { usd, large: usd, unit: "image" };
     }
-    if (price && price.sizes) return { usd: price.sizes["1K"], large: price.sizes["2K"] || price.sizes["1K"], unit: "image" };
+    const sized = knowsSizes(model);
+    if (price && price.sizes) {
+      const usd = (sized && price.sizes["2K"]) || price.sizes["1K"];
+      return { usd, large: usd, unit: "image" };
+    }
     if (price && price.image) {
       const base = live && live.unit === "image" ? live.price : price.image;
-      return { usd: base, large: base * ((price.scale && price.scale["2K"]) || 1), unit: "image", live: Boolean(live && live.unit === "image") };
+      const usd = base * ((sized && price.scale && price.scale["2K"]) || 1);
+      return { usd, large: usd, unit: "image", live: Boolean(live && live.unit === "image") };
     }
     if (live) return { usd: live.price, large: live.price, unit: live.unit, live: true };
     return null;
@@ -230,7 +236,11 @@
     if (!shown) return null;
     if (shown.unit === "image") {
       if (price && price.sizes) return { usd: price.sizes[size] || price.sizes["1K"], estimate: true };
-      if (price && price.scale) return { usd: shown.usd * (price.scale[size] || 1) };
+      if (price && price.scale) {
+        // The shown price is already at 2K for a model that takes a size: from its base again
+        const base = shown.usd / ((knowsSizes(model) && price.scale["2K"]) || 1);
+        return { usd: base * (price.scale[size] || 1) };
+      }
       return { usd: shown.usd };
     }
     if (/megapixel/.test(shown.unit) && megapixels) return { usd: shown.usd * megapixels };

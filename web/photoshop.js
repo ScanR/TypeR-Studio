@@ -10728,6 +10728,97 @@
       });
     });
   };
+  // Inside `hole`, the picture's fine detail brought to the contrast the page's has around it.
+  // A model's picture, brought down to the page's size, keeps a screentone's dots but softens
+  // them: grey dots on a light grey where the page has black dots on white. The detail is what a
+  // small blur takes away; its spread (between the 10th and 90th percentiles, so a few lines of
+  // the art don't decide it) is measured just outside the hole on the page and inside it on the
+  // picture, and the picture's is raised to match, by at most twice. A flat inside (the inside
+  // of a balloon) is left as it is: raising it would raise the ghosts of the letters gone.
+  // Measured on seven sound effects over screentone: sharpness 0.69 to 0.97 of the page's on a
+  // fine tone, the joins at the edge unchanged.
+  const restoreDetail = (picture, page, hole, width, height) => {
+    const n = width * height;
+    const inside = new Float32Array(n);
+    for (let p = 0; p < n; p++) inside[p] = hole[p * 4 + 3] ? 1 : 0;
+    // A box blur of radius r over a float plane, twice (close to a gaussian), by running sums
+    const blur = (plane, r, passes = 2) => {
+      let src = plane;
+      const tmp = new Float32Array(n);
+      for (let pass = 0; pass < passes; pass++) {
+        const out = new Float32Array(n);
+        for (let y = 0; y < height; y++) {
+          let sum = 0;
+          const row = y * width;
+          for (let x = -r; x <= r; x++) sum += src[row + Math.min(width - 1, Math.max(0, x))];
+          for (let x = 0; x < width; x++) {
+            tmp[row + x] = sum / (2 * r + 1);
+            sum += src[row + Math.min(width - 1, x + r + 1)] - src[row + Math.max(0, x - r)];
+          }
+        }
+        for (let x = 0; x < width; x++) {
+          let sum = 0;
+          for (let y = -r; y <= r; y++) sum += tmp[Math.min(height - 1, Math.max(0, y)) * width + x];
+          for (let y = 0; y < height; y++) {
+            out[y * width + x] = sum / (2 * r + 1);
+            sum += tmp[Math.min(height - 1, y + r + 1) * width + x] - tmp[Math.max(0, y - r) * width + x];
+          }
+        }
+        src = out;
+      }
+      return src;
+    };
+    const grey = (data) => {
+      const out = new Float32Array(n);
+      for (let p = 0; p < n; p++) out[p] = data[p * 4] * 0.299 + data[p * 4 + 1] * 0.587 + data[p * 4 + 2] * 0.114;
+      return out;
+    };
+    const pictureGrey = grey(picture);
+    const pageGrey = grey(page);
+    const pictureLow = blur(pictureGrey, 1);
+    const pageLow = blur(pageGrey, 1);
+    // Just outside the hole: near it (a band about 12 pixels wide), but not on its edge
+    const near = blur(inside, 12, 1);
+    const edge = blur(inside, 2, 1);
+    // The spread of the detail, from a histogram of whole levels (-255 to 255)
+    const spread = (pick, plane, low) => {
+      const counts = new Uint32Array(511);
+      let total = 0;
+      for (let p = 0; p < n; p++) {
+        if (!pick(p)) continue;
+        counts[Math.round(plane[p] - low[p]) + 255]++;
+        total++;
+      }
+      if (total < 400) return 0;
+      const at = (share) => {
+        let seen = 0;
+        for (let v = 0; v < 511; v++) {
+          seen += counts[v];
+          if (seen >= total * share) return v;
+        }
+        return 510;
+      };
+      return at(0.9) - at(0.1);
+    };
+    // Inside, away from its edge, where a blur mixes in what is around
+    const fade = blur(inside, 2);
+    const around = spread((p) => !inside[p] && near[p] > 0 && edge[p] === 0, pageGrey, pageLow);
+    const within = spread((p) => fade[p] > 0.999, pictureGrey, pictureLow);
+    if (around < 6 || within < 6) return;
+    const gain = Math.min(2, around / within);
+    if (gain <= 1.02) return;
+    // Raised over the hole, fading out over its last pixels, on each channel alike
+    const lows = [0, 1, 2].map((c) => {
+      const plane = new Float32Array(n);
+      for (let p = 0; p < n; p++) plane[p] = picture[p * 4 + c];
+      return [plane, blur(plane, 1)];
+    });
+    for (let p = 0; p < n; p++) {
+      const weight = inside[p] * fade[p] * (gain - 1);
+      if (!weight) continue;
+      for (let c = 0; c < 3; c++) picture[p * 4 + c] = lows[c][0][p] + (lows[c][0][p] - lows[c][1][p]) * weight;
+    }
+  };
 
   /* -------------------------- Content-Aware Fill -------------------------- */
 
@@ -13566,7 +13657,11 @@
       kctx.fillStyle = "#fff";
       kctx.fillRect(0, 0, mask.width, mask.height);
       kctx.drawImage(black, 0, 0, mask.width, mask.height);
-      const size = Math.max(width, height) > 1400 ? "2K" : "1K";
+      // Always 2K for the models that take a size, even for a small area: at 1K a model draws a
+      // screentone's dots as a soft grey, which comes back paler and blurred once brought to the
+      // page; at 2K it draws them as dots, which stay dots (measured on four sound effects over
+      // screentone: half the sharpness at 1K, and a patch paler than the page)
+      const size = "2K";
       const picture = await draw(sent, { ratio: shape.label, size, mask, inside: { left: (b.left - x0) * scale, top: (b.top - y0) * scale, width: b.width * scale, height: b.height * scale } });
       // Meanwhile the page may have closed
       if (!app.docs.includes(doc)) return { outcome: "gone" };
@@ -13636,16 +13731,18 @@
       const lctx = laid.getContext("2d", { willReadFrequently: true });
       lctx.drawImage(made, 0, 0);
       if (placed.canvas !== made) lctx.drawImage(placed.canvas, placed.left - x0, placed.top - y0);
-      // Models shift the tones (a cream paper, a grain, greys a little off): around the selection,
-      // the picture's levels are matched to the page's, and the same levels go inside. FLUX shifts
-      // them too, even drawing in place: only LaMa's pixels keep the page's own.
-      // Then, unless turned off, the inside brought to the brightness of the page at its edge:
-      // LaMa's too, whose inside is its own guess.
-      if (!fixed || tones) {
+      // Unless turned off, the inside brought to the brightness of the page at its edge, whatever
+      // the model. The picture's levels are no longer matched to the page's around the selection:
+      // over a screentone, the page there is black and white dots and the picture greys, and
+      // matching the two sent the greys to white. Laid again without it, 77 of 83 pictures of four
+      // sound effects joined the page better.
+      // Then a screentone's dots given back the contrast they have around the selection: brought
+      // down from the model's size, they come back grey on light grey (see restoreDetail).
+      if (tones || !fixed) {
         const laidData = lctx.getImageData(0, 0, width, height);
         const pageData = actx.getImageData(0, 0, width, height).data;
-        if (!fixed) matchLevels(laidData.data, pageData, holeData);
         if (tones) matchTones(laidData.data, pageData, holeData, width, height);
+        if (!fixed) restoreDetail(laidData.data, pageData, holeData, width, height);
         lctx.putImageData(laidData, 0, 0);
       }
       progress(0.95);

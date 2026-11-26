@@ -50,3 +50,42 @@ test("insufficient surrounding pixels leave the model result unchanged", () => {
   matchLevels(result, page, allSelected);
   assert.deepEqual(result, expected);
 });
+
+const restoreDetail = vm.runInNewContext(source.slice(source.indexOf("  const restoreDetail ="), source.indexOf("  /* -------------------------- Content-Aware Fill")) + "; restoreDetail;");
+// A 64 × 64 area, the hole a 32 × 32 square in its middle; a dot every other pixel
+const W = 64;
+const area = (fn) => {
+  const data = new Uint8ClampedArray(W * W * 4);
+  for (let p = 0; p < W * W; p++) data.set([...fn(p % W, Math.floor(p / W)), 255], p * 4);
+  return data;
+};
+const square = area((x, y) => [0, 0, 0]);
+for (let p = 0; p < W * W; p++) square[p * 4 + 3] = p % W >= 16 && p % W < 48 && p >= 16 * W && p < 48 * W ? 255 : 0;
+const inHole = (p) => square[p * 4 + 3] > 0;
+const spreadIn = (data) => {
+  let lo = 255, hi = 0;
+  for (let p = 0; p < W * W; p++) if (inHole(p) && p % W > 20 && p % W < 44 && p > 20 * W && p < 44 * W) { lo = Math.min(lo, data[p * 4]); hi = Math.max(hi, data[p * 4]); }
+  return hi - lo;
+};
+
+test("a screentone's dots softened by the model get their contrast back", () => {
+  const dot = (x, y) => (x + y) % 2 === 0;
+  const page = area((x, y) => (dot(x, y) ? [0, 0, 0] : [255, 255, 255]));
+  const picture = area((x, y) => (dot(x, y) ? [110, 110, 110] : [190, 190, 190]));
+  restoreDetail(picture, page, square, W, W);
+  assert.ok(spreadIn(picture) >= 150, `spread ${spreadIn(picture)}`);
+  // Outside the hole, nothing moves
+  assert.deepEqual([picture[0], picture[1], picture[2]], [110, 110, 110]);
+});
+
+test("a flat inside, like a balloon's, and an inside already as sharp as the page stay as they are", () => {
+  const dot = (x, y) => (x + y) % 2 === 0;
+  const page = area((x, y) => (dot(x, y) ? [0, 0, 0] : [255, 255, 255]));
+  const flat = area((x, y) => (inHole(y * W + x) ? [250, 250, 250] : dot(x, y) ? [0, 0, 0] : [255, 255, 255]));
+  const before = flat.slice();
+  restoreDetail(flat, page, square, W, W);
+  assert.deepEqual(flat, before);
+  const sharp = page.slice();
+  restoreDetail(sharp, page, square, W, W);
+  assert.deepEqual(sharp, page);
+});
