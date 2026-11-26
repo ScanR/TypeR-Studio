@@ -228,8 +228,10 @@
   <script src="generative.js"></script>
   <script>
     // Generative Fill's debug mode (generative-debug.js) is fetched only when asked for, with
-    // Ctrl+Alt+Shift+G (Cmd+Alt+Shift+G on a Mac), or at once when it was left on
+    // Ctrl+Alt+Shift+G (Cmd+Alt+Shift+G on a Mac), or at once when it was left on. Only on a
+    // copy served from this computer: neither the site nor the desktop app offers it.
     (() => {
+      if (!["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname)) return;
       let loading = null;
       const load = () => loading || (loading = new Promise((resolve, reject) => {
         const script = document.createElement("script");
