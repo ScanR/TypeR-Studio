@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.it = Object.assign(window.TYPER_WEB_STRINGS.it || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "Clic, clic, clic: una pagina intera in pochi secondi. Incolla al clic si disattiva con lo stesso pulsante.",
   "Retouch a text": "Ritoccare un testo",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "Trascina un angolo della cornice del testo: il testo si ingrandisce o si rimpicciolisce. I punti sui lati cambiano il suo riquadro.",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "Nel pannello Interruzioni di riga, fai clic su + o − per provare altri a capo per il testo selezionato ({Shift}{L} mostra il pannello).",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "Nel pannello Interruzioni di riga, fai clic su + o − per provare altri a capo per il testo selezionato ({Alt}{Cmd}{L} mostra il pannello).",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR bilancia le righe per te; puoi anche andare a capo a mano nel testo del pannello.",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "Fai doppio clic sul testo per scriverci dentro. Cambia una parola, poi {Cmd}{Enter}.",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "Cambia stile senza riscrivere: con un testo selezionato, fai clic sulla ➜ accanto a uno stile nel pannello.",

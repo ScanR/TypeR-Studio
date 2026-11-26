@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.th = Object.assign(window.TYPER_WEB_STRINGS.th || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "คลิก คลิก คลิก: เสร็จทั้งหน้าในไม่กี่วินาที ปิด “Click paste” ได้ด้วยปุ่มเดิม",
   "Retouch a text": "แก้ไขข้อความ",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "ลากมุมของกรอบข้อความ: ข้อความจะใหญ่ขึ้นหรือเล็กลง จุดที่ด้านข้างใช้ปรับกล่องของข้อความ",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "ในแผง การตัดบรรทัด คลิก + หรือ − เพื่อลองตัดบรรทัดแบบอื่นสำหรับข้อความที่เลือก ({Shift}{L} เปิดแผงนี้)",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "ในแผง การตัดบรรทัด คลิก + หรือ − เพื่อลองตัดบรรทัดแบบอื่นสำหรับข้อความที่เลือก ({Alt}{Cmd}{L} เปิดแผงนี้)",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR จัดบรรทัดให้สมดุลให้คุณ และคุณยังตัดบรรทัดเองได้ในข้อความของแผง",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "ดับเบิลคลิกข้อความเพื่อพิมพ์ เปลี่ยนสักคำ แล้วกด {Cmd}{Enter}",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "เปลี่ยนสไตล์โดยไม่ต้องพิมพ์ใหม่: ขณะเลือกข้อความอยู่ คลิก ➜ ข้างสไตล์ในแผง",

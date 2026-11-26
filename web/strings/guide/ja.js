@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.ja = Object.assign(window.TYPER_WEB_STRINGS.ja || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "クリック、クリック、クリック：数秒で 1 ページ完成。「Click paste」は同じボタンでオフにできます。",
   "Retouch a text": "テキストの手直し",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "テキストの枠の角をドラッグすると、テキストが大きく、または小さくなります。辺の点はボックスの形を変えます。",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "改行パネルで + か − をクリックして、選択したテキストの別の改行を試してください（{Shift}{L} でパネルを表示）。",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "改行パネルで + か − をクリックして、選択したテキストの別の改行を試してください（{Alt}{Cmd}{L} でパネルを表示）。",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR が行のバランスを整えます。パネルのテキストで手動で改行することもできます。",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "テキストをダブルクリックして入力します。単語を 1 つ変えて、{Cmd}{Enter}。",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "打ち直さずにスタイルを変更：テキストを選択した状態で、パネルのスタイルの横にある ➜ をクリックします。",

@@ -940,7 +940,7 @@
           done: (ctx, since) => did(since, ["Character", "Text Box", "Free Transform", "TyperTools Resize"], 1) > 0,
         },
         {
-          text: "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).",
+          text: "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).",
           targets: [{ el: byId("breaks") }],
           done: (ctx, since) => did(since, ["Line Breaks"], 1) > 0,
           result: "TypeR balances the lines for you; you can also cut them by hand in the panel's text.",
@@ -1093,7 +1093,7 @@
   const nextLesson = (after) => {
     const done = doneLessons();
     const from = after ? LESSONS.indexOf(lessonById(after)) + 1 : 0;
-    return LESSONS.slice(from).find((lesson) => !done.has(lesson.id)) || LESSONS.slice(from)[0] || null;
+    return LESSONS.slice(from).find((lesson) => !done.has(lesson.id)) || LESSONS.find((lesson) => !done.has(lesson.id)) || LESSONS.slice(from)[0] || null;
   };
   const words = (value, ctx) => (typeof value === "function" ? value(ctx) : T(value));
 
@@ -1326,8 +1326,11 @@
     const foot = el("div", "guide-coach__foot", body);
     fold.addEventListener("pointerdown", (event) => event.preventDefault());
     fold.addEventListener("click", () => {
-      card.classList.toggle("is-folded");
-      fold.innerHTML = card.classList.contains("is-folded") ? UNFOLD : FOLD;
+      const folded = card.classList.toggle("is-folded");
+      fold.innerHTML = folded ? UNFOLD : FOLD;
+      const label = T(folded ? "Unfold" : "Fold");
+      fold.title = label;
+      fold.setAttribute("aria-label", label);
     });
     close.addEventListener("pointerdown", (event) => event.preventDefault());
     close.addEventListener("click", () => endLesson());

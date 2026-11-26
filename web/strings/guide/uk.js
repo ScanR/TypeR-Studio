@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.uk = Object.assign(window.TYPER_WEB_STRINGS.uk || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "Клік, клік, клік: ціла сторінка за секунди. «Вставлення за кліком» вимикається тією самою кнопкою.",
   "Retouch a text": "Підправити текст",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "Потягніть за кут рамки тексту: текст збільшиться або зменшиться. Точки з боків змінюють його область.",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "На панелі «Розриви рядків» натискайте + або −, щоб спробувати інші розриви для виділеного тексту ({Shift}{L} показує панель).",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "На панелі «Розриви рядків» натискайте + або −, щоб спробувати інші розриви для виділеного тексту ({Alt}{Cmd}{L} показує панель).",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR сам вирівнює рядки; їх можна й розбити вручну в тексті на панелі.",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "Двічі клацніть на тексті, щоб його редагувати. Змініть слово, потім {Cmd}{Enter}.",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "Змініть стиль, не передруковуючи: виділивши текст, натисніть ➜ біля стилю на панелі.",

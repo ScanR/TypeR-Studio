@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.vi = Object.assign(window.TYPER_WEB_STRINGS.vi || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "Nhấp, nhấp, nhấp: cả một trang trong vài giây. Tắt Dán khi nhấp bằng chính nút đó.",
   "Retouch a text": "Chỉnh sửa chữ",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "Kéo một góc khung chữ: chữ to lên hoặc nhỏ đi. Các điểm ở cạnh thay đổi khung của nó.",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "Trong bảng Ngắt dòng, nhấp + hoặc − để thử cách ngắt dòng khác cho chữ đang chọn ({Shift}{L} hiện bảng này).",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "Trong bảng Ngắt dòng, nhấp + hoặc − để thử cách ngắt dòng khác cho chữ đang chọn ({Alt}{Cmd}{L} hiện bảng này).",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR cân bằng các dòng giúp bạn; bạn cũng có thể tự ngắt dòng trong phần chữ của bảng.",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "Nhấp đúp vào chữ để gõ. Đổi một từ, rồi {Cmd}{Enter}.",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "Đổi style mà không gõ lại: khi đang chọn một chữ, nhấp vào ➜ cạnh một style trong bảng.",

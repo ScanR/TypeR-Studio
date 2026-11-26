@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.fr = Object.assign(window.TYPER_WEB_STRINGS.fr || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "Clic, clic, clic : une page entière en quelques secondes. Le même bouton désactive Coller au clic.",
   "Retouch a text": "Retoucher un texte",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "Faites glisser un coin du cadre du texte : le texte grandit ou rapetisse. Les points sur ses côtés changent sa boîte.",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "Dans le panneau Retours à la ligne, cliquez sur + ou − pour essayer d’autres coupures pour le texte sélectionné ({Shift}{L} affiche le panneau).",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "Dans le panneau Retours à la ligne, cliquez sur + ou − pour essayer d’autres coupures pour le texte sélectionné ({Alt}{Cmd}{L} affiche le panneau).",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR équilibre les lignes pour vous ; vous pouvez aussi les couper à la main dans le texte du panneau.",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "Double-cliquez sur le texte pour écrire dedans. Changez un mot, puis {Cmd}{Enter}.",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "Changez de style sans retaper : avec un texte sélectionné, cliquez sur le ➜ à côté d’un style dans le panneau.",

@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.tr = Object.assign(window.TYPER_WEB_STRINGS.tr || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "Tık, tık, tık: saniyeler içinde koca bir sayfa. Tıkla yapıştır aynı düğmeyle kapatılır.",
   "Retouch a text": "Bir metni düzenle",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "Metin çerçevesinin bir köşesini sürükleyin: metin büyür ya da küçülür. Kenarlarındaki noktalar kutusunu değiştirir.",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "Satır Sonları panelinde, seçili metin için başka satır bölmeleri denemek üzere + ya da − simgesine tıklayın (paneli {Shift}{L} gösterir).",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "Satır Sonları panelinde, seçili metin için başka satır bölmeleri denemek üzere + ya da − simgesine tıklayın (paneli {Alt}{Cmd}{L} gösterir).",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR satırları sizin için dengeler; dilerseniz paneldeki metinde onları elle de bölebilirsiniz.",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "İçine yazmak için metne çift tıklayın. Bir kelimeyi değiştirin, sonra {Cmd}{Enter}.",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "Yeniden yazmadan stil değiştirin: bir metin seçiliyken paneldeki bir stilin yanındaki ➜ simgesine tıklayın.",

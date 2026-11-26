@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.zh = Object.assign(window.TYPER_WEB_STRINGS.zh || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "点、点、点：几秒钟搞定一整页。用同一个按钮即可关闭“Click paste”。",
   "Retouch a text": "修改文字",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "拖动文字框的一个角：文字会变大或变小。边上的控制点会改变它的文本框。",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "在换行面板中，点击 + 或 − 为所选文字尝试其他换行方式（{Shift}{L} 显示该面板）。",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "在换行面板中，点击 + 或 − 为所选文字尝试其他换行方式（{Alt}{Cmd}{L} 显示该面板）。",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR 会帮你平衡各行；你也可以在面板的文字中手动断行。",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "双击文字即可输入。改一个词，然后按 {Cmd}{Enter}。",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "无需重新输入就能换样式：选中文字后，点击面板中样式旁边的 ➜。",

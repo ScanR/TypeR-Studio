@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.ko = Object.assign(window.TYPER_WEB_STRINGS.ko || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "클릭, 클릭, 클릭: 몇 초 만에 한 페이지. ‘Click paste’는 같은 버튼으로 끕니다.",
   "Retouch a text": "텍스트 다듬기",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "텍스트 틀의 모서리를 드래그하세요. 텍스트가 커지거나 작아집니다. 옆면의 점은 상자 모양을 바꿉니다.",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "줄 바꿈 패널에서 + 또는 −를 클릭해 선택한 텍스트의 다른 줄 바꿈을 시도해 보세요({Shift}{L}로 패널 표시).",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "줄 바꿈 패널에서 + 또는 −를 클릭해 선택한 텍스트의 다른 줄 바꿈을 시도해 보세요({Alt}{Cmd}{L}로 패널 표시).",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR이 줄의 균형을 맞춰 줍니다. 패널의 텍스트에서 직접 줄을 나눌 수도 있습니다.",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "텍스트를 더블클릭해 입력하세요. 단어 하나를 바꾼 뒤 {Cmd}{Enter}.",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "다시 입력하지 않고 스타일 바꾸기: 텍스트를 선택한 채, 패널에서 스타일 옆의 ➜를 클릭하세요.",

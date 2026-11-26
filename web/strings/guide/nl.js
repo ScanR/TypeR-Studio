@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.nl = Object.assign(window.TYPER_WEB_STRINGS.nl || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "Klik, klik, klik: een hele pagina in een paar seconden. ‘Click paste’ zet je uit met dezelfde knop.",
   "Retouch a text": "Een tekst bijwerken",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "Sleep aan een hoek van het tekstkader: de tekst wordt groter of kleiner. De punten aan de zijkanten veranderen het vak.",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "Klik in het deelvenster Regeleinden op + of − om andere regeleinden voor de geselecteerde tekst te proberen ({Shift}{L} toont het deelvenster).",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "Klik in het deelvenster Regeleinden op + of − om andere regeleinden voor de geselecteerde tekst te proberen ({Alt}{Cmd}{L} toont het deelvenster).",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR verdeelt de regels voor je; je kunt ze ook zelf afbreken in de tekst van het deelvenster.",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "Dubbelklik op de tekst om erin te typen. Verander een woord en dan {Cmd}{Enter}.",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "Wissel van stijl zonder opnieuw te typen: selecteer een tekst en klik op de ➜ naast een stijl in het paneel.",

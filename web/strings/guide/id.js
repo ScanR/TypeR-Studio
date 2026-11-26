@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.id = Object.assign(window.TYPER_WEB_STRINGS.id || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "Klik, klik, klik: satu halaman penuh dalam hitungan detik. “Click paste” dimatikan dengan tombol yang sama.",
   "Retouch a text": "Merapikan teks",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "Seret sudut bingkai teks: teks membesar atau mengecil. Titik di sisi-sisinya mengubah kotaknya.",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "Di panel Pemisah Baris, klik + atau − untuk mencoba pemisahan baris lain bagi teks terpilih ({Shift}{L} menampilkan panelnya).",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "Di panel Pemisah Baris, klik + atau − untuk mencoba pemisahan baris lain bagi teks terpilih ({Alt}{Cmd}{L} menampilkan panelnya).",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "TypeR menyeimbangkan baris untuk Anda; Anda juga bisa memotongnya secara manual di teks panel.",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "Klik dua kali teks untuk mengetik di dalamnya. Ganti satu kata, lalu {Cmd}{Enter}.",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "Ganti gaya tanpa mengetik ulang: dengan teks terpilih, klik ➜ di samping sebuah gaya di panel.",

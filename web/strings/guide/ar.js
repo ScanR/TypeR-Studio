@@ -79,7 +79,7 @@ window.TYPER_WEB_STRINGS.ar = Object.assign(window.TYPER_WEB_STRINGS.ar || {}, {
   "Click, click, click: a whole page in seconds. Click paste is turned off with the same button.": "نقرة، نقرة، نقرة: صفحة كاملة في ثوانٍ. ويُوقَف اللصق بالنقر بالزر نفسه.",
   "Retouch a text": "تعديل نص",
   "Drag a corner of the text's frame: the text gets bigger or smaller. The points on its sides change its box.": "اسحب زاوية إطار النص: يكبر النص أو يصغر. النقاط على جوانبه تغيّر مربعه.",
-  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Shift}{L} shows the panel).": "في لوحة فواصل الأسطر، انقر على + أو − لتجربة تقسيمات أخرى للنص المحدد ({Shift}{L} يُظهر اللوحة).",
+  "In the Line Breaks panel, click + or − to try other line breaks for the selected text ({Alt}{Cmd}{L} shows the panel).": "في لوحة فواصل الأسطر، انقر على + أو − لتجربة تقسيمات أخرى للنص المحدد ({Alt}{Cmd}{L} يُظهر اللوحة).",
   "TypeR balances the lines for you; you can also cut them by hand in the panel's text.": "يوازن TypeR الأسطر من أجلك؛ ويمكنك أيضًا تقسيمها يدويًا في نص اللوحة.",
   "Double-click the text to type in it. Change a word, then {Cmd}{Enter}.": "انقر نقرًا مزدوجًا على النص للكتابة فيه. غيّر كلمة، ثم {Cmd}{Enter}.",
   "Restyle without retyping: with a text selected, click the ➜ next to a style in the panel.": "غيّر النمط دون إعادة الكتابة: والنص محدد، انقر على ➜ بجانب نمط في اللوحة.",

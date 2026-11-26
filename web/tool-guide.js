@@ -307,8 +307,8 @@
         art.textContent = "";
         foot.textContent = "";
         backButton();
-        cardButton(foot, T("Keep the page"), endPractice);
-        cardButton(foot, T("Close the practice page"), async () => {
+        cardButton(foot, T(pages.length > 1 ? "Keep the pages" : "Keep the page"), endPractice);
+        cardButton(foot, T(pages.length > 1 ? "Close the practice pages" : "Close the practice page"), async () => {
           for (const one of pages.filter((item) => app.docs.includes(item))) {
             unchanged(one);
             await App().closeDoc(one);
