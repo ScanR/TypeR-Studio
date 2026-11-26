@@ -228,6 +228,169 @@
     return {
       on: !storage || storage.smartPaste !== false,
       min: Number.isFinite(scale) && scale > 0 ? Math.round(Math.min(1, Math.max(0.5, scale)) * 100) / 100 : MIN_SCALE,
+      // The kind of text a paste makes: paragraph text unless asked otherwise, as in the panel
+      point: Boolean(storage && storage.pastePointText),
+    };
+  };
+
+  // The same line in a bubble as point text and as paragraph text, words typed at its end,
+  // as a short film played over and over. Both start as Smart Paste leaves them: lines fitted
+  // to the bubble, a return between them. The point text's last line gets longer, past the
+  // bubble, until a click before the new sentence and Enter break it there. The paragraph
+  // text, in a box as wide as its longest line, breaks it by itself at the box's edge. Both
+  // end in the bubble. In English, as What's New's demos.
+  const DEMO_LINES = ["Wait… so it was him", "all along?"];
+  const DEMO_MORE = " I can’t believe it!";
+  const SIZE = 12;
+  const LEADING = 14;
+  const BUBBLE = { x: 110, y: 58, rx: 92, ry: 50 };
+  const REST = [206, 128];
+  const textKindDemo = () => {
+    const NS = "http://www.w3.org/2000/svg";
+    const measure = document.createElement("canvas").getContext("2d");
+    const width = (line) => {
+      measure.font = `400 ${SIZE}px Wildjess, sans-serif`;
+      return measure.measureText(line).width;
+    };
+    // Lines of no more than `room`, broken between words, a return always breaking
+    const wrap = (value, room) => value.split("\n").flatMap((part) => {
+      const lines = [];
+      part.split(/ +/).filter(Boolean).forEach((word) => {
+        const last = lines.length ? `${lines[lines.length - 1]} ${word}` : null;
+        if (last !== null && width(last) <= room) lines[lines.length - 1] = last;
+        else lines.push(word);
+      });
+      return lines.length ? lines : [""];
+    });
+    // Placed so that the three lines it ends with are in the middle of the bubble
+    const FROM = BUBBLE.y - LEADING + 4;
+    const lineY = (at) => FROM + at * LEADING;
+    const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const film = (point) => {
+      const svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("class", "onboard__example onboard__film");
+      svg.setAttribute("viewBox", "0 0 220 124");
+      svg.setAttribute("aria-hidden", "true");
+      // The mouse and the Enter key, there all along, moved and lit as the film goes
+      svg.innerHTML = `<rect class="onboard__ex-page" width="220" height="124"/>
+        <path class="onboard__ex-bubble" d="M94 107.2A${BUBBLE.rx} ${BUBBLE.ry} 0 1 0 71.1 103.3L56 121z"/>
+        <g class="onboard__film-ink"></g>
+        ${point ? `<g class="onboard__ex-key"><rect x="166" y="100" width="46" height="18" rx="3"/><text x="189" y="113" text-anchor="middle">Enter ↵</text></g>
+        <g class="onboard__ex-mouse"><circle class="onboard__ex-click" r="7"/><path class="onboard__ex-pointer" d="M0 0v15l4-3.5 2.5 5.5 2.2-1-2.5-5.5h5.3z"/></g>` : ""}`;
+      return { svg, ink: svg.querySelector(".onboard__film-ink"), mouse: svg.querySelector(".onboard__ex-mouse") };
+    };
+    const films = { point: film(true), paragraph: film(false) };
+    let box = 0;
+    const fit = () => { box = Math.ceil(Math.max(...DEMO_LINES.map(width))) + 2; };
+    // What the film shows now: the words typed, whether the point text's line is broken
+    // yet, and where the caret is (`end`, `break`, or none)
+    const shot = { typed: "", broken: false, caret: "end" };
+    const pointLines = () => {
+      const lines = DEMO_LINES.slice();
+      const more = shot.typed;
+      if (shot.broken) lines.push(more.trim());
+      else lines[lines.length - 1] += more;
+      return lines;
+    };
+    const ink = (lines, frame, caret) => {
+      const words = lines.map((line, at) => `<tspan x="${BUBBLE.x}" y="${lineY(at)}">${escape(line) || " "}</tspan>`).join("");
+      const mark = caret ? `<rect class="onboard__ex-caret" x="${caret[0]}" y="${caret[1] - SIZE + 2}" width="1.2" height="${SIZE}"/>` : "";
+      return `${frame}<text class="onboard__ex-text onboard__ex-text--small" text-anchor="middle">${words}</text>${mark}`;
+    };
+    const endOf = (lines) => [BUBBLE.x + width(lines[lines.length - 1]) / 2 + 1.5, lineY(lines.length - 1)];
+    // Just before the new sentence, on the long line: where the click goes
+    const breakAt = () => {
+      const lines = pointLines();
+      const line = lines[lines.length - 1];
+      const before = DEMO_LINES[DEMO_LINES.length - 1];
+      return [BUBBLE.x - width(line) / 2 + width(`${before} `) - 1, lineY(lines.length - 1)];
+    };
+    const draw = () => {
+      const point = pointLines();
+      const startOfLast = [BUBBLE.x - width(point[point.length - 1]) / 2 - 2, lineY(point.length - 1)];
+      const caret = { end: endOf(point), break: breakAt(), start: startOfLast }[shot.caret];
+      films.point.ink.innerHTML = ink(point, "", caret);
+      // The paragraph keeps the returns of the paste: only its last line gets longer
+      const paragraph = wrap(DEMO_LINES.join("\n") + shot.typed, box);
+      const frame = `<rect class="onboard__ex-box" x="${BUBBLE.x - box / 2 - 2}" y="${FROM - SIZE + 1}" width="${box + 4}" height="${paragraph.length * LEADING + 3}"/>`;
+      films.paragraph.ink.innerHTML = ink(paragraph, frame, shot.caret ? endOf(paragraph) : null);
+    };
+    const mouse = (where, shown) => {
+      films.point.mouse.style.transform = `translate(${where[0]}px, ${where[1]}px)`;
+      films.point.mouse.classList.toggle("is-shown", shown);
+    };
+    const both = (name, on) => Object.values(films).forEach((one) => one.svg.classList.toggle(name, on));
+    fit();
+    let timer = 0;
+    let alive = true;
+    const later = (ms, next) => {
+      timer = setTimeout(() => { if (alive) next(); }, ms);
+    };
+    // The film: the lines as pasted, the words typed one letter at a time, the click and
+    // Enter in the point text, a pause on the result, and from the start again
+    const play = () => {
+      Object.assign(shot, { typed: "", broken: false, caret: "end" });
+      mouse(REST, false);
+      draw();
+      both("is-fading", false);
+      let at = 0;
+      const type = () => {
+        at += 1;
+        shot.typed = DEMO_MORE.slice(0, at);
+        draw();
+        if (at < DEMO_MORE.length) later(65, type);
+        else later(700, aim);
+      };
+      const aim = () => {
+        const [x, y] = breakAt();
+        mouse([x + 1, y - 5], true);
+        later(800, click);
+      };
+      const click = () => {
+        films.point.svg.classList.add("is-clicking");
+        shot.caret = "break";
+        draw();
+        later(450, enter);
+      };
+      const enter = () => {
+        films.point.svg.classList.remove("is-clicking");
+        films.point.svg.classList.add("is-pressed");
+        later(180, () => {
+          shot.broken = true;
+          shot.caret = "start";
+          draw();
+          later(350, () => {
+            films.point.svg.classList.remove("is-pressed");
+            mouse(REST, false);
+            // The result alone, without the caret
+            shot.caret = null;
+            draw();
+            later(2600, () => {
+              both("is-fading", true);
+              later(400, play);
+            });
+          });
+        });
+      };
+      later(1300, type);
+    };
+    const still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Without motion: how each one ends
+    const end = () => {
+      Object.assign(shot, { typed: DEMO_MORE, broken: true, caret: null });
+      draw();
+    };
+    if (still) end();
+    else play();
+    // Measured again once the lettering's font is there
+    if (document.fonts && document.fonts.load) document.fonts.load(`400 ${SIZE}px Wildjess`).then(() => { fit(); draw(); }, () => {});
+    return {
+      point: (words) => words.prepend(films.point.svg),
+      paragraph: (words) => words.prepend(films.paragraph.svg),
+      stop: () => {
+        alive = false;
+        clearTimeout(timer);
+      },
     };
   };
 
@@ -553,6 +716,63 @@
       },
     },
     {
+      id: "textKind",
+      when: () => true,
+      title: () => T("Point or paragraph text"),
+      build(pane, state) {
+        el("p", "onboard__lead", pane, T("TypeR can paste your lines as point text or as paragraph text. Both look the same at first. The difference shows when words are added:"));
+        const was = pasteSettingsOf(state).point;
+        let point = was;
+        const demo = textKindDemo();
+        // What each one is good and bad at, a sign before each so that the colour isn't needed
+        const sides = (good, bad) => (words) => {
+          const list = el("ul", "onboard__sides", words);
+          good.forEach((text) => el("li", "is-good", list, text));
+          bad.forEach((text) => el("li", "is-bad", list, text));
+        };
+        const both = (picture, more) => (words) => {
+          picture(words);
+          more(words);
+        };
+        choices(pane, [
+          {
+            id: "point",
+            title: T("Point text"),
+            text: T("Each line stays as it is. You choose where it breaks: click, then press Enter."),
+            extra: both(demo.point, sides(
+              [T("You choose where each line breaks"), T("Lines never move on their own")],
+              [T("No hyphenation")],
+            )),
+          },
+          {
+            id: "paragraph",
+            title: T("Paragraph text"),
+            text: T("The text sits in a box: a line too long breaks by itself at its edge, and the box grows."),
+            extra: both(demo.paragraph, sides(
+              [T("Long lines go to the next line by themselves"), T("Allows hyphenation")],
+              [T("A line can break in the wrong spot, leaving one word alone")],
+            )),
+          },
+        ], point ? "point" : "paragraph", (id) => { point = id === "point"; }).box.classList.add("onboard__choices--row");
+        // The default chosen here first, then what to do with a text already on a page
+        const where = { tab: T("Insertion"), name: T("Type of pasted text layer"), menu: inMore(T("TypeR Settings")) };
+        const later = touch()
+          ? fill(T("You can change this default at any time in {menu}, under {tab} → “{name}”."), where)
+          : fill(T("You can change this default at any time in the TypeR panel settings (the gear at its bottom), under {tab} → “{name}”."), where);
+        const toPoint = `${T("Layer")} → ${T("Convert to Point Text")}`;
+        const convert = fill(T("To convert text already on a page, use {toPoint} or {toParagraph}."), { toPoint: touch() ? inMore(toPoint) : toPoint, toParagraph: T("Convert to Paragraph Text") });
+        el("p", "onboard__meta", pane, `${later} ${convert}`);
+        return {
+          leave: () => {
+            // Only when changed here: what came with the styles stays otherwise
+            state.textKind = point !== was ? { pastePointText: point } : null;
+            return true;
+          },
+          gone: demo.stop,
+        };
+      },
+    },
+    {
       id: "fonts",
       // The app sees the computer's fonts from the start; a browser asks first
       when: () => !window.TypeRDesktop && !window.TypeRFonts.installedListed(),
@@ -695,12 +915,23 @@
           const status = el("p", "onboard__meta", words, T("Connect your Adobe account to use Firefly."));
           const button = el("button", "btn btn--small", words, T("Connect to Adobe"));
           button.type = "button";
+          if (Gen.adobeStatus) {
+            Gen.adobeStatus().then((info) => {
+              if (info && info.connected) {
+                status.textContent = T("Connected to Adobe Firefly");
+                button.hidden = true;
+              }
+            }).catch(() => {});
+          }
           button.addEventListener("click", async (event) => {
             event.preventDefault();
             button.disabled = true;
             try {
               const result = await Gen.adobeConnect();
-              status.textContent = T(result?.ok ? "Connected to Adobe Firefly" : "Adobe connection could not be completed. Try again.");
+              if (result?.ok) {
+                status.textContent = T("Connected to Adobe Firefly");
+                button.hidden = true;
+              } else status.textContent = T("Adobe connection could not be completed. Try again.");
             } catch { status.textContent = T("Adobe connection could not be completed. Try again."); }
             finally { button.disabled = false; }
           });
@@ -787,7 +1018,7 @@
       } catch (error) {
         resume = null;
       }
-      const state = { again: Boolean(again || (resume && resume.again)), photoshop: null, kits: null, styles: null, paste: null, tour: false, practice: false };
+      const state = { again: Boolean(again || (resume && resume.again)), photoshop: null, kits: null, styles: null, paste: null, textKind: null, tour: false, practice: false };
       // In the app, the plugin's settings are found on the computer and offered even over styles
       // made here (saying so); on the web, its export is imported instead
       if (window.TypeRStudio) state.photoshop = await window.TypeRStudio.findPhotoshopSettings({ overOwn: true }).catch(() => null);
@@ -828,8 +1059,8 @@
         const plan = {
           photoshop: state.styles === "photoshop" ? state.photoshop : null,
           kits: state.kits,
-          // The panel's Smart paste settings, when changed here
-          paste: state.paste || null,
+          // The panel's Smart paste settings and the kind of text it makes, when changed here
+          paste: state.paste || state.textKind ? Object.assign({}, state.paste, state.textKind) : null,
           tour: completed && state.tour,
           // A touch screen's first page: the practice one (touch.js)
           practice: Boolean(completed && state.practice),

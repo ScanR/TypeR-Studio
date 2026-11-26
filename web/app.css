@@ -1421,6 +1421,29 @@ body.is-dragging-tool, body.is-dragging-tool * { cursor: grabbing !important; }
 .onboard__ex-tab.is-on { fill: #fff; }
 .onboard__ex-box { fill: none; stroke: var(--blue); stroke-width: 1px; stroke-dasharray: 3 2; }
 .onboard__row--tight { flex-wrap: nowrap; gap: 6px; }
+/* Point or paragraph text: the same line in both, typed below */
+.onboard__ex-text--small { font-size: 12px; }
+.onboard__sides { display: grid; gap: 3px; margin: 2px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.35; color: var(--muted); }
+.onboard__sides li { position: relative; padding-left: 15px; }
+.onboard__sides li::before { position: absolute; left: 0; top: -1px; font-weight: 700; font-size: 13px; }
+.onboard__sides .is-good::before { content: "+"; color: #4caf6a; }
+.onboard__sides .is-bad::before { content: "−"; color: #e5534b; }
+/* Its short film: words typed at the end of the line, over and over */
+.onboard__ex-caret { fill: #1b1b1b; animation: onboard-caret 1s steps(1) infinite; }
+@keyframes onboard-caret { 50% { opacity: 0; } }
+.onboard__film-ink { transition: opacity 0.3s; }
+.onboard__film.is-fading .onboard__film-ink { opacity: 0; }
+/* The point text's film: the mouse that clicks where the line breaks, and the Enter key */
+.onboard__ex-mouse { opacity: 0; transition: transform 0.7s ease-in-out, opacity 0.25s; }
+.onboard__ex-mouse.is-shown { opacity: 1; }
+.onboard__ex-click { fill: none; stroke: var(--blue); stroke-width: 1.5; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.onboard__film.is-clicking .onboard__ex-click { animation: onboard-click 0.4s ease-out; }
+@keyframes onboard-click { from { opacity: 1; transform: scale(0.3); } to { opacity: 0; transform: scale(1.4); } }
+.onboard__ex-key { opacity: 0.35; transition: opacity 0.15s; }
+.onboard__ex-key rect { fill: #fff; stroke: #1b1b1b; stroke-width: 1; transition: fill 0.15s; }
+.onboard__ex-key text { fill: #1b1b1b; font: 600 8.5px system-ui, sans-serif; }
+.onboard__film.is-pressed .onboard__ex-key { opacity: 1; }
+.onboard__film.is-pressed .onboard__ex-key rect { fill: #8cc6f5; }
 /* Flow offered to those working in Solo: the setup assistant's two cards, in a dialog */
 .modal.modal--flow-offer { width: min(580px, calc(100vw - 32px)); }
 .flow-offer { display: grid; gap: 10px; }
