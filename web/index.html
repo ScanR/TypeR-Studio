@@ -226,6 +226,33 @@
   <script src="recent.js"></script>
   <script src="workspace.js"></script>
   <script src="generative.js"></script>
+  <script>
+    // Generative Fill's debug mode (generative-debug.js) is fetched only when asked for, with
+    // Ctrl+Alt+Shift+G (Cmd+Alt+Shift+G on a Mac), or at once when it was left on
+    (() => {
+      let loading = null;
+      const load = () => loading || (loading = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "generative-debug.js";
+        script.onload = resolve;
+        script.onerror = () => { loading = null; reject(new Error("generative-debug.js")); };
+        document.head.appendChild(script);
+      }));
+      window.addEventListener("keydown", (event) => {
+        if (event.code !== "KeyG" || !event.altKey || !event.shiftKey || !(event.ctrlKey || event.metaKey) || event.repeat) return;
+        // AltGr is Ctrl+Alt to a browser: a keyboard that types a letter with AltGr+Shift+G keeps it
+        if (event.getModifierState("AltGraph") || (!event.metaKey && event.key.length === 1 && event.key.toLowerCase() !== "g")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        load().then(() => window.TypeRGenDebug.toggle(), () => {});
+      }, true);
+      try {
+        if ((JSON.parse(localStorage.getItem("typer.web.generative.debug")) || {}).on === true) load().catch(() => {});
+      } catch (error) {
+        // Off, as it starts
+      }
+    })();
+  </script>
   <script src="textmask.js"></script>
   <script src="whats-new.js"></script>
   <script src="feedback.js"></script>

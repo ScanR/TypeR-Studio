@@ -13571,23 +13571,29 @@
     // texts the first time (its id kept in `folder.id`) and made again if it was deleted.
     // `matchTones`: the inside then brought to the brightness of the page that borders it.
     async generativeFill({ draw, ratios, name, settle, doc: wanted, selection: chosen, activeIds, hide, fixed, inPlace: drawnInPlace, longest, context, folder, matchTones: tones }, progress = () => {}) {
-      const inPlace = Boolean(fixed || drawnInPlace);
       const doc = wanted || app.doc;
       if (!doc || !app.docs.includes(doc)) return { outcome: "gone" };
       const selection = chosen || doc.state.selection;
       if (!selection || (!chosen && doc.state.quickMask)) return { outcome: "none" };
+      // The debug mode (see generative-debug.js): its settings in place of the usual ones, and
+      // each step's picture kept for it
+      const run = window.TypeRGenDebug ? window.TypeRGenDebug.begin({ selection: [selection.bounds.width, selection.bounds.height] }) : null;
+      const tuned = run ? run.options : null;
+      const inPlace = Boolean(fixed || drawnInPlace || (tuned && !tuned.align));
       const b = selection.bounds;
       const activeAtStart = (activeIds || doc.state.activeIds).slice();
       const sizeAtStart = [doc.width, doc.height];
       // Enough around the selection for the model to see the art it continues
-      const reach = Math.max(48, Math.round((Math.max(b.width, b.height) * (context || 40)) / 100));
+      const reach = Math.max(tuned && tuned.reach !== 40 ? 0 : 48, Math.round((Math.max(b.width, b.height) * (tuned && tuned.reach !== 40 ? tuned.reach : context || 40)) / 100));
       let x0 = b.left - reach;
       let y0 = b.top - reach;
       let x1 = b.right + reach;
       let y1 = b.bottom + reach;
       // Grown to the model's nearest shape, then slid inside the page, then cut by it
       const shape = (ratios || [{ label: "1:1", value: 1 }]).reduce((best, one) => (Math.abs(Math.log(one.value / ((x1 - x0) / (y1 - y0)))) < Math.abs(Math.log(best.value / ((x1 - x0) / (y1 - y0)))) ? one : best));
-      if ((x1 - x0) / (y1 - y0) < shape.value) {
+      if (tuned && !tuned.snap) {
+        // Its own shape, as the margin gives it
+      } else if ((x1 - x0) / (y1 - y0) < shape.value) {
         const grow = (y1 - y0) * shape.value - (x1 - x0);
         x0 -= grow / 2;
         x1 += grow / 2;
@@ -13634,7 +13640,7 @@
       // anyway, and some refuse a picture under 256 pixels a side
       const LONGEST = longest || 2048;
       const SHORTEST = 512;
-      const scale = fixed ? 1 : Math.min(LONGEST / Math.max(width, height), Math.max(1, SHORTEST / Math.min(width, height)));
+      const scale = fixed ? 1 : Math.min(LONGEST / Math.max(width, height), Math.max(1, SHORTEST / Math.min(width, height), tuned && tuned.least ? Math.sqrt((tuned.least * 1e6) / (width * height)) : 0));
       let sent = area;
       if (scale !== 1) {
         sent = newCanvas(Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale)));
@@ -13669,16 +13675,25 @@
       // screentone's dots as a soft grey, which comes back paler and blurred once brought to the
       // page; at 2K it draws them as dots, which stay dots (measured on four sound effects over
       // screentone: half the sharpness at 1K, and a patch paler than the page)
-      const size = "2K";
+      const size = tuned && tuned.size !== "auto" ? tuned.size : "2K";
+      if (run) {
+        run.facts({ area: [width, height], sent: [sent.width, sent.height], share: (b.width * b.height) / (width * height), sizeAsked: size, ratio: shape.label });
+        run.stage("sent", sent);
+        run.stage("mask", mask);
+      }
       const picture = await draw(sent, { ratio: shape.label, size, mask, inside: { left: (b.left - x0) * scale, top: (b.top - y0) * scale, width: b.width * scale, height: b.height * scale } });
       // Meanwhile the page may have closed
-      if (!app.docs.includes(doc)) return { outcome: "gone" };
+      if (!app.docs.includes(doc)) {
+        if (run) run.end({ outcome: "page closed" });
+        return { outcome: "gone" };
+      }
       progress(0.05);
       // First laid over the area as it is, stretched to it
       const made = newCanvas(width, height);
       const mctx = made.getContext("2d", { willReadFrequently: true });
       mctx.imageSmoothingQuality = "high";
       mctx.drawImage(picture, 0, 0, width, height);
+      if (run) run.stage("returned", picture);
       if (picture.close) picture.close();
       // Then aligned on what surrounds the selection: the selection itself, a little grown (the
       // hole), differs on purpose (its text is gone) and says nothing about where the picture goes
@@ -13732,7 +13747,10 @@
       } finally {
         if (aligner) aligner.stop();
       }
-      if (!app.docs.includes(doc)) return { outcome: "gone" };
+      if (!app.docs.includes(doc)) {
+        if (run) run.end({ outcome: "page closed" });
+        return { outcome: "gone" };
+      }
       progress(0.9);
       // The picture laid on the area: the aligned one over the stretched one, so no edge shows through
       const laid = newCanvas(width, height);
@@ -13740,22 +13758,29 @@
       lctx.drawImage(made, 0, 0);
       if (placed.canvas !== made) lctx.drawImage(placed.canvas, placed.left - x0, placed.top - y0);
       // Unless turned off, the inside brought to the brightness of the page at its edge, whatever
-      // the model. The picture's levels are no longer matched to the page's around the selection:
-      // over a screentone, the page there is black and white dots and the picture greys, and
-      // matching the two sent the greys to white. Laid again without it, 77 of 83 pictures of four
-      // sound effects joined the page better.
+      // the model. The picture's levels are no longer matched to the page's around the selection
+      // (only in the debug mode, when asked): over a screentone, the page there is black and white
+      // dots and the picture greys, and matching the two sent the greys to white. Laid again
+      // without it, 77 of 83 pictures of four sound effects joined the page better.
       // Then a screentone's dots given back the contrast they have around the selection: brought
       // down from the model's size, they come back grey on light grey (see restoreDetail).
+      if (run) run.stage("aligned", laid);
       if (tones || !fixed) {
         const laidData = lctx.getImageData(0, 0, width, height);
         const pageData = actx.getImageData(0, 0, width, height).data;
+        if (tuned && tuned.histogram && !fixed) matchLevels(laidData.data, pageData, holeData);
         if (tones) matchTones(laidData.data, pageData, holeData, width, height);
-        if (!fixed) restoreDetail(laidData.data, pageData, holeData, width, height);
+        if (!fixed && !(tuned && tuned.detail === false)) restoreDetail(laidData.data, pageData, holeData, width, height);
         lctx.putImageData(laidData, 0, 0);
       }
       progress(0.95);
       const pixels = newCanvas(b.width, b.height);
       pixels.getContext("2d").drawImage(laid, x0 - b.left, y0 - b.top);
+      if (run) {
+        run.stage("final", laid);
+        run.stage("kept", pixels);
+        run.end({ outcome: "done", how: best.how, tried: inPlace ? "" : candidates.map((one) => `${one.how} ${one.error.toFixed(2)}`).join(", ") });
+      }
       if (settle) await settle(doc);
       if (!app.docs.includes(doc)) return { outcome: "gone" };
       // A page cropped or resized meanwhile has moved its places: the picture would land wrong

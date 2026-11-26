@@ -530,30 +530,51 @@
   // `canvas`: what is sent; resolves with the model's picture, as an ImageBitmap
   // `canvas`: what is sent; `mask`: the selection on it, black on white (for the models that take
   // one). Resolves with the model's picture, as an ImageBitmap; `onCost` hears what it cost.
-  const generate = async ({ settings, prompt, canvas, mask, ratio, size, signal, onCost, onProgress }) => {
+  // The debug mode's run a picture is sent for, if any (see generative-debug.js): it hears the
+  // model and the prompt sent, and how a failed generation ended
+  const generate = async (request) => {
+    const run = window.TypeRGenDebug ? window.TypeRGenDebug.runOf(request.canvas) : null;
+    if (!run) return produce(request, null);
+    run.facts({ service: SERVICES[request.settings.service].name, model: modelOf(request.settings) });
+    try {
+      return await produce(request, run);
+    } catch (error) {
+      run.end({ outcome: error && error.name === "AbortError" ? "cancelled" : "failed", message: (error && (error.detail || error.kind || error.message)) || "" });
+      throw error;
+    }
+  };
+  // What a model is asked: the words typed, then to keep the rest as it is; without words, the
+  // usual request (`fallback`), or the debug mode's own
+  const askedFor = (prompt, fallback, run) => {
+    const words = String(prompt || "").trim();
+    const own = run && !words ? run.options.prompt.trim() : "";
+    const asked = own || (words ? `${words}\n\n${KEEP_FRAMING}` : fallback);
+    if (run) run.facts({ prompt: asked });
+    return asked;
+  };
+  const produce = async ({ settings, prompt, canvas, mask, ratio, size, signal, onCost, onProgress }, run) => {
     const service = settings.service;
     if (service === "adobe") {
       const model = modelOf(settings);
       const words = String(prompt || "").trim();
-      const asked = model !== "firefly-fill" ? (words ? `${words}\n\n${KEEP_FRAMING}` : model.startsWith("gpt-image-") ? MASK_PROMPT : DEFAULT_PROMPT) : words;
+      if (model === "firefly-fill" && run) run.facts({ prompt: words });
+      const asked = model !== "firefly-fill" ? askedFor(prompt, model.startsWith("gpt-image-") ? MASK_PROMPT : DEFAULT_PROMPT, run) : words;
       return viaAdobe({ model, canvas, mask, prompt: asked, size, signal });
     }
     if (isLocal(service)) {
       const model = modelOf(settings);
       if (!isFlux(model)) return viaLocal({ canvas, mask, signal, onProgress });
-      const words = (prompt || "").trim();
-      return viaFlux({ model, canvas, mask, prompt: words ? `${words}\n\n${KEEP_FRAMING}` : FLUX_PROMPT, signal, onProgress });
+      return viaFlux({ model, canvas, mask, prompt: askedFor(prompt, FLUX_PROMPT, run), signal, onProgress });
     }
     const key = (settings.keys[service] || "").trim();
     if (!key) throw new GenerativeError("nokey");
     const model = modelOf(settings);
-    const words = (prompt || "").trim();
-    const asked = words ? `${words}\n\n${KEEP_FRAMING}` : takesMask(service, model) ? MASK_PROMPT : DEFAULT_PROMPT;
+    const asked = askedFor(prompt, takesMask(service, model) ? MASK_PROMPT : DEFAULT_PROMPT, run);
     const image = await encode(canvas);
     const masked = mask && takesMask(service, model) ? await encodeMask(mask) : null;
-    const run = service === "fal" ? viaFal : viaGoogle;
+    const via = service === "fal" ? viaFal : viaGoogle;
     const quality = qualityOf(settings, service, model);
-    const { picture, usage } = await run({ key, model, prompt: asked, image, mask: masked, quality, ratio, size, signal });
+    const { picture, usage } = await via({ key, model, prompt: asked, image, mask: masked, quality, ratio, size, signal });
     const cost = costOf(settings, service, model, { size, usage, megapixels: (picture.width * picture.height) / 1e6 });
     if (cost) {
       addSpent(cost.usd);
