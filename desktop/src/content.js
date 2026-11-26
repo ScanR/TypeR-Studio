@@ -126,26 +126,40 @@ const download = async () => {
     if (!atLeast(app.getVersion(), update.minShell)) return "none";
 
     building = path.join(store(), `.${update.id}.part`);
-    fs.rmSync(building, { recursive: true, force: true });
+    await fs.promises.rm(building, { recursive: true, force: true });
+    const canLink = active.root !== SEED;
     await inParallel(Object.entries(update.files), async ([file, { sha256: wanted }]) => {
       const to = inside(building, file);
-      fs.mkdirSync(path.dirname(to), { recursive: true });
+      await fs.promises.mkdir(path.dirname(to), { recursive: true });
       const old = active.info.files[file];
-      const data = old && old.sha256 === wanted ? fs.readFileSync(inside(active.root, file)) : await fetchBytes(`${SITE}/${file}?v=${update.id}`);
+      if (old && old.sha256 === wanted) {
+        const from = inside(active.root, file);
+        if (canLink) {
+          try {
+            await fs.promises.link(from, to);
+            return;
+          } catch (error) {}
+        }
+        const data = await fs.promises.readFile(from);
+        if (sha256(data) !== wanted) throw new Error(`Not the published file: ${file}`);
+        await fs.promises.writeFile(to, data);
+        return;
+      }
+      const data = await fetchBytes(`${SITE}/${file}?v=${update.id}`);
       if (sha256(data) !== wanted) throw new Error(`Not the published file: ${file}`);
-      fs.writeFileSync(to, data);
+      await fs.promises.writeFile(to, data);
     });
-    fs.writeFileSync(path.join(building, "content.json"), signed.payload);
+    await fs.promises.writeFile(path.join(building, "content.json"), signed.payload);
     const finalFolder = folderOf(update.id);
-    fs.rmSync(finalFolder, { recursive: true, force: true });
-    fs.renameSync(building, finalFolder);
+    await fs.promises.rm(finalFolder, { recursive: true, force: true });
+    await fs.promises.rename(building, finalFolder);
     building = null;
 
     const running = active.root === SEED ? null : path.basename(active.root);
     writeState({ ...state, id: update.id, previous: running, confirmed: false, tries: 0 });
     // Only what's in use and what's next stay on the disk
-    for (const name of fs.readdirSync(store())) {
-      if (name !== "state.json" && name !== update.id && name !== running) fs.rmSync(path.join(store(), name), { recursive: true, force: true });
+    for (const name of await fs.promises.readdir(store())) {
+      if (name !== "state.json" && name !== update.id && name !== running) await fs.promises.rm(path.join(store(), name), { recursive: true, force: true });
     }
     return "ready";
   } catch (error) {

@@ -85,6 +85,7 @@ let waitingScript = null;
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".webmanifest": "application/manifest+json",
@@ -95,7 +96,13 @@ const TYPES = {
   ".gif": "image/gif",
   ".svg": "image/svg+xml",
   ".webp": "image/webp",
+  ".ico": "image/x-icon",
+  ".mp4": "video/mp4",
+  ".wasm": "application/wasm",
   ".woff2": "font/woff2",
+  ".woff": "font/woff",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf",
 };
 const HEAD_TAGS = '<head>\n  <script src="desktop.js"></script>\n  <link rel="stylesheet" href="desktop.css">';
 
@@ -104,13 +111,41 @@ const serve = async (request) => {
   if (url.host !== HOST) return new Response("", { status: 404 });
   let file = decodeURIComponent(url.pathname).replace(/^\/+/, "");
   if (!file || file.endsWith("/")) file += "index.html";
-  const { root } = content.current();
+  const { root, info } = content.current();
   const full = path.resolve(root, file);
   if (!full.startsWith(path.resolve(root) + path.sep)) return new Response("", { status: 403 });
+  const contentType = TYPES[path.extname(file).toLowerCase()] || "application/octet-stream";
+  const etag = info && info.id ? `"${info.id}"` : null;
+  const rangeHeader = request.headers.get("range");
+  if (!rangeHeader && etag && request.headers.get("if-none-match") === etag) {
+    return new Response(null, { status: 304, headers: { etag, "cache-control": "no-cache" } });
+  }
   try {
     let body = await fs.promises.readFile(full);
-    if (file === "web/index.html") body = body.toString("utf8").replace("<head>", HEAD_TAGS);
-    return new Response(body, { headers: { "content-type": TYPES[path.extname(file).toLowerCase()] || "application/octet-stream" } });
+    if (file === "web/index.html") body = Buffer.from(body.toString("utf8").replace("<head>", HEAD_TAGS), "utf8");
+    const headers = { "content-type": contentType, "accept-ranges": "bytes", "cache-control": "no-cache" };
+    if (etag) headers.etag = etag;
+    if (rangeHeader) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+      if (match && body.length) {
+        let start = match[1] ? Number(match[1]) : 0;
+        let end = match[2] ? Number(match[2]) : body.length - 1;
+        if (!match[1] && match[2]) {
+          start = Math.max(0, body.length - end);
+          end = body.length - 1;
+        }
+        if (start >= body.length || start > end) {
+          return new Response("", { status: 416, headers: { "content-range": `bytes */${body.length}` } });
+        }
+        end = Math.min(end, body.length - 1);
+        const slice = body.subarray(start, end + 1);
+        headers["content-range"] = `bytes ${start}-${end}/${body.length}`;
+        headers["content-length"] = String(slice.length);
+        return new Response(slice, { status: 206, headers });
+      }
+    }
+    headers["content-length"] = String(body.length);
+    return new Response(body, { headers });
   } catch (error) {
     return new Response("", { status: 404 });
   }

@@ -67,7 +67,24 @@ const filesOf = (model) => {
   const one = MODELS[model];
   return one ? [one.diffusion, one.llm, one.vae] : [];
 };
-const engineReady = () => Boolean(engine) && isChecked(path.join(engineDir(), "engine.zip"), engine) && fs.existsSync(path.join(engineDir(), engine.server));
+const engineServerPath = () => path.join(engineDir(), engine.server);
+const engineReady = () => {
+  if (!engine) return false;
+  const serverBin = engineServerPath();
+  if (!fs.existsSync(serverBin)) return false;
+  try {
+    if (fs.readFileSync(markPath(serverBin), "utf8").trim() === engine.sha256) return true;
+  } catch (error) {}
+  // Legacy installs kept engine.zip beside the unpacked binary: migrate its mark and reclaim the archive
+  const archive = path.join(engineDir(), "engine.zip");
+  if (!isChecked(archive, engine)) return false;
+  try {
+    fs.writeFileSync(markPath(serverBin), engine.sha256);
+    fs.rmSync(archive, { force: true });
+    fs.rmSync(markPath(archive), { force: true });
+  } catch (error) {}
+  return true;
+};
 const installed = (model) => engineReady() && filesOf(model).every((key) => isChecked(filePath(key), FILES[key]));
 // What is still to download for a model, in bytes
 const missing = (model) => {
@@ -207,7 +224,12 @@ const install = (model, signal, onProgress) => {
             done[index] = bytes;
             tell();
           });
-          if (one.engine) await unzip(one.target, engineDir());
+          if (one.engine) {
+            await unzip(one.target, engineDir());
+            await fs.promises.writeFile(markPath(engineServerPath()), one.file.sha256);
+            await fs.promises.rm(one.target, { force: true });
+            await fs.promises.rm(markPath(one.target), { force: true });
+          }
         }
       } catch (error) {
         stop.abort();
