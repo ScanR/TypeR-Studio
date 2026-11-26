@@ -315,8 +315,14 @@
   const takesPrompt = (settings) => !isLocal(settings.service) || isFlux(modelOf(settings));
   // The size a model draws at, when it's a fixed square: the area sent is chosen for it
   const fixedSize = (settings) => (isLocal(settings.service) && !isFlux(modelOf(settings)) ? LOCAL_SIZE : 0);
-  // The local models draw in place, pixel for pixel: their picture needs no aligning
-  const drawsInPlace = (settings) => isLocal(settings.service) || (settings.service === "adobe" && modelOf(settings) === "firefly-fill");
+  // The local models draw in place, pixel for pixel: their picture needs no aligning. So do
+  // Firefly Fill and GPT Image, which redraw only the mask: aligned anyway, GPT Image's picture
+  // was moved off its place (seven areas: the join to the page 23 grey levels apart, 21 left as is)
+  const drawsInPlace = (settings) => {
+    if (isLocal(settings.service)) return true;
+    const model = modelOf(settings);
+    return settings.service === "adobe" && (model === "firefly-fill" || model.startsWith("gpt-image-"));
+  };
   // FLUX on this computer: its time grows faster than the area, so the area goes no bigger than
   // this (a 600 × 900 area took 166 s on an M4, 560 × 560 about 55 s)
   const longestFor = (settings) => (isLocal(settings.service) && isFlux(modelOf(settings)) ? 768 : 0);
