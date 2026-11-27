@@ -18,6 +18,12 @@
   // Written twice in a row, they make one mark: never one at the end of a line and one at the
   // start of the next
   const PAIRED = new Set(Array.from("—―…‥"));
+  // The stops and closing marks a line may end on whatever follows, and the opening marks one
+  // may start on whatever comes before, when the words they close or open are Chinese or
+  // Japanese: a Latin word or a number set in the middle of the sentence ("书，OK吗？"). The
+  // same marks in a Latin text ("Oui！？Non") stay with their words.
+  const ENDS_ANY = new Set(Array.from("、。，．：；？！）〕］｝〉》」』】〗〙〛"));
+  const STARTS_ANY = new Set(Array.from("（〔［｛〈《「『【〖〘〚"));
   const has = (text) => WIDE.test(text);
   const wide = (ch) => Boolean(ch) && WIDE.test(ch);
   const gap = (ch) => ch === " " || ch === "\t" || ch === "\r" || ch === "\n";
@@ -43,13 +49,32 @@
   const breaksOf = (text) => {
     if (!has(text)) return null;
     const breaks = new Set();
+    const characters = Array.from(text);
+    // The letter the marks before a place close, and the one the marks after it open: the
+    // nearest character that is no mark, none across a space
+    const closed = [];
+    const opened = [];
+    let letter = "";
+    characters.forEach((ch, i) => {
+      closed[i] = letter;
+      if (!mark(ch)) letter = gap(ch) ? "" : ch;
+    });
+    letter = "";
+    for (let i = characters.length - 1; i >= 0; i--) {
+      if (!mark(characters[i])) letter = gap(characters[i]) ? "" : characters[i];
+      opened[i] = letter;
+    }
     let before = "";
     let at = 0;
-    for (const ch of text) {
-      if (at > 0 && breaksBetween(before, ch)) breaks.add(at);
+    characters.forEach((ch, i) => {
+      if (at > 0) {
+        if (breaksBetween(before, ch)) breaks.add(at);
+        else if (!gap(before) && !gap(ch) && !CARRIED.test(ch) && !NO_START.has(ch) && !NO_END.has(before) &&
+          ((ENDS_ANY.has(before) && LETTER.test(closed[i])) || (STARTS_ANY.has(ch) && LETTER.test(opened[i])))) breaks.add(at);
+      }
       before = ch;
       at += ch.length;
-    }
+    });
     return breaks.size ? breaks : null;
   };
 

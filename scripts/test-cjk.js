@@ -42,6 +42,9 @@ same("no ideograph, no break", CJK.breaksOf("Hello world, again"), null);
 // A full-width mark in a Latin text stays with its word; a letter keeps the marks it carries
 same("full-width marks in Latin words", ["Yay～♪", "Ooh～nice", "Oui！？Non", "A・B「quote」"].map(cut), ["Yay～♪", "Ooh～nice", "Oui！？Non", "A・B「quote」"]);
 same("between two marks of a Chinese text", cut("他说。「你好」"), "他|说。|「你|好」");
+// A Latin word or a number in a Chinese sentence breaks from the stop before it and from the
+// bracket after it; with Latin words on both sides the marks stay where they are
+same("a stop before a Latin word, a bracket after one", [cut("买了12本书，OK吗？"), cut("好！OK"), cut("OK「好的」"), cut("书， OK")], ["买|了|12|本|书，|OK|吗？", "好！|OK", "OK|「好|的」", "书， OK"]);
 same("voicing marks and variation selectors", [cut("か\u3099き"), cut("ｶﾞｷ"), cut("葛\u{E0100}城")], ["か\u3099|き", "ｶﾞ|ｷ", "葛\u{E0100}|城"]);
 same("Korean breaks at its spaces", CJK.breaksOf("한국어 텍스트"), null);
 same("breaksBetween", [CJK.breaksBetween("天", "地"), CJK.breaksBetween("天", "。"), CJK.breaksBetween("「", "天"), CJK.breaksBetween("a", "b"), CJK.breaksBetween("天", " "), CJK.breaksBetween("", "天")], [true, false, false, false, false, false]);
