@@ -10687,6 +10687,9 @@
   };
   ui.editor.addEventListener("keydown", (event) => {
     event.stopPropagation();
+    // While an input method composes a character (Chinese, Japanese, Korean), every key is
+    // its own: the arrows go through its candidates, Enter takes one, Esc gives it up
+    if (event.isComposing || event.keyCode === 229) return;
     if (TURN_KEYS.has(event.key)) showTypingTurn(event);
     const letter = event.key.toLowerCase();
     if (isCommand(event) && !event.altKey && (letter === "z" || (!IS_MAC && letter === "y" && !event.shiftKey))) {
