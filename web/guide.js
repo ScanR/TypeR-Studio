@@ -910,12 +910,12 @@
           result: "{Cmd}{Z} would undo it, and Window → History lists every step. But there's quicker.",
         },
         {
-          text: "Click Align, at the top of the panel: with nothing selected, TypeR finds the bubble around the text and centres it in it.",
+          text: "Click Center, at the top of the panel: with nothing selected, TypeR finds the bubble around the text and centres it in it.",
           // A selection left over would be what the text centres on
           enter: () => { if (app.doc && app.doc.state.selection) ops.deselect(); },
           targets: [{ panel: '[data-tour="align"]' }],
           done: (ctx, since) => did(since, ["TyperTools Align"], 1) > 0,
-          result: "Back in the middle. When TypeR can't find the bubble, Align centres on a selection of yours instead.",
+          result: "Back in the middle. When TypeR can't find the bubble, Center uses a selection of yours instead.",
         },
         {
           text: "First turn off Click paste, at the bottom of the panel: on, every selection pastes a line.",
@@ -926,10 +926,10 @@
         {
           // Keys pressed in the panel never lend a tool: the keyboard goes back to the page
           enter: () => pageKeys(),
-          text: "Hold {M} to borrow the Rectangular Marquee, draw a box over the top half of bubble ①, let go, then click Align: the text centres in your box.",
+          text: "Hold {M} to borrow the Rectangular Marquee, draw a box over the top half of bubble ①, let go, then click Center: the text centres in your box.",
           targets: [{ spot: 1 }, { panel: '[data-tour="align"]' }],
           done: (ctx, since) => Boolean(ctx.selection) && did(since, ["TyperTools Align"], 1) > 0,
-          result: "Handy for a text on the art, or a bubble open on one side. {Cmd}{D} deselects, and Align with nothing selected puts it back in its bubble.",
+          result: "Handy for a text on the art, or a bubble open on one side. {Cmd}{D} deselects, and Center with nothing selected puts it back in its bubble.",
         },
         {
           // Show Transform Controls off: no frame to drag until Free Transform shows one
