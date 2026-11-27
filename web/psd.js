@@ -200,9 +200,11 @@
 
   /* What Photoshop keeps of a text only in the document's own text block (`Txt2`), not in the
      layer's: its kerning as the Character panel names it (Metrics, Optical, or a number: a
-     layer's own data says Metrics for all three) and its Contextual alternates. Found by saving
-     one text in each state from Photoshop 2026: in each run's style sheet, key 11 is the
-     kerning (0 a number, 1 Metrics, 2 Optical) and key 20 the alternates. */
+     layer's own data says Metrics for all three), its Contextual alternates, and its language
+     when it is Chinese, Japanese or Korean (a layer's own data says English for them all).
+     Found by saving one text in each state from Photoshop 2026: in each run's style sheet,
+     key 11 is the kerning (0 a number, 1 Metrics, 2 Optical), key 20 the alternates and key 38
+     the language, in the block's own numbers (see TEXT_LANGUAGES in photoshop.js). */
   // The block's own writing: dictionaries << /key value >>, lists [ ], names, numbers, and
   // strings ( ) in UTF-16 behind a mark. Read into a tree that goes back into the very same
   // bytes, so that what TypeR leaves alone in a block stays as Photoshop wrote it:
@@ -349,6 +351,7 @@
         const model = dig(entry, "0");
         const kerning = [];
         const contextual = [];
+        const language = [];
         listAt(model, "6", "0").forEach((run) => {
           const head = dig(run, "0", "0");
           const sheet = dig(head, "6");
@@ -356,17 +359,19 @@
           const said = (key) => wordOf(dig(sheet, key) || dig(parent, key));
           const pair = said("11");
           const alternates = said("20");
+          const spoken = said("38");
           for (let i = 0, length = wordOf(dig(run, "1")) || 0; i < length; i++) {
             kerning.push(pair);
             contextual.push(alternates);
+            language.push(spoken);
           }
         });
         const runs = [];
         contextual.forEach((alternates, at) => {
           const pair = kerning[Math.max(0, at - 1)];
           const last = runs[runs.length - 1];
-          if (last && last.kerning === pair && last.contextual === alternates) last.length++;
-          else runs.push({ length: 1, kerning: pair, contextual: alternates });
+          if (last && last.kerning === pair && last.contextual === alternates && last.language === language[at]) last.length++;
+          else runs.push({ length: 1, kerning: pair, contextual: alternates, language: language[at] });
         });
         return { text: stringOf(dig(model, "0")), runs };
       });
@@ -425,9 +430,13 @@
   // Whether an entry of the block is of these very characters: the block ends each text with
   // a return of its own (a text that ends with an empty line has two)
   const blockHas = (entryText, value) => entryText === value + "\r" || entryText === value;
-  // The kerning and the Contextual alternates of each run, from the document's text block: a
-  // run is cut where they change inside it. Only when the block has this very text: a layer
-  // the block doesn't follow keeps what its own data says. True when the block had the text.
+  // The kerning, the Contextual alternates and the language of each run, from the document's
+  // text block: a run is cut where they change inside it. Only when the block has this very
+  // text: a layer the block doesn't follow keeps what its own data says. True when the block
+  // had the text.
+  // The block's language is only heard for Chinese, Japanese and Korean, and where the layer
+  // says English, as Photoshop writes them: any other language is in the layer's own data,
+  // and TypeR once gave the block the layer's numbers, where a Croatian text is a Chinese one.
   const blockStyles = (ranges, value, block) => {
     if (!block || !block.runs.length || !blockHas(block.text, value)) return false;
     const cuts = [];
@@ -446,6 +455,8 @@
         if (KERNING_IN[run.kerning]) textStyle.autoKern = KERNING_IN[run.kerning];
         else if (run.kerning === 1) delete textStyle.autoKern;
         if (typeof run.contextual === "boolean") textStyle.contextualLigatures = run.contextual;
+        const spoken = PS().textLanguageOfBlock(run.language);
+        if (spoken && (!textStyle.textLanguage || textStyle.textLanguage === "englishLanguage")) textStyle.textLanguage = spoken;
         const last = out[out.length - 1];
         if (last && last.to === start && JSON.stringify(last.textStyle) === JSON.stringify(textStyle)) last.to = end;
         else out.push({ from: start, to: end, textStyle });
@@ -844,17 +855,19 @@
     });
   };
   // What a text layer's own data can't say (see textBlockOf), kept for TypeR itself: a text set
-  // in Optical, or with its Contextual alternates off, comes back so from a PSD TypeR wrote.
+  // in Optical, with its Contextual alternates off, or in Chinese, Japanese or Korean, comes
+  // back so from a PSD TypeR wrote.
   // Each entry: the layer's name and text, then for each run its length, its kerning (2 for
-  // Optical) and its alternates (0 when off). The file's text block says the same to Photoshop
+  // Optical), its alternates (0 when off) and its language (the block's number for these
+  // languages, 0 for any other). The file's text block says the same to Photoshop
   // (see textBlockOut) and is believed first; this list speaks for the texts with no entry
   // there (see blockModel).
   const lettersForSave = (doc) => doc.state.layers
-    .filter((layer) => layer.kind === "text" && layer.params.layerText.textStyleRange.some((range) => range.textStyle.autoKern === "opticalKern" || range.textStyle.contextualLigatures === false))
+    .filter((layer) => layer.kind === "text" && layer.params.layerText.textStyleRange.some((range) => range.textStyle.autoKern === "opticalKern" || range.textStyle.contextualLigatures === false || PS().textLanguageBlockOnly(range.textStyle.textLanguage)))
     .map((layer) => ({
       name: layer.name,
       text: layer.params.layerText.textKey,
-      runs: layer.params.layerText.textStyleRange.map((range) => [range.to - range.from, range.textStyle.autoKern === "opticalKern" ? 2 : 0, range.textStyle.contextualLigatures === false ? 0 : 1]),
+      runs: layer.params.layerText.textStyleRange.map((range) => [range.to - range.from, range.textStyle.autoKern === "opticalKern" ? 2 : 0, range.textStyle.contextualLigatures === false ? 0 : 1, PS().textLanguageBlockOnly(range.textStyle.textLanguage)]),
     }));
   const attachLetters = (layers, xmp) => {
     const taken = new Set();
@@ -863,7 +876,7 @@
       const layer = layers.find((item) => item.kind === "text" && !taken.has(item) && !saidByBlock.has(item.params.layerText.textStyleRange) && item.name === entry.name && item.params.layerText.textKey === entry.text);
       if (!layer) return;
       taken.add(layer);
-      const runs = entry.runs.filter((run) => Array.isArray(run) && run[0] > 0).map((run) => ({ length: run[0], kerning: run[1] === 2 ? 2 : undefined, contextual: run[2] === 0 ? false : undefined }));
+      const runs = entry.runs.filter((run) => Array.isArray(run) && run[0] > 0).map((run) => ({ length: run[0], kerning: run[1] === 2 ? 2 : undefined, contextual: run[2] === 0 ? false : undefined, language: run[3] || undefined }));
       blockStyles(layer.params.layerText.textStyleRange, entry.text, { text: entry.text, runs });
     });
   };
@@ -1565,8 +1578,8 @@
   const BLOCK_JUSTIFY = { left: 0, right: 1, center: 2 };
   const BLOCK_TEXT = ["text", "transform", "antiAlias", "shapeType", "orientation", "style", "paragraphStyle", "boxBounds", "warp", "styleRuns"];
   // The anti-aliasing has a key in an entry too, but for Smooth (seen in the files of three
-  // versions of Photoshop for these four)
-  const BLOCK_ANTI_ALIAS = { crisp: 1, strong: 2, smooth: 3, sharp: 4 };
+  // versions of Photoshop for these four, and of Photoshop 2026 for None)
+  const BLOCK_ANTI_ALIAS = { none: 0, crisp: 1, strong: 2, smooth: 3, sharp: 4 };
   const blockValue = (value, kind) => {
     if (kind === "real") return blockReal(value);
     if (kind === "flag") return value ? "1" : "0";
@@ -1581,7 +1594,7 @@
   // Null for a text with something Photoshop's own conversion was not read for.
   const blockModel = (text, said, fontAt) => {
     const smoothing = BLOCK_ANTI_ALIAS[text.antiAlias];
-    if (Object.keys(text).some((key) => !BLOCK_TEXT.includes(key)) || (text.shapeType !== "box" && text.shapeType !== "point") || !smoothing) return null;
+    if (Object.keys(text).some((key) => !BLOCK_TEXT.includes(key)) || (text.shapeType !== "box" && text.shapeType !== "point") || smoothing === undefined) return null;
     const value = String(text.text || "").replace(/\r?\n/g, "\r") + "\r";
     const paragraph = Object.assign({}, BLOCK_PARAGRAPH, text.paragraphStyle);
     if (Object.keys(paragraph).some((key) => !(key in BLOCK_PARAGRAPH)) || BLOCK_JUSTIFY[paragraph.justification] === undefined) return null;

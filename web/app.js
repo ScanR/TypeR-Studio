@@ -10485,7 +10485,14 @@
     if (typingOnPage()) schedule(false);
   });
 
-  const SPELLING_LANGUAGES = { englishLanguage: "en-US", ukenglishLanguage: "en-GB", standardFrenchLanguage: "fr", canadianFrenchLanguage: "fr-CA", spanishLanguage: "es", italianLanguage: "it", germanLanguageReformed1996: "de", oldGermanLanguage: "de", standardPortugueseLanguage: "pt-PT", brazilianPortugueseLanguage: "pt-BR", kdutchLanguageOldRules: "nl", polishLanguage: "pl", russianLanguage: "ru", ukranianLanguage: "uk", turkishLanguage: "tr" };
+  // The language a text's spelling is checked in. Chinese and Japanese have no spelling to
+  // check, and neither Chrome nor macOS (which checks for Safari, and for Chrome on a Mac)
+  // has a checker for them: left on, the Latin words of such a text would be underlined by
+  // another language's dictionary. Both check Korean.
+  const UNCHECKED_LANGUAGES = ["simplifiedChineseLanguage", "chineseLanguage", "japaneseLanguage"];
+  const editedLanguage = (layer) => layer.params.layerText.textStyleRange[0].textStyle.textLanguage || app.textDefaults.language;
+  const spellingChecked = (layer) => settings.spellcheck && !(layer && UNCHECKED_LANGUAGES.includes(editedLanguage(layer)));
+  const SPELLING_LANGUAGES = { englishLanguage: "en-US", ukenglishLanguage: "en-GB", standardFrenchLanguage: "fr", canadianFrenchLanguage: "fr-CA", spanishLanguage: "es", italianLanguage: "it", germanLanguageReformed1996: "de", oldGermanLanguage: "de", standardPortugueseLanguage: "pt-PT", brazilianPortugueseLanguage: "pt-BR", kdutchLanguageOldRules: "nl", polishLanguage: "pl", russianLanguage: "ru", ukranianLanguage: "uk", turkishLanguage: "tr", koreanLanguage: "ko" };
 
   // `press`: the click that opened it, where the caret goes (`drag`: its button still down). A
   // text opened otherwise, by a double-click on its thumbnail or Cmd+Enter, is all selected.
@@ -10501,8 +10508,10 @@
     const { history, historyIndex } = app.doc;
     editing = { id: layer.id, isNew: Boolean(isNew), base: history[isNew ? Math.max(0, historyIndex - 1) : historyIndex].id };
     ui.editor.value = String(layer.params.layerText.textKey || "").replace(/\r/g, "\n");
-    ui.editor.spellcheck = settings.spellcheck;
-    ui.editor.lang = SPELLING_LANGUAGES[layer.params.layerText.textStyleRange[0].textStyle.textLanguage || app.textDefaults.language] || "";
+    const language = editedLanguage(layer);
+    ui.editor.spellcheck = spellingChecked(layer);
+    // An unchecked text still says its language, which the input method and the system follow
+    ui.editor.lang = SPELLING_LANGUAGES[language] || (UNCHECKED_LANGUAGES.includes(language) ? PS.languageTagOf(layer.params.layerText.textStyleRange[0].textStyle) : "");
     ui.editor.hidden = false;
     placeEditor();
     ops.showTyped(typingOnPage() ? layer.id : null);
@@ -20086,7 +20095,7 @@
       { label: "Flip Vertical", keepsTransform: true, enabled: canTransform, action: () => transformStep(flipV) },
       { label: "Auto-Align Layers…", enabled: canAutoAlign, action: autoAlignLayers },
       null,
-      { label: "Check Spelling", check: () => settings.spellcheck, action: () => { settings.spellcheck = !settings.spellcheck; ui.editor.spellcheck = settings.spellcheck; keepSettings(); } },
+      { label: "Check Spelling", check: () => settings.spellcheck, action: () => { settings.spellcheck = !settings.spellcheck; ui.editor.spellcheck = spellingChecked(editing && app.doc.state.layers.find((layer) => layer.id === editing.id)); keepSettings(); } },
       { label: "Settings…", keys: "Cmd+K", action: () => showSettings() },
     ]],
     ["Image", [

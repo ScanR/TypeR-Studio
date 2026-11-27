@@ -110,7 +110,13 @@
   // them (both read back from Photoshop) and how the language writes itself. A file numbers
   // a text's language twice, in the layer's own data and in the document's text block (see
   // textBlockOut in psd.js), which Photoshop believes first: the fourth is the block's
-  // number where it isn't the layer's.
+  // number where it isn't the layer's. The layer's data has no number for Chinese, Japanese
+  // and Korean (null): Photoshop writes English there, and the block alone says them.
+  // Photoshop's scripting names one Chinese, the Traditional one. It has no name for the
+  // Simplified one, whose texts say no language at all to a script: its name here is TypeR's
+  // own, and its number was found by the forms Photoshop 2026 draws. Of the block's numbers,
+  // 64 alone turns the characters of PingFang TC into the mainland's, as 29 turns those of
+  // PingFang SC into Taiwan's.
   const TEXT_LANGUAGES = [
     ["englishLanguage", 0, "English (US)"], ["ukenglishLanguage", 14, "English (UK)"], ["standardFrenchLanguage", 2, "Français"], ["canadianFrenchLanguage", 3, "Français (Canada)"],
     ["spanishLanguage", 12, "Español"], ["italianLanguage", 7, "Italiano"], ["germanLanguageReformed1996", 4, "Deutsch"], ["oldGermanLanguage", 5, "Deutsch (1901)"], ["swissGermanLanguageOldRules", 6, "Deutsch (Schweiz)"],
@@ -119,8 +125,9 @@
     ["polishLanguage", 23, "Polski"], ["czechLanguage", 22, "Čeština"], ["slovakLanguage", 36, "Slovenčina", 38], ["hungarianLanguage", 28, "Magyar"], ["romanianLanguage", 24, "Română"], ["croatianLanguage", 29, "Hrvatski", 31], ["slovenianLanguage", 31, "Slovenščina", 33],
     ["lithuanianLanguage", 34, "Lietuvių", 36], ["latvianLanguage", 35, "Latviešu", 37], ["turkishLanguage", 26, "Türkçe"], ["greekLanguage", 25, "Ελληνικά"], ["russianLanguage", 18, "Русский"], ["ukranianLanguage", 19, "Українська"], ["bulgarianLanguage", 20, "Български"], ["serbianLanguage", 21, "Српски"],
     ["arabicLanguage", 37, "العربية", 39], ["hebrewLanguage", 30, "עברית", 32],
+    ["simplifiedChineseLanguage", null, "简体中文", 64], ["chineseLanguage", null, "繁體中文", 29], ["japaneseLanguage", null, "日本語", 30], ["koreanLanguage", null, "한국어", 63],
   ];
-  const INTERFACE_TEXT_LANGUAGE = { fr: "standardFrenchLanguage", es: "spanishLanguage", it: "italianLanguage", de: "germanLanguageReformed1996", pt: "brazilianPortugueseLanguage", ru: "russianLanguage", uk: "ukranianLanguage", pl: "polishLanguage", nl: "kdutchLanguageOldRules", tr: "turkishLanguage", ar: "arabicLanguage" };
+  const INTERFACE_TEXT_LANGUAGE = { fr: "standardFrenchLanguage", es: "spanishLanguage", it: "italianLanguage", de: "germanLanguageReformed1996", pt: "brazilianPortugueseLanguage", ru: "russianLanguage", uk: "ukranianLanguage", pl: "polishLanguage", nl: "kdutchLanguageOldRules", tr: "turkishLanguage", ar: "arabicLanguage", zh: "simplifiedChineseLanguage", ja: "japaneseLanguage", ko: "koreanLanguage" };
   const DEFAULT_TEXT_LANGUAGE = INTERFACE_TEXT_LANGUAGE[window.TYPER_I18N.lang] || "englishLanguage";
   // Other names Photoshop gives the same languages, in styles made by the plugin
   // The same languages as the browser names them. A font made for several languages draws some
@@ -133,6 +140,11 @@
     swedishLanguage: "sv", bokmalNorwegianLanguage: "nb", nynorskNorwegianLanguage: "nn", finnishLanguage: "fi", icelandicLanguage: "is", polishLanguage: "pl", czechLanguage: "cs",
     slovakLanguage: "sk", hungarianLanguage: "hu", romanianLanguage: "ro", croatianLanguage: "hr", slovenianLanguage: "sl", lithuanianLanguage: "lt", latvianLanguage: "lv",
     turkishLanguage: "tr", greekLanguage: "el", russianLanguage: "ru", ukranianLanguage: "uk", bulgarianLanguage: "bg", serbianLanguage: "sr", arabicLanguage: "ar", hebrewLanguage: "he",
+    // Chinese, Japanese and Korean share their ideographs, and each region draws some of them
+    // its own way: a font made for several regions (PingFang, Source Han) draws the forms of
+    // the text's language, as in Photoshop, and a letter the font lacks comes from a font of
+    // that language. Photoshop's Traditional Chinese draws Taiwan's forms.
+    simplifiedChineseLanguage: "zh-Hans", chineseLanguage: "zh-Hant", japaneseLanguage: "ja", koreanLanguage: "ko",
   };
   // A text with no language is in the language of new text, as the Character panel shows it
   // and as it is saved: drawn, put in capitals and hyphenated the same way everywhere
@@ -141,7 +153,7 @@
   const TEXT_LANGUAGE_NUMBERS = TEXT_LANGUAGES.reduce((numbers, [name, number]) => Object.assign(numbers, { [name]: number }), { standardGermanLanguage: 4, swissGermanLanguage: 6, dutchLanguage: 15 });
   const textLanguageNumber = (name) => {
     const number = TEXT_LANGUAGE_NUMBERS[name];
-    return number === undefined ? TEXT_LANGUAGE_NUMBERS[app.textDefaults.language] : number;
+    return (number === undefined ? TEXT_LANGUAGE_NUMBERS[app.textDefaults.language] : number) || 0;
   };
   const textLanguageName = (number) => {
     const language = TEXT_LANGUAGES.find((item) => item[1] === number);
@@ -152,6 +164,16 @@
   const textLanguageBlockNumber = (name) => {
     const number = TEXT_LANGUAGE_BLOCK_NUMBERS[name];
     return number === undefined ? TEXT_LANGUAGE_BLOCK_NUMBERS[app.textDefaults.language] : number;
+  };
+  // The languages the block alone says: the block's number of such a text's language (0 for
+  // any other language), and the language of such a number
+  const textLanguageBlockOnly = (name) => {
+    const language = TEXT_LANGUAGES.find((item) => item[0] === (name || app.textDefaults.language));
+    return language && language[1] === null ? language[3] : 0;
+  };
+  const textLanguageOfBlock = (number) => {
+    const language = TEXT_LANGUAGES.find((item) => item[1] === null && item[3] === number);
+    return language ? language[0] : undefined;
   };
 
   // A zero-width non-joiner between two letters also stops ligatures, where the browser can't
@@ -327,13 +349,15 @@
   // `wide`: for a Chinese or Japanese character, which the browser may take from another font
   const uprightBaseOf = (textStyle, wide) => {
     const css = cssFont(textStyle, INK_SIZE);
-    const key = Fonts.generation + "|" + css + "|" + (wide ? 1 : 0);
+    const key = Fonts.generation + "|" + css + "|" + languageTagOf(textStyle) + "|" + (wide ? 1 : 0);
     if (!uprightBases.has(key)) {
       if (uprightBases.size > 500) uprightBases.clear();
       const own = ownGlyph(textStyle, FULL_IDEOGRAPHS[0]);
       let base;
       if (own || wide) {
         measureCtx.font = css;
+        // The ideographs as the text's language has them drawn, not as the text measured last
+        if ("lang" in measureCtx) measureCtx.lang = languageTagOf(textStyle);
         const m = measureCtx.measureText(FULL_IDEOGRAPHS);
         const high = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
         base = high > INK_SIZE * 0.5 ? 0.5 + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2 / INK_SIZE : 0.88;
@@ -16902,6 +16926,8 @@
     textLanguageNumber,
     textLanguageName,
     textLanguageBlockNumber,
+    textLanguageBlockOnly,
+    textLanguageOfBlock,
     drawOp,
     renderGradient,
     labRange,
