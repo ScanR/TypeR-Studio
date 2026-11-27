@@ -271,6 +271,7 @@
     PointSize: "12", Leading: "Auto", AutoLeading: "120", Tracking: "0", HorizontalScale: "100", VerticalScale: "100", BaselineShift: "0",
     Capitalization: "Normal", Position: "Normal", FillColor: "Color/Black", FillTint: "-1", Skew: "0", Justification: "LeftAlign", AppliedFont: "Minion Pro",
     FontStyle: "Regular", StrokeWeight: "1", StrokeColor: "Swatch/None", StrokeTint: "-1", Underline: "false", StrikeThru: "false", Ligatures: "true", KerningMethod: "$ID/Metric",
+    Tatechuyoko: "false", RotateSingleByteCharacters: "false",
   };
 
   // A style's value, from the style itself up the ones it is based on
@@ -389,10 +390,29 @@
 
   /* -------------------------------- stories -------------------------------- */
 
+  // The squares the characters of a vertical line stand in, as InDesign counts them (its em
+  // boxes): how far they reach to the right of the line's baseline and to its left, in the
+  // line as TypeR set it. A square is as wide as the size, whatever the letters' own scale.
+  const squaresOf = (line) => {
+    let lead = null;
+    line.m.placed.forEach((item) => {
+      if (!lead || item.size > lead.size) lead = item;
+    });
+    const scaled = lead && lead.upright ? (lead.size * (lead.scaleX - 1)) / 2 : 0;
+    return { right: line.m.fontAscent - scaled, left: line.m.fontDescent - scaled };
+  };
+
   const SKIPPED_IN_TEXT = new Set(["Properties", "Note", "Footnote", "Endnote", "EndnoteRange", "Table", "Rectangle", "Oval", "Polygon", "GraphicLine", "TextFrame", "Group", "Button", "HiddenText"]);
+
+  // A vertical story: its lines run from top to bottom and follow each other from right to left
+  const storyVertical = (storyEl) => {
+    const preference = child(storyEl, "StoryPreference");
+    return Boolean(preference) && preference.getAttribute("StoryOrientation") === "Vertical";
+  };
 
   // A story's text and its runs, as TypeR keeps them: one paragraph style, line breaks as \r
   const readStory = (model, storyEl, scale) => {
+    const vertical = storyVertical(storyEl);
     const pieces = [];
     let firstParagraph = null;
     const visit = (el, psr, csr) => {
@@ -418,8 +438,20 @@
       styleCache.set(key, style);
       return style;
     };
+    // In a vertical story a run also says which way its letters go: InDesign's Tate-Chu-Yoko
+    // sets them side by side, and its Latin letters lie on their side unless the paragraph
+    // rotates them (Rotate Roman in Vertical Text), where TypeR stands them upright unless
+    // told otherwise. Runs that are alike share one style.
+    const ways = new Map();
+    const wayOf = (style, way) => {
+      const key = JSON.stringify(style) + "|" + way;
+      if (!ways.has(key)) ways.set(key, way ? Object.assign({}, style, { baselineDirection: way }) : Object.assign({}, style));
+      return ways.get(key);
+    };
     let text = "";
     const styles = [];
+    // What InDesign sets side by side: the range it is in, and the style it has without that
+    const across = [];
     let stroke = null;
     pieces.forEach(({ text: raw, psr, csr }) => {
       const clean = raw.replace(/[\u2028\u2029\n]/g, "\r").replace(/\t/g, " ").replace(/[\uFEFF\u00AD\u200B]/g, "");
@@ -435,11 +467,48 @@
       const sameColor = strokeColor && JSON.stringify(strokeColor) === JSON.stringify(style.color);
       if (sameColor && Number(textValue(model, psr, csr, "StrokeWeight")) > 0 && !style.syntheticBold) style.syntheticBold = true;
       text += clean;
-      for (let i = 0; i < clean.length; i++) styles.push(style);
+      let used = style;
+      let pair = null;
+      if (vertical) {
+        const upright = textValue(model, psr, csr, "RotateSingleByteCharacters") === "true";
+        const plain = wayOf(style, upright ? "" : "rotated");
+        if (textValue(model, psr, csr, "Tatechuyoko") === "true" && csr) pair = { csr, plain };
+        used = pair ? wayOf(style, "cross") : plain;
+      }
+      for (let i = 0; i < clean.length; i++) {
+        styles.push(used);
+        if (vertical) across.push(clean[i] === "\r" ? null : pair);
+      }
     });
     while (text.endsWith("\r")) {
       text = text.slice(0, -1);
       styles.pop();
+    }
+    if (vertical) {
+      // Two digits, or two of ! and ?, are set side by side by TypeR on its own, and written
+      // as Tate-Chu-Yoko for InDesign to do the same: back here, they are plain text again
+      const stretches = [];
+      across.length = styles.length;
+      across.forEach((pair, at) => {
+        const last = stretches[stretches.length - 1];
+        if (pair && last && last.to === at && last.pair.csr === pair.csr) last.to = at + 1;
+        else if (pair) stretches.push({ from: at, to: at + 1, pair });
+      });
+      const own = stretches.filter((stretch) => !stretch.pair.plain.baselineDirection);
+      if (own.length) {
+        const plain = styles.slice();
+        own.forEach((stretch) => plain.fill(stretch.pair.plain, stretch.from, stretch.to));
+        const ranges = [];
+        plain.forEach((style, at) => {
+          const last = ranges[ranges.length - 1];
+          if (last && last.textStyle === style) last.to = at + 1;
+          else ranges.push({ from: at, to: at + 1, textStyle: style });
+        });
+        const pairs = new Set(PS().pairsOfText({ textKey: text, textStyleRange: ranges, textShape: [{ orientation: "vertical" }] }).map((pair) => pair.join("-")));
+        own.forEach((stretch) => {
+          if (pairs.has(`${stretch.from}-${stretch.to}`)) styles.fill(stretch.pair.plain, stretch.from, stretch.to);
+        });
+      }
     }
     const ranges = [];
     styles.forEach((style, at) => {
@@ -453,7 +522,7 @@
     // InDesign's Optical Margin Alignment is the nearest thing to Photoshop's Roman Hanging Punctuation
     const preference = child(storyEl, "StoryPreference");
     if (preference && preference.getAttribute("OpticalMarginAlignment") === "true") paragraph.hangingRoman = true;
-    return { text, ranges, paragraph, stroke, firstParagraph };
+    return { text, ranges, paragraph, stroke, firstParagraph, vertical };
   };
 
   /* -------------------------------- pictures -------------------------------- */
@@ -769,13 +838,13 @@
 
     // The texts, on top, in InDesign's order
     const fontNames = [];
-    texts.forEach((item) => {
+    for (const item of texts) {
       const el = item.el;
       const previous = el.getAttribute("PreviousTextFrame");
       // A story threaded through several frames is all in its first one
-      if (previous && previous !== "n") return;
+      if (previous && previous !== "n") continue;
       const story = model.stories.get(el.getAttribute("ParentStory"));
-      if (!story) return;
+      if (!story) continue;
       const m = compose(toPixels, item.transform);
       const sx = Math.hypot(m[0], m[1]);
       const sy = Math.hypot(m[2], m[3]);
@@ -783,24 +852,38 @@
       const read = readStory(model, story.el, scale);
       const insets = insetsOf(model, el);
       const local = pathBounds(pathsOf(el));
-      const origin = apply(m, [local.left + insets.left, local.top + insets.top]);
-      const box = {
-        width: Math.max(1, (local.right - local.left - insets.left - insets.right) * sx),
-        height: Math.max(1, (local.bottom - local.top - insets.top - insets.bottom) * sy),
-        autoHeight: false,
-        verticalAlign: framePrefOf(model, el, "VerticalJustification") === "CenterAlign" ? "center" : "top",
+      // A vertical text's box is held by its top right corner, where its first line starts
+      const cornerOf = (inside) => apply(m, [read.vertical ? local.right - insets.right - inside / sx : local.left + insets.left, local.top + insets.top]);
+      const paramsOf = (inside) => {
+        const origin = cornerOf(inside);
+        const box = {
+          width: Math.max(1, (local.right - local.left - insets.left - insets.right) * sx - inside),
+          height: Math.max(1, (local.bottom - local.top - insets.top - insets.bottom) * sy),
+          autoHeight: false,
+          verticalAlign: framePrefOf(model, el, "VerticalJustification") === "CenterAlign" ? "center" : "top",
+        };
+        return {
+          layerText: {
+            textKey: read.text,
+            antiAlias: "antiAliasSmooth",
+            textClickPoint: { horizontal: (origin[0] / width) * 100, vertical: (origin[1] / height) * 100 },
+            textStyleRange: read.ranges,
+            paragraphStyleRange: [{ from: 0, to: read.text.length, paragraphStyle: read.paragraph }],
+            textShape: [{ textType: "box", orientation: read.vertical ? "vertical" : "horizontal", box }],
+          },
+        };
       };
-      const params = {
-        layerText: {
-          textKey: read.text,
-          antiAlias: "antiAliasSmooth",
-          textClickPoint: { horizontal: (origin[0] / width) * 100, vertical: (origin[1] / height) * 100 },
-          textStyleRange: read.ranges,
-          paragraphStyleRange: [{ from: 0, to: read.text.length, paragraphStyle: read.paragraph }],
-          textShape: [{ textType: "box", orientation: "horizontal", box }],
-        },
-      };
+      let params = paramsOf(0);
       read.ranges.forEach((range) => fontNames.push(range.textStyle.fontPostScriptName));
+      if (read.vertical && params.layerText.textShape[0].box.verticalAlign === "top" && framePrefOf(model, el, "FirstBaselineOffset") === "EmboxHeight") {
+        // Em Box Height: the squares of the first line touch the frame's right side, where
+        // TypeR, as Photoshop, has its baseline one ascent in from it (see frameGeometry).
+        // The box's right side comes in by what lies between the two, which the fonts say.
+        await Fonts.ready(read.ranges.map((range) => range.textStyle.fontPostScriptName));
+        const first = PS().layoutLayer({ params }, { width, height, resolution }).relative.lines[0];
+        const inside = first && first.m.fontAscent > 0 ? squaresOf(first).right - first.baseline : 0;
+        if (inside && params.layerText.textShape[0].box.width - inside >= 1) params = paramsOf(inside);
+      }
       let stroke = read.stroke ? { enabled: true, size: Math.max(1, (read.stroke.weight / 2) * k), opacity: 100, position: "outer", color: { r: read.stroke.color.red, g: read.stroke.color.green, b: read.stroke.color.blue } } : null;
       // The stroke TypeR writes: a precise outer glow on the text
       const glow = descendant(el, ["ContentTransparencySetting", "OuterGlowSetting"]);
@@ -818,7 +901,7 @@
       layer.idml = { pkg: pkg.id, frame: item.self, text: textSignature(layer), place: placeSignature(layer), visible: layer.visible !== false };
       layers.push(layer);
       frames.push(item.self);
-    });
+    }
     return { width, height, resolution, layers, picture, frames, fontNames };
   };
 
@@ -961,7 +1044,7 @@
     dirty.add(model.fontsPath);
   };
 
-  const runXml = (model, style, text, dirty) => {
+  const runXml = (model, style, text, dirty, more) => {
     const font = fontOf(style);
     registerFont(model, font, dirty);
     const color = swatchFor(model, style.color || { red: 0, green: 0, blue: 0 }, dirty);
@@ -987,9 +1070,44 @@
       // and Extra Bold, the outline Photoshop draws for it on top
       StrokeWeight: style.syntheticBold ? num((style.impliedFontSize || style.size || 12) * Math.max(1 / 40, style.extraBold ? PS().EXTRA_BOLD_WIDTH : 0)) : "0",
     };
+    if (more) Object.assign(attrs, more);
     const leading = style.autoLeading === false && style.leading > 0 ? `<Leading type="unit">${num(style.leading)}</Leading>` : `<Leading type="enumeration">Auto</Leading>`;
     const content = text.split(LINE_BREAK).map((part) => esc(cleanText(part))).join(LINE_BREAK);
     return `<CharacterStyleRange ${Object.keys(attrs).map((name) => `${name}="${esc(attrs[name])}"`).join(" ")}><Properties><AppliedFont type="string">${esc(font.family)}</AppliedFont>${leading}</Properties><Content>${content}</Content></CharacterStyleRange>`;
+  };
+
+  // A run of a vertical line in parts: `across`, the characters TypeR sets side by side in
+  // the line (a run set to Tate-Chu-Yoko, and the pairs of digits or of ! and ? it finds on
+  // its own), which InDesign only does where it is told
+  const columnParts = (run) => {
+    const { text, style } = run;
+    if (style.baselineDirection === "cross") return [{ text, across: !/\t/.test(text) }];
+    const pairs = style.baselineDirection === "rotated" ? null : window.TypeRCJK.pairsOf(text);
+    if (!pairs) return [{ text }];
+    const parts = [];
+    let at = 0;
+    pairs.forEach(([from, to]) => {
+      if (from > at) parts.push({ text: text.slice(at, from) });
+      parts.push({ text: text.slice(from, to), across: true });
+      at = to;
+    });
+    if (at < text.length) parts.push({ text: text.slice(at) });
+    return parts;
+  };
+  // Whether a vertical text's Latin letters and digits lie on their side (Standard Vertical
+  // Roman Alignment off). InDesign says it once for the paragraph: when the runs differ,
+  // the way most of those letters go.
+  const liesOnSide = (runs) => {
+    let side = 0;
+    let upright = 0;
+    runs.forEach(({ style, text, across }) => {
+      if (across) return;
+      const letters = Array.from(text).filter((ch) => ch > " " && ch.codePointAt(0) < 0x2000).length;
+      const weight = letters * 1000 + text.length;
+      if (style.baselineDirection === "rotated") side += weight;
+      else upright += weight;
+    });
+    return side > upright;
   };
 
   // A text layer's lines as TypeR sets them, each line ended by a forced line break, so that
@@ -997,18 +1115,22 @@
   const storyContentXml = (model, layer, doc, paragraphStyle, dirty) => {
     const lt = layer.params.layerText;
     const relative = PS().layoutLayer(layer, doc).relative;
+    const vertical = PS().verticalOf(lt);
     const base = (lt.textStyleRange && lt.textStyleRange[0] && lt.textStyleRange[0].textStyle) || {};
     const runs = [];
     relative.wrapped.forEach((line, index) => {
       if (index > 0) {
         const last = runs[runs.length - 1];
-        if (last) last.text += LINE_BREAK;
-        else runs.push({ style: base, text: LINE_BREAK });
+        // The break stays out of what is set side by side
+        if (last && !last.across) last.text += LINE_BREAK;
+        else runs.push({ style: last ? last.style : base, text: LINE_BREAK });
       }
       line.forEach((run) => {
-        const last = runs[runs.length - 1];
-        if (last && last.style === run.style && !last.text.endsWith(LINE_BREAK)) last.text += run.text;
-        else runs.push({ style: run.style, text: run.text });
+        (vertical ? columnParts(run) : [run]).forEach((part) => {
+          const last = runs[runs.length - 1];
+          if (last && last.style === run.style && !last.across && !part.across && !last.text.endsWith(LINE_BREAK)) last.text += part.text;
+          else runs.push({ style: run.style, text: part.text, across: part.across });
+        });
       });
     });
     if (!runs.length) runs.push({ style: base, text: "" });
@@ -1024,7 +1146,16 @@
       SpaceAfter: "0",
       Hyphenation: "false",
     };
-    return `<ParagraphStyleRange ${Object.keys(attrs).map((name) => `${name}="${esc(attrs[name])}"`).join(" ")}>${runs.map((run) => runXml(model, run.style, run.text, dirty)).join("")}</ParagraphStyleRange>`;
+    let properties = "";
+    if (vertical) {
+      // A vertical story is set by InDesign's Japanese composer, as TypeR and Photoshop set
+      // it: leading from baseline to baseline, letters of several sizes on one baseline,
+      // every character its full width (no spacing rules, no baseline grid), nothing set
+      // side by side but what is marked so
+      Object.assign(attrs, { Composer: "HL Composer J", LeadingModel: "LeadingModelRoman", CharacterAlignment: "AlignBaseline", GridAlignment: "None", RotateSingleByteCharacters: String(!liesOnSide(runs)), AutoTcy: "0" });
+      properties = `<Properties><Mojikumi type="enumeration">Nothing</Mojikumi><KinsokuSet type="enumeration">Nothing</KinsokuSet></Properties>`;
+    }
+    return `<ParagraphStyleRange ${Object.keys(attrs).map((name) => `${name}="${esc(attrs[name])}"`).join(" ")}>${properties}${runs.map((run) => runXml(model, run.style, run.text, dirty, vertical ? { Tatechuyoko: String(Boolean(run.across)) } : null)).join("")}</ParagraphStyleRange>`;
   };
 
   const fragment = (doc, xml) => {
@@ -1038,8 +1169,15 @@
   };
 
   const writeStory = (model, storyEl, layer, doc, dirty, path) => {
-    const preference = child(storyEl, "StoryPreference");
+    let preference = child(storyEl, "StoryPreference");
+    const vertical = PS().verticalOf(layer.params.layerText);
+    if (!preference && vertical) {
+      preference = storyEl.ownerDocument.createElement("StoryPreference");
+      storyEl.insertBefore(preference, storyEl.firstElementChild);
+    }
     if (preference) preference.setAttribute("OpticalMarginAlignment", String(hangsOf(layer)));
+    // Vertical Text, or a text that was vertical in InDesign and is no longer
+    if (preference && (vertical || preference.getAttribute("StoryOrientation") === "Vertical")) preference.setAttribute("StoryOrientation", vertical ? "Vertical" : "Horizontal");
     const first = child(storyEl, "ParagraphStyleRange");
     const paragraphStyle = first && first.getAttribute("AppliedParagraphStyle");
     children(storyEl).forEach((node) => {
@@ -1050,7 +1188,7 @@
   };
 
   const newStoryFile = (model, self, layer, doc, dirty) => {
-    const xml = `<idPkg:Story xmlns:idPkg="${IDPKG}" DOMVersion="${esc(model.domVersion)}"><Story Self="${self}" UserText="true" IsEndnoteStory="false" AppliedTOCStyle="n" TrackChanges="false" StoryTitle="$ID/" AppliedNamedGrid="n"><StoryPreference OpticalMarginAlignment="${hangsOf(layer)}" OpticalMarginSize="12" FrameType="TextFrameType" StoryOrientation="Horizontal" StoryDirection="LeftToRightDirection"/><InCopyExportOption IncludeGraphicProxies="true" IncludeAllResources="false"/>${storyContentXml(model, layer, doc, null, dirty)}</Story></idPkg:Story>`;
+    const xml = `<idPkg:Story xmlns:idPkg="${IDPKG}" DOMVersion="${esc(model.domVersion)}"><Story Self="${self}" UserText="true" IsEndnoteStory="false" AppliedTOCStyle="n" TrackChanges="false" StoryTitle="$ID/" AppliedNamedGrid="n"><StoryPreference OpticalMarginAlignment="${hangsOf(layer)}" OpticalMarginSize="12" FrameType="TextFrameType" StoryOrientation="${PS().verticalOf(layer.params.layerText) ? "Vertical" : "Horizontal"}" StoryDirection="LeftToRightDirection"/><InCopyExportOption IncludeGraphicProxies="true" IncludeAllResources="false"/>${storyContentXml(model, layer, doc, null, dirty)}</Story></idPkg:Story>`;
     return serializeXml(parseXml(xml));
   };
 
@@ -1073,6 +1211,43 @@
     let width;
     let height;
     let auto = false;
+    if (relative.vertical) {
+      // A vertical text: its lines go down the frame and follow each other from its right
+      // side. TypeR sets them as Photoshop does, the first baseline one ascent in from the
+      // right of a box, so that the squares its characters stand in reach a little past it.
+      // InDesign's Em Box Height puts those squares against the frame's side instead, which
+      // no font measures differently: the frame's right side goes where they are. `lines`
+      // are as they were set, before their quarter turn: what is above a line is on its right.
+      const lines = relative.lines;
+      const first = lines[0];
+      const last = lines[lines.length - 1];
+      const centred = Boolean(box) && box.verticalAlign === "center";
+      let right;
+      if (box) {
+        const across = relative.frame.width;
+        const extra = room(box.height);
+        top = align === "left" ? 0 : align === "right" ? -extra : -extra / 2;
+        height = box.height + extra;
+        // Centred across its box: InDesign centres the lines between the frame's own sides
+        right = !centred && first && first.m.fontAscent > 0 ? squaresOf(first).right - first.baseline : 0;
+        left = -across;
+        // The last line TypeR shows may reach past the box, as in Photoshop: InDesign would
+        // leave it out of a frame it doesn't fit in
+        const end = last ? last.baseline + squaresOf(last).left : 0;
+        if (!centred && end > across) left = -end - doc.resolution / 144;
+      } else {
+        const longest = lines.reduce((most, line) => Math.max(most, line.m.advance), 0);
+        height = longest + room(longest);
+        top = align === "left" ? 0 : align === "right" ? -height : -height / 2;
+        // A first line with nothing on it: its square is the size of the text's first style
+        const base = (lt.textStyleRange && lt.textStyleRange[0] && lt.textStyleRange[0].textStyle) || {};
+        right = first && first.m.fontAscent > 0 ? squaresOf(first).right - first.baseline : (((base.impliedFontSize || base.size || 12) * doc.resolution) / 72) / 2;
+        left = Math.min(-relative.contentHeight, right - 1);
+        auto = true;
+      }
+      const origin = [anchor[0] + spin[0] * left + spin[2] * top, anchor[1] + spin[1] * left + spin[3] * top];
+      return { origin, spin, width: right - left, height, auto, align, vertical: true, verticalAlign: centred ? "CenterAlign" : "TopAlign" };
+    }
     if (box) {
       const extra = room(box.width);
       left = align === "left" ? 0 : align === "right" ? -extra : -extra / 2;
@@ -1093,8 +1268,10 @@
   };
 
   const framePrefXml = (geometry) => {
-    const reference = { left: "TopLeftPoint", center: "TopCenterPoint", right: "TopRightPoint" }[geometry.align] || "TopCenterPoint";
-    return `<TextFramePreference TextColumnCount="1" FirstBaselineOffset="AscentOffset" VerticalJustification="${geometry.verticalAlign}" AutoSizingType="${geometry.auto ? "HeightAndWidth" : "Off"}" AutoSizingReferencePoint="${reference}" UseNoLineBreaksForAutoSizing="${geometry.auto}"><Properties><InsetSpacing type="list"><ListItem type="unit">0</ListItem><ListItem type="unit">0</ListItem><ListItem type="unit">0</ListItem><ListItem type="unit">0</ListItem></InsetSpacing></Properties></TextFramePreference>`;
+    // A frame that fits its text keeps the point its lines start from: for a vertical text,
+    // on its right side
+    const reference = (geometry.vertical ? { left: "TopRightPoint", center: "RightCenterPoint", right: "BottomRightPoint" } : { left: "TopLeftPoint", center: "TopCenterPoint", right: "TopRightPoint" })[geometry.align] || (geometry.vertical ? "RightCenterPoint" : "TopCenterPoint");
+    return `<TextFramePreference TextColumnCount="1" FirstBaselineOffset="${geometry.vertical ? "EmboxHeight" : "AscentOffset"}" VerticalJustification="${geometry.verticalAlign}" AutoSizingType="${geometry.auto ? "HeightAndWidth" : "Off"}" AutoSizingReferencePoint="${reference}" UseNoLineBreaksForAutoSizing="${geometry.auto}"><Properties><InsetSpacing type="list"><ListItem type="unit">0</ListItem><ListItem type="unit">0</ListItem><ListItem type="unit">0</ListItem><ListItem type="unit">0</ListItem></InsetSpacing></Properties></TextFramePreference>`;
   };
 
   // TypeR's stroke goes around the letters. InDesign's is centred on them: an outer glow at
