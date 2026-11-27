@@ -16,6 +16,8 @@
         "en": "Type tool's options, or Layer → Vertical Text (Alt+Shift+T)",
         "fr": "Options de l’outil Texte, ou Calque → Texte vertical (Alt+Maj+T)"
       },
+      "demo": "vertical-text.mp4",
+      "poster": "vertical-text.webp",
       "covers": [
         "c2ea2d0c2a62",
         "f7357ee8ae39"

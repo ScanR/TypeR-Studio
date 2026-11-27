@@ -7,7 +7,7 @@
 // Needs Google Chrome, ffmpeg and cwebp, desktop/node_modules (npm install in desktop/), and the
 // pages of chapter 104 (PAGES, ~/Downloads/104 by default). Text detection goes through the
 // network; text-detection and generative-fill use Nano Banana 2.1 on fal.ai, with a key in FAL_KEY
-// (a few cents).
+// (a few cents). vertical-text types its Chinese in PingFang SC, a font of macOS.
 // OUT writes the files elsewhere than web/whats-new/.
 const { boot, openFile, sleep } = require('./harness');
 const { Rec, frameDoc, docToScreen, center } = require('./rec');
@@ -24,6 +24,7 @@ const SIZES = {
   'auto-perspective': { w: 800, h: 580 },
   'flow-mode': { w: 800, h: 580 },
   library: { w: 820, h: 580 },
+  'vertical-text': { w: 480, h: 380, dpr: 2.4 },
 };
 // The wheel's turns into a page, in Flow's demo
 const ZOOM_TICKS = Number(process.env.ZOOM_TICKS || 10);
@@ -452,6 +453,100 @@ const DEMOS = {
     await page.evaluate(() => window.TypeRPhotoshop.ops.clearActiveLayers());
     await tidy(page);
     await r.hide(); await r.shot(); r.hold(2);
+    r.encode(OUT);
+  },
+  // A Chinese line typed in a bubble, across the page as the Type tool sets it, then Vertical Text
+  // (Alt+Shift+T): the same line down the page, its columns from the right, the comma and the
+  // ellipsis in their vertical forms, "!?" side by side
+  async 'vertical-text'(page) {
+    await openFile(page, `${PAGES}/02.psd`);
+    await sleep(300);
+    const SIZE = 27;
+    // The bubbles emptied, the Type tool with a font of the Mac's that has Chinese
+    await page.evaluate(async (size) => {
+      const { ops, app } = window.TypeRPhotoshop;
+      if (!(await window.TypeRFonts.ensure('PingFangSC-Semibold', 'PingFang SC Semibold', 'PingFang SC', 'Semibold'))) throw new Error('vertical-text needs PingFang SC');
+      app.doc.state.layers.filter((l) => l.kind === 'text').map((l) => l.id).forEach((id) => { ops.selectLayer(id); ops.deleteLayers(); });
+      ops.clearActiveLayers();
+      Object.assign(app.textDefaults, { font: 'PingFangSC-Semibold', family: 'PingFang SC', style: 'Semibold', size, orientation: 'horizontal' });
+      window.TypeRApp.setTool('move');
+      document.activeElement && document.activeElement.blur();
+    }, SIZE);
+    // The bar over the text, the page's scrollbars and the size beside a box being drawn (cut by
+    // the edge of the page here): put away
+    await page.addStyleTag({ content: '.ctxbar, .scrollbar, .hud { display: none !important; }' });
+    const clip = await stageOnly(page);
+    await frameDoc(page, [748, 1162, 1114, 1391]);
+    await page.mouse.move(clip.x + clip.width / 2, clip.y + clip.height / 2);
+    await sleep(700);
+    // Five characters to a line, and to a column: the box is a little more than that each way
+    const TEXT = '小家伙……这么半天，跑哪去了!?';
+    const side = Math.round(SIZE * 5.4);
+    // Where the box goes for the vertical text to end in the middle of its bubble: set once
+    // before the recording, measured as Show Bubble Distances does, and taken away
+    const box = await page.evaluate(([text, side]) => {
+      const { ops, app } = window.TypeRPhotoshop;
+      const [x1, y0] = [1014 + side / 2, 1272 - side / 2];
+      const id = ops.newText(x1, y0, text, { width: side, height: side, autoHeight: false }, 'vertical').id;
+      let best = null;
+      for (let y = -30; y <= 30; y++) for (let x = -30; x <= 30; x++) {
+        const g = new Map(ops.roomAround(id, x, y).map((r) => [r.side, r.gap]));
+        if (g.size < 4) continue;
+        const off = Math.abs(g.get('top') - g.get('bottom')) + Math.abs(g.get('left') - g.get('right'));
+        if (!best || off < best[0] || (off === best[0] && Math.hypot(x, y) < Math.hypot(best[1], best[2]))) best = [off, x, y];
+      }
+      ops.selectLayer(id); ops.deleteLayers(); ops.clearActiveLayers();
+      const [dx, dy] = best ? [best[1], best[2]] : [0, 0];
+      return [x1 - side + dx, y0 + dy, x1 + dx, y0 + side + dy];
+    }, [TEXT, side]);
+    // The answer, in the bubble beside it: where a click of the Type tool starts it (the middle of
+    // its first character) for its three columns to end around the middle of that bubble
+    const ANSWER = ['对……', '对不起，', '喵！'];
+    const click = await page.evaluate(([lines, size, cx, cy]) => {
+      const PS = window.TypeRPhotoshop, { ops, app } = PS;
+      const layer = ops.newText(cx, cy, lines.join('\r'), null, 'vertical');
+      const f = PS.frameOf(app.doc.state.layers.find((l) => l.id === layer.id), app.doc);
+      ops.selectLayer(layer.id); ops.deleteLayers(); ops.clearActiveLayers();
+      return [cx + cx - (f.left + f.right) / 2, cy + cy - (f.top + f.bottom) / 2 + size * 0.5];
+    }, [ANSWER, SIZE, 838, 1251]);
+    const r = new Rec(page, 'vertical-text', { clip, x: clip.x + clip.width * 0.5, y: clip.y + clip.height * 0.8 });
+    await r.cursor(); await r.shot(); r.hold(0.5);
+    await page.keyboard.press('t');
+    await sleep(200);
+    // The box, ended at the corner where the cursor then waits clear of the message to come
+    const a = await docToScreen(page, box[0], box[1]), b = await docToScreen(page, box[2], box[3]);
+    await r.drag([a, b], 20, { settle: () => sleep(500) });
+    r.hold(0.3);
+    const type = async (pieces) => {
+      for (const piece of pieces) {
+        if (piece === '\r') await page.keyboard.press('Enter'); else await page.keyboard.type(piece);
+        await sleep(60); await r.shot(); r.hold(2 / 30);
+      }
+    };
+    await type(TEXT.match(/……|!\?|./g));
+    r.hold(0.8);
+    // Done typing, the text still chosen: Vertical Text
+    await page.keyboard.press('Escape');
+    await sleep(400); await r.shot(); r.hold(0.4);
+    await page.keyboard.press('Alt+Shift+KeyT');
+    await sleep(500); await r.shot(); r.hold(1.5);
+    // Nothing chosen, the same keys set the Type tool itself: the next text is typed down the page
+    await page.evaluate(() => window.TypeRPhotoshop.ops.clearActiveLayers());
+    await sleep(200);
+    await page.keyboard.press('Alt+Shift+KeyT');
+    await sleep(300); await r.shot(); r.hold(0.6);
+    await r.moveTo(...(await docToScreen(page, click[0], click[1])), 20);
+    await page.evaluate(() => { document.getElementById('toast').hidden = true; });
+    await r.click(() => sleep(500));
+    // Off the characters to come
+    await r.moveTo(...(await docToScreen(page, 925, 1352)), 12);
+    await type(ANSWER.join('\r').match(/……|\r|./g));
+    r.hold(0.6);
+    await page.keyboard.press('Escape');
+    await sleep(400);
+    await page.evaluate(() => { window.TypeRPhotoshop.ops.clearActiveLayers(); window.TypeRApp.setTool('move'); });
+    await tidy(page);
+    await r.hide(); await sleep(300); await r.shot(); r.hold(2);
     r.encode(OUT);
   },
 };
