@@ -393,13 +393,26 @@
   // The squares the characters of a vertical line stand in, as InDesign counts them (its em
   // boxes): how far they reach to the right of the line's baseline and to its left, in the
   // line as TypeR set it. A square is as wide as the size, whatever the letters' own scale.
+  // The line's own font bounds follow the letters' scale for the ones that stand, not for
+  // the ones laid on their side (a space, a Latin word), which are not kept one by one:
+  // each standing character's square is worked out again, and the bounds are only taken
+  // where a character on its side reaches further than any standing one.
   const squaresOf = (line) => {
-    let lead = null;
+    let right = -Infinity;
+    let left = -Infinity;
+    let scaledRight = -Infinity;
+    let scaledLeft = -Infinity;
     line.m.placed.forEach((item) => {
-      if (!lead || item.size > lead.size) lead = item;
+      if (!item.upright) return;
+      const axis = (item.upright.base - 0.5) * item.size;
+      right = Math.max(right, axis + item.size / 2);
+      left = Math.max(left, item.size / 2 - axis);
+      scaledRight = Math.max(scaledRight, axis + (item.size * item.scaleX) / 2);
+      scaledLeft = Math.max(scaledLeft, (item.size * item.scaleX) / 2 - axis);
     });
-    const scaled = lead && lead.upright ? (lead.size * (lead.scaleX - 1)) / 2 : 0;
-    return { right: line.m.fontAscent - scaled, left: line.m.fontDescent - scaled };
+    if (line.m.fontAscent > scaledRight + 0.001) right = Math.max(right, line.m.fontAscent);
+    if (line.m.fontDescent > scaledLeft + 0.001) left = Math.max(left, line.m.fontDescent);
+    return { right, left };
   };
 
   const SKIPPED_IN_TEXT = new Set(["Properties", "Note", "Footnote", "Endnote", "EndnoteRange", "Table", "Rectangle", "Oval", "Polygon", "GraphicLine", "TextFrame", "Group", "Button", "HiddenText"]);
@@ -1221,7 +1234,8 @@
       const lines = relative.lines;
       const first = lines[0];
       const last = lines[lines.length - 1];
-      const centred = Boolean(box) && box.verticalAlign === "center";
+      // Centred as TypeR centres: not a box that follows its text, nor one its text overflows
+      const centred = Boolean(box) && box.verticalAlign === "center" && !box.autoHeight && !relative.overflow;
       let right;
       if (box) {
         const across = relative.frame.width;

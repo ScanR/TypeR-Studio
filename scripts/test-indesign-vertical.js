@@ -43,7 +43,9 @@ const inPage = async () => {
       vertical: PS.verticalOf(lt),
       type: shape.textType,
       align: lt.paragraphStyleRange[0].paragraphStyle.alignment,
-      across: shape.box ? shape.box.verticalAlign : null,
+      // A box that follows its text is not centred across, whatever it says: it comes back
+      // saying what it shows
+      across: shape.box ? (shape.box.autoHeight ? "top" : shape.box.verticalAlign) : null,
       ways: lt.textStyleRange.map((range) => [range.from, range.to, range.textStyle.baselineDirection || ""]),
       pairs: PS.pairsOfText(lt),
       box: rect(PS.boxOf(layer, doc)),
@@ -134,6 +136,10 @@ const inPage = async () => {
     ops.setTextStyle([add("box, bottom", 570, 60, LONG, BOX)], null, { alignment: "right" });
     ops.setTextVerticalAlign([add("box, centred across", 380, 60, LONG, Object.assign({}, BOX, { width: 220 }))], "center");
     add("box, as wide as its lines", 190, 60, LONG, Object.assign({}, BOX, { autoHeight: true }));
+    // What a pasted paragraph is: centred across, and as wide as its lines, so not centred at all
+    add("box, as wide as its lines and centred across", 1200, 640, LONG, Object.assign({}, BOX, { autoHeight: true, verticalAlign: "center" }));
+    // Letters set narrow, with a space among them (laid on its side, it keeps its own width)
+    ops.setTextStyle([add("narrow letters and a space", 1300, 60, "窄字 宽字\r第二行", { width: 120, height: 220, autoHeight: false, verticalAlign: "top" })], { horizontalScale: 50 });
     // Its last line reaches past its box, as Photoshop lets it
     add("tight box", 1420, 640, "天地玄黄宇宙洪荒日月盈昃", { width: (2 * size * 72) / 72, height: 6.3 * size, autoHeight: false, verticalAlign: "top" });
     ops.turnText(get(add("turned point", 1200, 760, LINES)), 0.4, [1200 * k, 760 * k]);
