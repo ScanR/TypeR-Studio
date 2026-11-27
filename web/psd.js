@@ -1559,8 +1559,8 @@
   // What a layer's data says of a run of letters and of a paragraph, as textToPsd and the
   // PSD library write them. Photoshop gives each of these a key in the block; a text with
   // anything else gets no entry (it is read from its layer, as before).
-  const BLOCK_STYLE = { fontSize: [1, "real"], fauxBold: [2], fauxItalic: [3], autoLeading: [4], leading: [5, "real"], horizontalScale: [6, "real"], verticalScale: [7, "real"], tracking: [8], baselineShift: [9, "real"], fontCaps: [12], fontBaseline: [13], strikethrough: [15, "flag"], underline: [16, "flag"], ligatures: [18], dLigatures: [19], language: [38], fillColor: [53, "paint"], strokeColor: [54, "paint"], strokeFlag: [57], fillFirst: [58], outlineWidth: [63, "real"] };
-  const BLOCK_STYLE_ALSO = ["font", "autoKerning", "kerning"];
+  const BLOCK_STYLE = { fontSize: [1, "real"], fauxBold: [2], fauxItalic: [3], autoLeading: [4], leading: [5, "real"], horizontalScale: [6, "real"], verticalScale: [7, "real"], tracking: [8], baselineShift: [9, "real"], fontCaps: [12], fontBaseline: [13], strikethrough: [15, "flag"], underline: [16, "flag"], ligatures: [18], dLigatures: [19], fillColor: [53, "paint"], strokeColor: [54, "paint"], strokeFlag: [57], fillFirst: [58], outlineWidth: [63, "real"] };
+  const BLOCK_STYLE_ALSO = ["font", "autoKerning", "kerning", "language"];
   const BLOCK_PARAGRAPH = { justification: "left", firstLineIndent: 0, startIndent: 0, endIndent: 0, spaceBefore: 0, spaceAfter: 0, autoHyphenate: true, hyphenatedWordSize: 6, preHyphen: 2, postHyphen: 2, consecutiveHyphens: 8, zone: 36, autoLeading: 1.2, leadingType: 0, hanging: false };
   const BLOCK_JUSTIFY = { left: 0, right: 1, center: 2 };
   const BLOCK_TEXT = ["text", "transform", "antiAlias", "shapeType", "style", "paragraphStyle", "boxBounds", "warp", "styleRuns"];
@@ -1575,9 +1575,9 @@
   };
   // A text's entry: its characters, its paragraphs, its runs of letters and the pairs kerned
   // by hand, with `fontAt(name)` the font's place in the block. `said`: what the block alone
-  // says, letter by letter (see blockSaysOf). The block says a pair's kerning on its first
-  // letter, the layer's data on its second: Photoshop moves both one letter back, a hand
-  // kerning's number from the first letter of its run only.
+  // says, or says its own way, letter by letter (see blockSaysOf). The block says a pair's
+  // kerning on its first letter, the layer's data on its second: Photoshop moves both one
+  // letter back, a hand kerning's number from the first letter of its run only.
   // Null for a text with something Photoshop's own conversion was not read for.
   const blockModel = (text, said, fontAt) => {
     const smoothing = BLOCK_ANTI_ALIAS[text.antiAlias];
@@ -1620,7 +1620,7 @@
       Object.keys(BLOCK_STYLE).forEach((name) => {
         if (style[name] !== undefined) keys.push([BLOCK_STYLE[name][0], blockValue(style[name], BLOCK_STYLE[name][1])]);
       });
-      keys.push([11, String(pair)], [14, "0"], [20, String(Boolean(said.alternates[at]))], [92, "0.0"]);
+      keys.push([11, String(pair)], [14, "0"], [20, String(Boolean(said.alternates[at]))], [38, blockWhole(said.language[at])], [92, "0.0"]);
       return "<< " + keys.sort((a, b) => a[0] - b[0]).map(([key, word]) => `/${key} ${word}`).join(" ") + " >>";
     };
     const runs = [];
@@ -1661,14 +1661,17 @@
     return `<< /0 << /1 << /0 [ ${path.join(" ")} ] >> /2 << /0 1 /6 [ -2.0 -2.0 ] /10 << /0 2 /1 0.0 >> /11 << /4 -2 /18 -2.0${last} >> >> >> >>`;
   };
   // What the block alone says of a text set here, place by place in the text as the file has
-  // it (its letters, then the closing return): in Optical, with its Contextual alternates
+  // it (its letters, then the closing return): in Optical, with its Contextual alternates,
+  // and its language, which the block numbers its own way (Croatian is 29 in a layer's data
+  // and 31 here, where 29 is Chinese: read back from files Photoshop 2026 saved)
   const blockSaysOf = (layer, text) => {
     const lt = layer.params.layerText;
     const length = String(lt.textKey || "").length;
     const ranges = lt.textStyleRange || [];
-    const of = (style) => ({ optical: Boolean(style) && style.autoKern === "opticalKern" && !style.kerning, alternates: !style || style.contextualLigatures !== false });
+    const of = (style) => ({ optical: Boolean(style) && style.autoKern === "opticalKern" && !style.kerning, alternates: !style || style.contextualLigatures !== false, language: PS().textLanguageBlockNumber(style && style.textLanguage) });
     const optical = [];
     const alternates = [];
+    const language = [];
     // One style for the whole text, as textToPsd writes it when the runs don't cover it
     const whole = text.styleRuns ? null : of(ranges[0] && ranges[0].textStyle);
     for (let at = 0; at < length; at++) {
@@ -1676,11 +1679,13 @@
       const here = whole || of(range && range.textStyle);
       optical.push(here.optical);
       alternates.push(here.alternates);
+      language.push(here.language);
     }
-    const end = whole || (length ? { optical: optical[length - 1], alternates: alternates[length - 1] } : of(ranges[0] && ranges[0].textStyle));
+    const end = whole || (length ? { optical: optical[length - 1], alternates: alternates[length - 1], language: language[length - 1] } : of(ranges[0] && ranges[0].textStyle));
     optical.push(end.optical);
     alternates.push(end.alternates);
-    return { optical, alternates };
+    language.push(end.language);
+    return { optical, alternates, language };
   };
   const base64Of = (bytes) => {
     let binary = "";

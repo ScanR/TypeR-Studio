@@ -107,15 +107,18 @@
   const sizePxOf = (textStyle, resolution) => ((textStyle.impliedFontSize || textStyle.size || 14) * resolution) / 72;
 
   // Photoshop's text languages: the name a layer gives them, the number a PSD file gives
-  // them (both read back from Photoshop) and how the language writes itself
+  // them (both read back from Photoshop) and how the language writes itself. A file numbers
+  // a text's language twice, in the layer's own data and in the document's text block (see
+  // textBlockOut in psd.js), which Photoshop believes first: the fourth is the block's
+  // number where it isn't the layer's.
   const TEXT_LANGUAGES = [
     ["englishLanguage", 0, "English (US)"], ["ukenglishLanguage", 14, "English (UK)"], ["standardFrenchLanguage", 2, "Français"], ["canadianFrenchLanguage", 3, "Français (Canada)"],
     ["spanishLanguage", 12, "Español"], ["italianLanguage", 7, "Italiano"], ["germanLanguageReformed1996", 4, "Deutsch"], ["oldGermanLanguage", 5, "Deutsch (1901)"], ["swissGermanLanguageOldRules", 6, "Deutsch (Schweiz)"],
     ["standardPortugueseLanguage", 10, "Português"], ["brazilianPortugueseLanguage", 11, "Português (Brasil)"], ["kdutchLanguageOldRules", 15, "Nederlands"], ["catalanLanguage", 17, "Català"],
     ["danishLanguage", 16, "Dansk"], ["swedishLanguage", 13, "Svenska"], ["bokmalNorwegianLanguage", 8, "Norsk bokmål"], ["nynorskNorwegianLanguage", 9, "Norsk nynorsk"], ["finnishLanguage", 1, "Suomi"], ["icelandicLanguage", 27, "Íslenska"],
-    ["polishLanguage", 23, "Polski"], ["czechLanguage", 22, "Čeština"], ["slovakLanguage", 36, "Slovenčina"], ["hungarianLanguage", 28, "Magyar"], ["romanianLanguage", 24, "Română"], ["croatianLanguage", 29, "Hrvatski"], ["slovenianLanguage", 31, "Slovenščina"],
-    ["lithuanianLanguage", 34, "Lietuvių"], ["latvianLanguage", 35, "Latviešu"], ["turkishLanguage", 26, "Türkçe"], ["greekLanguage", 25, "Ελληνικά"], ["russianLanguage", 18, "Русский"], ["ukranianLanguage", 19, "Українська"], ["bulgarianLanguage", 20, "Български"], ["serbianLanguage", 21, "Српски"],
-    ["arabicLanguage", 37, "العربية"], ["hebrewLanguage", 30, "עברית"],
+    ["polishLanguage", 23, "Polski"], ["czechLanguage", 22, "Čeština"], ["slovakLanguage", 36, "Slovenčina", 38], ["hungarianLanguage", 28, "Magyar"], ["romanianLanguage", 24, "Română"], ["croatianLanguage", 29, "Hrvatski", 31], ["slovenianLanguage", 31, "Slovenščina", 33],
+    ["lithuanianLanguage", 34, "Lietuvių", 36], ["latvianLanguage", 35, "Latviešu", 37], ["turkishLanguage", 26, "Türkçe"], ["greekLanguage", 25, "Ελληνικά"], ["russianLanguage", 18, "Русский"], ["ukranianLanguage", 19, "Українська"], ["bulgarianLanguage", 20, "Български"], ["serbianLanguage", 21, "Српски"],
+    ["arabicLanguage", 37, "العربية", 39], ["hebrewLanguage", 30, "עברית", 32],
   ];
   const INTERFACE_TEXT_LANGUAGE = { fr: "standardFrenchLanguage", es: "spanishLanguage", it: "italianLanguage", de: "germanLanguageReformed1996", pt: "brazilianPortugueseLanguage", ru: "russianLanguage", uk: "ukranianLanguage", pl: "polishLanguage", nl: "kdutchLanguageOldRules", tr: "turkishLanguage", ar: "arabicLanguage" };
   const DEFAULT_TEXT_LANGUAGE = INTERFACE_TEXT_LANGUAGE[window.TYPER_I18N.lang] || "englishLanguage";
@@ -143,6 +146,12 @@
   const textLanguageName = (number) => {
     const language = TEXT_LANGUAGES.find((item) => item[1] === number);
     return language ? language[0] : undefined;
+  };
+  // The block has a number of its own for the three names the layer's data folds into others
+  const TEXT_LANGUAGE_BLOCK_NUMBERS = TEXT_LANGUAGES.reduce((numbers, [name, number, , block]) => Object.assign(numbers, { [name]: block === undefined ? number : block }), { standardGermanLanguage: 42, swissGermanLanguage: 44, dutchLanguage: 43 });
+  const textLanguageBlockNumber = (name) => {
+    const number = TEXT_LANGUAGE_BLOCK_NUMBERS[name];
+    return number === undefined ? TEXT_LANGUAGE_BLOCK_NUMBERS[app.textDefaults.language] : number;
   };
 
   // A zero-width non-joiner between two letters also stops ligatures, where the browser can't
@@ -16892,6 +16901,7 @@
     DEFAULT_TEXT_LANGUAGE,
     textLanguageNumber,
     textLanguageName,
+    textLanguageBlockNumber,
     drawOp,
     renderGradient,
     labRange,
