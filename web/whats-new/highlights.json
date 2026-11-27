@@ -1,6 +1,27 @@
 {
   "highlights": [
     {
+      "id": "vertical-text",
+      "at": "2026-11-27T06:19:23+01:00",
+      "icon": "text",
+      "title": {
+        "en": "Vertical Text",
+        "fr": "Texte vertical"
+      },
+      "text": {
+        "en": "Chinese and Japanese pages are set from top to bottom, their lines from right to left. Punctuation takes its vertical form, two digits or !? stand side by side, and a paragraph breaks between characters, never before a closing mark. Photoshop opens these texts vertical too.",
+        "fr": "Les pages en chinois et en japonais se composent de haut en bas, leurs lignes de droite à gauche. La ponctuation prend sa forme verticale, deux chiffres ou !? se mettent côte à côte, et un paragraphe passe à la ligne entre deux caractères, jamais avant un signe fermant. Photoshop ouvre ces textes en vertical aussi."
+      },
+      "where": {
+        "en": "Type tool's options, or Layer → Vertical Text (Alt+Shift+T)",
+        "fr": "Options de l’outil Texte, ou Calque → Texte vertical (Alt+Maj+T)"
+      },
+      "covers": [
+        "c2ea2d0c2a62",
+        "f7357ee8ae39"
+      ]
+    },
+    {
       "id": "flow-mode",
       "at": "2026-11-18T12:58:21+01:00",
       "icon": "pages",
