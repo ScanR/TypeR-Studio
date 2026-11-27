@@ -377,7 +377,14 @@
   };
   const KERNING_IN = { 0: "manual", 2: "opticalKern" };
 
-  const styleFromPsd = (style, scale, resolution) => {
+  // How a character stands in a vertical line, as the file numbers it and as Photoshop names
+  // it: upright (1, "withStream": Standard Vertical Roman Alignment), on its side (2,
+  // "rotated") or side by side with its neighbours (3, "cross": Tate-Chu-Yoko). Read back
+  // from files Photoshop 2026 saved. A horizontal text's number says nothing: it isn't read.
+  const DIRECTION_IN = { 2: "rotated", 3: "cross" };
+  const DIRECTION_OUT = { rotated: 2, cross: 3 };
+  // `vertical`: the style of a vertical text
+  const styleFromPsd = (style, scale, resolution, vertical) => {
     const font = (style.font && style.font.name) || "";
     const known = Fonts.get(font);
     const size = ((style.fontSize || 12) * scale * 72) / resolution;
@@ -405,6 +412,7 @@
     };
     const language = PS().textLanguageName(style.language);
     if (language) out.textLanguage = language;
+    if (vertical && DIRECTION_IN[style.baselineDirection]) out.baselineDirection = DIRECTION_IN[style.baselineDirection];
     if (style.autoKerning === false) out.autoKern = "manual";
     // Kerning set by hand: the space before this letter, in thousandths of an em
     if (style.kerning) out.kerning = style.kerning;
@@ -463,18 +471,20 @@
     const runs = text.styleRuns && text.styleRuns.length ? text.styleRuns : [{ length: value.length, style: {} }];
     let at = 0;
     const ranges = [];
+    const vertical = text.orientation === "vertical";
     runs.forEach((run) => {
       const from = at;
       at = Math.min(value.length, at + (run.length || 0));
-      if (at > from) ranges.push({ from, to: at, textStyle: styleFromPsd(Object.assign({}, base, run.style), scale, doc.resolution) });
+      if (at > from) ranges.push({ from, to: at, textStyle: styleFromPsd(Object.assign({}, base, run.style), scale, doc.resolution, vertical) });
     });
-    if (!ranges.length) ranges.push({ from: 0, to: value.length, textStyle: styleFromPsd(base, scale, doc.resolution) });
+    if (!ranges.length) ranges.push({ from: 0, to: value.length, textStyle: styleFromPsd(base, scale, doc.resolution, vertical) });
     if (blockStyles(ranges, value, block)) saidByBlock.add(ranges);
     const alignment = JUSTIFY(text.paragraphStyle && text.paragraphStyle.justification);
     // Paragraph text: its top left and size, in the document's pixels
     const bounds = text.shapeType === "box" && text.boxBounds && text.boxBounds[2] > text.boxBounds[0] ? text.boxBounds : null;
-    // Turned, the box's corner isn't straight across from the transform's origin
-    const left = bounds ? bounds[0] : 0;
+    // Turned, the box's corner isn't straight across from the transform's origin.
+    // A vertical text's anchor is the top right of its box, where its first line is.
+    const left = bounds ? bounds[vertical ? 2 : 0] : 0;
     const top = bounds ? bounds[1] : 0;
     const originX = (transform[4] || 0) + (isTurned(transform) ? transform[0] * left + transform[2] * top : left * scale);
     const originY = (transform[5] || 0) + (isTurned(transform) ? transform[1] * left + transform[3] * top : top * scale);
@@ -486,8 +496,8 @@
         textStyleRange: ranges,
         paragraphStyleRange: [{ from: 0, to: value.length, paragraphStyle: Object.assign({ alignment, autoLeadingPercentage: (text.paragraphStyle && text.paragraphStyle.autoLeading) || 1.2 }, text.paragraphStyle && text.paragraphStyle.hanging ? { hangingRoman: true } : {}, bounds && text.paragraphStyle && text.paragraphStyle.autoHyphenate === true ? Object.assign({ hyphenate: true }, hyphenationFromPsd(text.paragraphStyle, scale)) : {}) }],
         textShape: [bounds
-          ? { textType: "box", orientation: text.orientation === "vertical" ? "vertical" : "horizontal", box: { width: (bounds[2] - bounds[0]) * scale, height: (bounds[3] - bounds[1]) * scale, autoHeight: false } }
-          : { textType: "point", orientation: text.orientation === "vertical" ? "vertical" : "horizontal" }],
+          ? { textType: "box", orientation: vertical ? "vertical" : "horizontal", box: { width: (bounds[2] - bounds[0]) * scale, height: (bounds[3] - bounds[1]) * scale, autoHeight: false } }
+          : { textType: "point", orientation: vertical ? "vertical" : "horizontal" }],
       },
     };
   };
@@ -1354,7 +1364,8 @@
     paragraph.hyphenatePostLength ? { postHyphen: paragraph.hyphenatePostLength } : {},
     paragraph.hyphenationZone !== undefined ? { zone: paragraph.hyphenationZone } : {}) : {});
 
-  const styleToPsd = (style, resolution) => {
+  // `vertical`: the style of a vertical text, which says how its characters stand
+  const styleToPsd = (style, resolution, vertical) => {
     const color = style.color || { red: 0, green: 0, blue: 0 };
     const out = {
       font: { name: style.fontPostScriptName || style.fontName || "ArialMT" },
@@ -1379,6 +1390,7 @@
       language: PS().textLanguageNumber(style.textLanguage),
     };
     if (style.autoLeading === false && style.leading) out.leading = (style.leading * resolution) / 72;
+    if (vertical) out.baselineDirection = DIRECTION_OUT[style.baselineDirection] || 1;
     // Extra Bold, which Photoshop has no control for: the characters' own stroke, in their
     // colour, which Photoshop draws (tried in Photoshop 2026) and keeps when the text is edited
     const extra = Boolean(style.syntheticBold && style.extraBold);
@@ -1397,14 +1409,60 @@
     const shape = lt.textShape && lt.textShape[0];
     const box = shape && shape.textType === "box" && shape.box;
     const spin = (layer.rotated && layer.spin) || [1, 0, 0, 1];
+    const vertical = PS().verticalOf(lt);
     const out = {
       text: value,
       transform: [spin[0], spin[1], spin[2], spin[3], (lt.textClickPoint.horizontal / 100) * doc.width, (lt.textClickPoint.vertical / 100) * doc.height],
       antiAlias: ANTI_ALIAS_OUT[lt.antiAlias] || "smooth",
       shapeType: box ? "box" : "point",
-      style: styleToPsd(ranges[0] ? ranges[0].textStyle : {}, doc.resolution),
+      style: styleToPsd(ranges[0] ? ranges[0].textStyle : {}, doc.resolution, vertical),
       paragraphStyle: paragraphToPsd(paragraph),
     };
+    if (vertical) {
+      // A vertical text, as Photoshop writes its own: a point text has the same anchor, the
+      // top of its first line, and a box its top left corner where TypeR keeps its top right.
+      // Photoshop always starts at the right of a box: to keep a text centred across its box
+      // where it shows, the right of its box comes in to it.
+      out.orientation = "vertical";
+      if (box) {
+        const layout = PS().layoutLayer(layer, doc);
+        const shift = layout.relative.shift;
+        const width = layout.overflow ? box.width : Math.max(box.autoHeight ? 0 : box.width - shift, layout.contentHeight * 1.08);
+        const left = -(layout.overflow ? 0 : shift) - width;
+        out.transform[4] += spin[0] * left;
+        out.transform[5] += spin[1] * left;
+        out.boxBounds = [0, 0, width, box.height];
+      }
+      // What TypeR sets side by side on its own (two digits, two of ! and ?) is said to
+      // Photoshop as its Tate-Chu-Yoko, which it only does where it is told
+      const pairs = PS().pairsOfText(lt);
+      const styles = [];
+      ranges.forEach((range) => {
+        for (let at = Math.max(0, range.from); at < Math.min(value.length, range.to); at++) styles[at] = range.textStyle;
+      });
+      const side = Object.assign({}, { baselineDirection: "cross" });
+      const crossed = new Map();
+      pairs.forEach(([from, to]) => {
+        for (let at = from; at < to; at++) {
+          if (!styles[at]) continue;
+          if (!crossed.has(styles[at])) crossed.set(styles[at], Object.assign({}, styles[at], side));
+          styles[at] = crossed.get(styles[at]);
+        }
+      });
+      const runs = [];
+      let complete = styles.length === value.length;
+      for (let at = 0; at < value.length; at++) {
+        if (!styles[at]) complete = false;
+        const last = runs[runs.length - 1];
+        if (last && last.textStyle === styles[at]) last.length++;
+        else runs.push({ textStyle: styles[at], length: 1 });
+      }
+      if (complete && runs.length > 1) out.styleRuns = runs.map((run) => ({ length: run.length, style: styleToPsd(run.textStyle, doc.resolution, true) }));
+      // A text that is all one pair, "!?" alone: its own style says it
+      else if (complete && runs.length === 1) out.style = styleToPsd(runs[0].textStyle, doc.resolution, true);
+      if (window.TypeRTextWarp.on(layer.envelope)) out.warp = envelopeToPsd(layer.envelope);
+      return out;
+    }
     if (box) {
       // A little room, so that Photoshop's own line heights don't hide the last line.
       // Photoshop always starts at the top of a box: to keep a centred text where it shows,

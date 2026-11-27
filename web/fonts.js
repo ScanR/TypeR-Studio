@@ -345,6 +345,12 @@
     return twinOf(font, ligatures ? "nocalt" : "noliga-nocalt", sourceOf(font), ligatures ? '"calt" 0' : '"liga" 0, "calt" 0') || plain;
   };
 
+  // The upright characters of a vertical text are drawn with the forms the font keeps for
+  // them (its "vert" feature: a comma in the top right of its square, a bracket turned, an
+  // ellipsis that runs down): a twin too, where a canvas has no switch for it. Null until
+  // the twin is there, and for a font whose file or name can't be reached.
+  const verticalOf = (font) => (font && font.ready && font.postScriptName ? twinOf(font, "vert", sourceOf(font), '"vert" 1') : null);
+
   const isMissing = (ps) => Boolean(ps) && missing.has(ps) && !(fonts.get(ps) && fonts.get(ps).ready) && !sameFont(ps);
 
   const ready = (names) => Promise.all(Array.from(new Set(names)).filter(Boolean).map((ps) => ensure(ps)));
@@ -819,6 +825,7 @@
     resolve,
     measuresOf,
     variantOf,
+    verticalOf,
     ensure,
     ready,
     isMissing,

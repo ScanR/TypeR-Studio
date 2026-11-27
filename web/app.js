@@ -135,6 +135,12 @@
     alignLeft: SVG('<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>'),
     alignCenter: SVG('<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>'),
     alignRight: SVG('<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>'),
+    // A vertical text's: its lines run down, and are aligned at the top, the middle or the bottom
+    alignTop: SVG('<path d="M18 4v16M14 4v10M10 4v16M6 4v10"/>'),
+    alignMiddleDown: SVG('<path d="M18 4v16M14 7v10M10 4v16M6 7v10"/>'),
+    alignBottom: SVG('<path d="M18 4v16M14 10v10M10 4v16M6 10v10"/>'),
+    alignAcross: SVG('<rect x="4" y="4" width="16" height="16"/><path d="M10 8v8M14 8v8"/>'),
+    textVertical: SVG('<path d="M4 6V4h9v2M8.500 4v12M6.500 16h4"/><path d="M18 5v14M15 16l3 3 3-3"/>'),
     modeNew: SVG('<rect x="5" y="5" width="14" height="14"/>'),
     modeAdd: SVG('<rect x="4" y="4" width="11" height="11"/><rect x="9" y="9" width="11" height="11"/>'),
     modeSub: SVG('<path d="M4 4h11v5H9v6H4Z"/><rect x="9" y="9" width="11" height="11" stroke-dasharray="2 2"/>'),
@@ -5014,13 +5020,14 @@
     if (saved.font && saved.family) Object.assign(d, { font: String(saved.font), family: String(saved.family), style: String(saved.style || "Regular") });
     if (Number(saved.size) >= 1 && Number(saved.size) <= 2000) d.size = Number(saved.size);
     if (/^antiAlias/.test(saved.antiAlias)) d.antiAlias = saved.antiAlias;
+    if (saved.orientation === "vertical") d.orientation = "vertical";
   } catch (error) {
     console.warn("TypeR web: could not read the Type tool's settings", error);
   }
   const keepTextTool = () => {
     const d = app.textDefaults;
     try {
-      window.localStorage.setItem(STORE_TEXT_TOOL, JSON.stringify({ font: d.font, family: d.family, style: d.style, size: d.size, antiAlias: d.antiAlias }));
+      window.localStorage.setItem(STORE_TEXT_TOOL, JSON.stringify({ font: d.font, family: d.family, style: d.style, size: d.size, antiAlias: d.antiAlias, orientation: d.orientation === "vertical" ? "vertical" : "horizontal" }));
     } catch (error) {
       console.warn("TypeR web: could not keep the Type tool's settings", error);
     }
@@ -5325,13 +5332,25 @@
     });
     const aligns = document.createElement("span");
     aligns.className = "obar__group";
-    [["left", "alignLeft", "Align left", "Shift+Cmd+L"], ["center", "alignCenter", "Centre", "Shift+Cmd+C"], ["right", "alignRight", "Align right", "Shift+Cmd+R"]].forEach(([value, icon, title, keys]) => {
-      aligns.appendChild(iconButton(icon, `${T(title)} (${keyLabel(keys)})`, (paragraph.alignment || "center") === value, () => applyTextPatch(null, { alignment: value })));
+    // Vertical Text, as Photoshop's Vertical Type: the selected texts, or else the next ones
+    const vertical = verticalShown();
+    const verticalKeys = keyLabel(setupKeysOf("Vertical Text"));
+    const orientation = iconButton("textVertical", verticalKeys ? `${T("Vertical Text")} (${verticalKeys})` : T("Vertical Text"), vertical, () => setVerticalText(!vertical));
+    // Pressed, the button leaves the focus where it is: in the text being typed, too
+    orientation.addEventListener("pointerdown", (event) => event.preventDefault());
+    aligns.appendChild(orientation);
+    // A vertical text's lines run down: they are aligned at the top, the middle or the bottom
+    (vertical
+      ? [["left", "alignTop", "Align top", "Shift+Cmd+L"], ["center", "alignMiddleDown", "Centre", "Shift+Cmd+C"], ["right", "alignBottom", "Align bottom", "Shift+Cmd+R"]]
+      : [["left", "alignLeft", "Align left", "Shift+Cmd+L"], ["center", "alignCenter", "Centre", "Shift+Cmd+C"], ["right", "alignRight", "Align right", "Shift+Cmd+R"]]).forEach(([value, icon, title, keys], index) => {
+      const button = iconButton(icon, `${T(title)} (${keyLabel(keys)})`, (paragraph.alignment || (layer || !vertical ? "center" : "left")) === value, () => applyTextPatch(null, { alignment: value }));
+      if (!index) button.classList.add("obar__gap");
+      aligns.appendChild(button);
     });
     // Point text has no box: there, the button only says what the next box will do
     const inBox = layer && inBoxOf(layer);
     const centred = (inBox ? inBox.verticalAlign || "top" : d.verticalAlign) === "center";
-    const middle = iconButton("alignMiddle", T("Centre the text vertically in its box"), centred, () => {
+    const middle = iconButton(vertical ? "alignAcross" : "alignMiddle", T(vertical ? "Centre the text horizontally in its box" : "Centre the text vertically in its box"), centred, () => {
       const value = centred ? "top" : "center";
       d.verticalAlign = value;
       try {
@@ -5733,7 +5752,9 @@
     const paragraph = c.layer.params.layerText.paragraphStyleRange[0].paragraphStyle;
     const aligns = document.createElement("span");
     aligns.className = "obar__group";
-    [["left", "alignLeft", "Align left", "Shift+Cmd+L"], ["center", "alignCenter", "Centre", "Shift+Cmd+C"], ["right", "alignRight", "Align right", "Shift+Cmd+R"]].forEach(([value, icon, title, keys]) => {
+    (PS.verticalOf(c.layer.params.layerText)
+      ? [["left", "alignTop", "Align top", "Shift+Cmd+L"], ["center", "alignMiddleDown", "Centre", "Shift+Cmd+C"], ["right", "alignBottom", "Align bottom", "Shift+Cmd+R"]]
+      : [["left", "alignLeft", "Align left", "Shift+Cmd+L"], ["center", "alignCenter", "Centre", "Shift+Cmd+C"], ["right", "alignRight", "Align right", "Shift+Cmd+R"]]).forEach(([value, icon, title, keys]) => {
       aligns.appendChild(iconButton(icon, `${T(title)} (${keyLabel(keys)})`, (paragraph.alignment || "center") === value, () => applyTextPatch(null, { alignment: value })));
     });
     const hide = iconButton("close", T("Hide the contextual task bar"), false, () => setTaskBar(false));
@@ -9127,7 +9148,9 @@
       const fromBox = kind === "side" && handleWhileTyping && inBoxOf(handled) && !handled.rotated;
       const frame = fromBox ? PS.textBoxOf(handled, doc) : PS.frameOf(handled, doc);
       const boxTop = kind === "side" ? PS.textBoxOf(handled, doc).top : frame.top;
-      gesture = Object.assign(base, { kind, handle: handle.kind, layer: handled, frame, boxTop, token: `gesture:${gestureCount}` });
+      // A vertical text starts at the right of its box, as a horizontal one at the top
+      const boxRight = kind === "side" ? PS.textBoxOf(handled, doc).right : frame.right;
+      gesture = Object.assign(base, { kind, handle: handle.kind, layer: handled, frame, boxTop, boxRight, token: `gesture:${gestureCount}` });
       if (Fonts.isMissing(handled.params.layerText.textStyleRange[0].textStyle.fontPostScriptName) && handled.raster) toast(T("This text's font is missing: it will be drawn with another font."), true);
       ui.stage.setPointerCapture(event.pointerId);
       event.preventDefault();
@@ -9589,17 +9612,37 @@
       const north = current.handle.includes("n");
       const south = current.handle.includes("s");
       const baseHeight = Math.max(1, f.bottom - boxTop);
-      const next = { left: f.left, top: boxTop, width: f.width, height: wasBox && !wasBox.autoHeight && !north && !south ? wasBox.height : baseHeight, autoHeight: wasBox ? Boolean(wasBox.autoHeight) : true };
+      let next = { left: f.left, top: boxTop, width: f.width, height: wasBox && !wasBox.autoHeight && !north && !south ? wasBox.height : baseHeight, autoHeight: wasBox ? Boolean(wasBox.autoHeight) : true };
       const dx = point[0] - current.start[0];
       const dy = point[1] - current.start[1];
-      // A corner, while the text is typed in, moves both its sides: the box, not the letters
-      if (east || current.handle.includes("w")) {
+      if (PS.verticalOf(current.layer.params.layerText)) {
+        // A vertical text, the other way round. Top and bottom: how long its lines are, the
+        // width following the text unless it was set. Left and right: a fixed width, the
+        // text starting at the right.
+        const west = current.handle.includes("w");
+        const baseWidth = Math.max(1, current.boxRight - f.left);
+        const width = wasBox && !wasBox.autoHeight && !east && !west ? wasBox.width : baseWidth;
+        next = { left: current.boxRight - width, top: f.top, width, height: f.height, autoHeight: wasBox ? Boolean(wasBox.autoHeight) : true };
+        if (north || south) {
+          const grow = (south ? dy : -dy) * (event.altKey ? 2 : 1);
+          next.height = Math.max(room, f.height + grow);
+          if (north) next.top = f.bottom - next.height;
+          if (event.altKey) next.top = f.yMid - next.height / 2;
+        }
+        if (east || west) {
+          const grow = (east ? dx : -dx) * (event.altKey ? 2 : 1);
+          next.width = Math.max(room, (east || event.altKey ? f.width : baseWidth) + grow);
+          next.autoHeight = false;
+          if (event.altKey) next.left = f.xMid - next.width / 2;
+          else next.left = east ? f.left : current.boxRight - next.width;
+        }
+      } else if (east || current.handle.includes("w")) {
         const grow = (east ? dx : -dx) * (event.altKey ? 2 : 1);
         next.width = Math.max(room, f.width + grow);
         if (!east) next.left = f.right - next.width;
         if (event.altKey) next.left = f.xMid - next.width / 2;
       }
-      if (north || south) {
+      if (!PS.verticalOf(current.layer.params.layerText) && (north || south)) {
         const grow = (north ? -dy : dy) * (event.altKey ? 2 : 1);
         const startHeight = north || event.altKey ? f.height : baseHeight;
         next.height = Math.max(room, startHeight + grow);
@@ -9804,11 +9847,15 @@
       if (current.moved) {
         const [x0, y0, x1, y1] = marqueeBox(Object.assign({}, current, { last: point }), event);
         if (x1 - x0 > 8 && y1 - y0 > 8) {
-          beginEdit(ops.newText(x0, y0, "", { width: x1 - x0, height: y1 - y0, autoHeight: false }), true);
+          // A vertical text starts in the top right of its box
+          if (app.textDefaults.orientation === "vertical") beginEdit(ops.newText(x1, y0, "", { width: x1 - x0, height: y1 - y0, autoHeight: false }, "vertical"), true);
+          else beginEdit(ops.newText(x0, y0, "", { width: x1 - x0, height: y1 - y0, autoHeight: false }), true);
           return;
         }
       }
-      beginEdit(ops.newText(point[0], point[1] + app.textDefaults.size * 0.35 * (doc.resolution / 72)), true);
+      // The click is in the middle of the first letter: of its line, or of its square
+      if (app.textDefaults.orientation === "vertical") beginEdit(ops.newText(point[0], point[1] - app.textDefaults.size * 0.5 * (doc.resolution / 72), "", null, "vertical"), true);
+      else beginEdit(ops.newText(point[0], point[1] + app.textDefaults.size * 0.35 * (doc.resolution / 72)), true);
     } else if (kind === "moveSelection") {
       ui.antsA.removeAttribute("transform");
       ui.antsB.removeAttribute("transform");
@@ -10019,14 +10066,20 @@
   let editing = null;
   // A turned text is typed on the page too, turned with it around its anchor: its caret
   // and selection are worked out on its straight lines, then turned the same way
-  const turnOfTyped = (layer, doc) => (layer && layer.rotated && !layer.warp && layer.spin ? { spin: layer.spin, anchor: PS.layoutLayer(layer, doc).anchor } : null);
+  // A vertical text too: its lines are set as a horizontal text's, a quarter turn from the page
+  const turnOfTyped = (layer, doc) => {
+    const spin = layer && !layer.warp ? PS.layTurnOf(layer) : null;
+    return spin ? { spin, anchor: PS.layoutLayer(layer, doc).anchor } : null;
+  };
   const placeEditor = () => {
     if (ui.editor.hidden || !editing || !app.doc) return;
     const doc = app.doc;
     const layer = doc.state.layers.find((item) => item.id === editing.id);
     if (!layer) return;
     const z = view().zoom;
-    const layout = PS.layoutLayer(layer, doc);
+    const laid = PS.layoutLayer(layer, doc);
+    // A vertical text: the box and the frame its lines were set in, before their quarter turn
+    const layout = laid.vertical ? Object.assign({}, laid, laid.straight) : laid;
     const style = layer.params.layerText.textStyleRange[0].textStyle;
     const docked = Shell.touch;
     const turn = turnOfTyped(layer, doc);
@@ -10381,23 +10434,43 @@
   // Up, down and the ends of a line go by the canvas's lines. False for any other key.
   const moveByLines = (event) => {
     const { key } = event;
-    const vertical = (key === "ArrowUp" || key === "ArrowDown") && !event.metaKey && !event.ctrlKey && !event.altKey;
-    const toEdge = ((key === "Home" || key === "End") && !event.metaKey && !event.ctrlKey && !event.altKey)
-      || (IS_MAC && event.metaKey && !event.ctrlKey && !event.altKey && (key === "ArrowLeft" || key === "ArrowRight"));
+    const plain = !event.metaKey && !event.ctrlKey && !event.altKey;
+    // In a vertical text the arrows go where they point: up and down along the line, left to
+    // the next line and right to the one before
+    const typed = typedLayer();
+    const down = Boolean(typed && PS.verticalOf(typed.params.layerText));
+    const [before, after, previous, next] = down ? ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown"] : ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+    const vertical = (key === before || key === after) && plain;
+    const along = down && (key === previous || key === next) && plain;
+    const toEdge = ((key === "Home" || key === "End") && plain)
+      || (IS_MAC && event.metaKey && !event.ctrlKey && !event.altKey && (key === previous || key === next));
+    // On a Mac, Cmd with the arrows that go from line to line: the start and the end of the text
+    const toEnds = down && IS_MAC && event.metaKey && !event.ctrlKey && !event.altKey && (key === before || key === after);
     // A click after a key starts again from one: it doesn't make a double-click
     typeClick = null;
     if (!vertical) caretGoal = null;
-    if (!vertical && !toEdge) return false;
+    if (!vertical && !toEdge && !along && !toEnds) return false;
     const lines = typedLines();
     if (!lines.length) return false;
     const { selectionStart, selectionEnd, selectionDirection, value } = ui.editor;
-    const backward = key === "ArrowUp" || key === "Home" || key === "ArrowLeft";
+    const backward = key === before || key === "Home" || key === previous;
     const anchor = selectionDirection === "backward" ? selectionEnd : selectionStart;
     let focus = selectionDirection === "backward" ? selectionStart : selectionEnd;
-    if (!event.shiftKey && selectionStart !== selectionEnd) focus = backward ? selectionStart : selectionEnd;
+    const collapsing = !event.shiftKey && selectionStart !== selectionEnd;
+    if (collapsing) focus = backward ? selectionStart : selectionEnd;
     const at = lineOfIndex(lines, focus);
     let target;
-    if (vertical) {
+    if (toEnds) target = backward ? 0 : value.length;
+    else if (along) {
+      // One letter up or down, whole: a letter with its marks, an emoji made of several
+      target = collapsing ? focus : Math.max(0, Math.min(value.length, focus + (backward ? -1 : 1)));
+      const starts = new Set();
+      if (window.Intl && Intl.Segmenter) {
+        for (const part of new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)) starts.add(part.index);
+      }
+      const half = (index) => /[\uD800-\uDBFF]/.test(value[index - 1]) && /[\uDC00-\uDFFF]/.test(value[index]);
+      while (target > 0 && target < value.length && (starts.size ? !starts.has(target) : half(target))) target += backward ? -1 : 1;
+    } else if (vertical) {
       if (caretGoal === null) caretGoal = xOfIndex(lines[at], focus);
       const next = at + (backward ? -1 : 1);
       target = next < 0 ? 0 : next >= lines.length ? value.length : indexNearX(lines[next], caretGoal);
@@ -12774,6 +12847,21 @@
       hyphenRow.appendChild(why);
     }
     host.appendChild(hyphenRow);
+    // What only a vertical text has, as Photoshop's Character panel menu: its Latin letters and
+    // digits upright one under the other (Standard Vertical Roman Alignment) or lying on their
+    // side, and the selected characters side by side in the line (Tate-Chu-Yoko)
+    if (PS.verticalOf(layer.params.layerText)) {
+      const way = style.baselineDirection || "withStream";
+      const downRow = document.createElement("div");
+      downRow.className = "character__row wide";
+      const roman = checkbox(T("Standard Vertical Roman Alignment"), way !== "rotated", (on) => patchTypography({ baselineDirection: on ? "withStream" : "rotated" }));
+      roman.title = T("Latin letters and digits stand upright, one under the other. Off: they lie on their side.");
+      const across = checkbox(T("Tate-Chu-Yoko"), way === "cross", (on) => patchTypography({ baselineDirection: on ? "cross" : "withStream" }));
+      across.title = T("The selected characters are set side by side in the line, as a number of two digits. TypeR already does it for two digits, or two of ! and ?, on their own.");
+      downRow.style.flexWrap = "wrap";
+      downRow.append(roman, across);
+      host.appendChild(downRow);
+    }
     const row = document.createElement("div");
     row.className = "character__row wide";
     row.append(c.color, c.aligns,
@@ -12895,6 +12983,33 @@
   // line in a box. A point text has no lines to fill and keeps its own. What it is set to
   // is also what the next box does.
   const hyphenates = (layer) => layer.params.layerText.paragraphStyleRange[0].paragraphStyle.hyphenate === true;
+  // Vertical Text: on the selected texts, as Photoshop's Type > Orientation, or else for the
+  // next texts the Type tool makes (its Vertical Type)
+  const verticalShown = () => {
+    const texts = activeTexts();
+    return texts.length ? texts.every((item) => PS.verticalOf(item.params.layerText)) : app.textDefaults.orientation === "vertical";
+  };
+  const setVerticalText = (on) => {
+    const texts = activeTexts();
+    if (!texts.length) {
+      app.textDefaults.orientation = on ? "vertical" : "horizontal";
+      keepTextTool();
+      toast(T(on ? "New text will be vertical." : "New text will be horizontal."));
+    } else {
+      const turned = texts.filter((item) => !item.warp);
+      if (!turned.length) {
+        toast(T("A text in perspective keeps its orientation."), true);
+        return;
+      }
+      if (turned.some((item) => item.raster && Fonts.isMissing(item.params.layerText.textStyleRange[0].textStyle.fontPostScriptName))) toast(T("This text's font is missing: it will be drawn with another font."), true);
+      ops.setTextOrientation(turned.map((item) => item.id), on ? "vertical" : "horizontal");
+    }
+    characterKey = "";
+    renderOptions();
+    renderCharacter();
+    if (!ui.editor.hidden) placeEditor();
+    schedule(false);
+  };
   const hyphenateShown = () => {
     const boxes = activeTexts().filter(isParagraph);
     return boxes.length ? boxes.every(hyphenates) : Boolean(app.textDefaults.hyphenate);
@@ -20001,6 +20116,9 @@
       { label: "Send Backward", keys: "Cmd+[", enabled: hasLayer, action: () => shiftLayerOrder(-1) },
       { label: "Send to Back", keys: "Shift+Cmd+[", enabled: hasLayer, action: () => shiftLayerOrder(-1, true) },
       null,
+      // Photoshop's Type > Orientation and its Vertical Type tool in one: Chinese and Japanese
+      // pages are set from top to bottom
+      { label: "Vertical Text", keys: "Alt+Shift+T", anywhere: true, check: verticalShown, enabled: hasDoc, action: () => setVerticalText(!verticalShown()) },
       { label: "Convert to Paragraph Text", enabled: () => activeTexts().some((layer) => !isParagraph(layer)), action: () => activeTexts().forEach((layer) => { if (!isParagraph(layer)) ops.convertText(layer.id); }) },
       { label: "Convert to Point Text", enabled: () => activeTexts().some(isParagraph), action: () => activeTexts().forEach((layer) => { if (isParagraph(layer)) ops.convertText(layer.id); }) },
       { label: "Hyphenate", keys: "Alt+Shift+Cmd+H", anywhere: true, check: hyphenateShown, enabled: hasDoc, action: () => setHyphenate(!hyphenateShown()) },

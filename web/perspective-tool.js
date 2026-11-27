@@ -55,7 +55,7 @@
   const follows = (layer) => Boolean(layer.warp && layer.warp.auto);
   // Which way a text's lines run, and whether they run down the page (vertical writing)
   const leanOf = (layer) => (layer ? PS.turnOf(layer) : 0);
-  const verticalOf = (layer) => Boolean(layer && layer.params.layerText.orientation === "vertical");
+  const verticalOf = (layer) => Boolean(layer && PS.verticalOf(layer.params.layerText));
 
   const inQuad = (corners, [x, y]) => {
     let sign = 0;

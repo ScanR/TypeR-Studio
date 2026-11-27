@@ -38,7 +38,8 @@
   // The space set between a run's letters, besides their kerning, in parts of the size
   const spacingOf = (textStyle) => (textStyle.tracking || 0) / 1000 + (textStyle.syntheticBold ? FAUX_BOLD_SPACING : 0);
 
-  const cssFont = (textStyle, sizePx) => {
+  // `upright`: for a character that stands upright in a vertical text (see uprightGlyph)
+  const cssFont = (textStyle, sizePx, upright) => {
     const font = Fonts.resolve(textStyle);
     const italic = font.italic || textStyle.syntheticItalic;
     // Faux Bold keeps the font's own face, as Photoshop does: its letters are outlined (see
@@ -46,7 +47,7 @@
     const weight = font.weight;
     // Standard ligatures off, or Contextual alternates as the style has them: a twin of the font
     // (see variantOf in fonts.js)
-    const family = Fonts.variantOf(font, textStyle.ligature !== false, textStyle.contextualLigatures !== false, spacingOf(textStyle) !== 0) || font.css;
+    const family = (upright ? Fonts.verticalOf(font) : Fonts.variantOf(font, textStyle.ligature !== false, textStyle.contextualLigatures !== false, spacingOf(textStyle) !== 0)) || font.css;
     return `${italic ? "italic " : ""}${weight} ${sizePx}px "${family}", "Wildjess", sans-serif`;
   };
 
@@ -93,9 +94,10 @@
     const smeared = textStyle.syntheticBold && !around;
     return { around, page, right: smeared ? fauxBoldRight(sizePx) : 0, down: smeared ? fauxBoldDown(sizePx) : 0 };
   };
-  const setRunFont = (ctx, textStyle, sizePx) => {
-    ctx.font = cssFont(textStyle, sizePx);
-    const spacing = spacingOf(textStyle);
+  const setRunFont = (ctx, textStyle, sizePx, upright) => {
+    ctx.font = cssFont(textStyle, sizePx, upright);
+    // An upright character of a vertical text takes its spacing below it, not inside it
+    const spacing = upright ? 0 : spacingOf(textStyle);
     if ("letterSpacing" in ctx) ctx.letterSpacing = spacing ? `${spacing * sizePx}px` : "0px";
     if ("fontKerning" in ctx) ctx.fontKerning = textStyle.autoKern === "manual" ? "none" : "normal";
     if ("fontVariantCaps" in ctx) ctx.fontVariantCaps = textStyle.fontCaps === "smallCaps" ? "small-caps" : "normal";
@@ -237,6 +239,18 @@
     return cuts.size ? cuts : null;
   };
 
+  // A vertical text, as Photoshop's Vertical Type: its lines run from top to bottom and follow
+  // each other from right to left. It is set as a horizontal text is, each line with its
+  // letters along x and its baseline at a y, then turned a quarter clockwise around its anchor:
+  // what was the top of a line faces right. Its Chinese and Japanese characters, and by default
+  // its Latin letters too, are then stood upright again, each in its own square. Measured in
+  // Photoshop 2026 (PingFang SC, Songti SC and Arial at 40 px): a line set this way lands on
+  // Photoshop's to the pixel, its first baseline as far from the right edge of a box as a
+  // horizontal one is from the top.
+  const verticalOf = (lt) => Boolean(lt && lt.textShape && lt.textShape[0] && lt.textShape[0].orientation === "vertical");
+  // A run of a line, of the same kind as `like` (a vertical text's runs say so)
+  const runOf = (text, style, like) => (like && like.vertical ? { text, style, vertical: true } : { text, style });
+
   // textKey -> lines, each with its runs (a run: text and the style of its range)
   const splitLines = (layerText) => {
     const text = layerText.textKey || "";
@@ -250,6 +264,7 @@
     const lines = [];
     let current = [];
     let run = null;
+    const like = verticalOf(layerText) ? { vertical: true } : null;
     for (let i = 0; i < text.length; i++) {
       const ch = text[i];
       if (ch === "\r" || ch === "\n") {
@@ -264,7 +279,7 @@
       // letter goes on its consonant alone) is drawn with it, in the letter's style
       if (run && (run.style === style || CARRIED.test(ch))) run.text += ch;
       else {
-        run = { text: ch, style };
+        run = runOf(ch, style, like);
         current.push(run);
       }
     }
@@ -281,7 +296,239 @@
   // of the page whatever its resolution (measured at 72 and 300 ppi)
   const TAB_STOP = 36;
 
+  // How a character stands upright in a vertical line, in parts of the size: `w` its width,
+  // `left`, `right`, `rise` and `fall` how far its ink goes from its origin, `base` how far
+  // below the top of its square its baseline is, `dx` and `dy` where it is moved to. With
+  // `turn`, it lies on its side instead, as a Latin letter of a rotated run does.
+  // - The square is one size high, whatever the font: Photoshop sets Arial's letters 1 em
+  //   apart too. The baseline is where the font's own squares put it: the middle of the ink
+  //   of a few full ideographs, which every Chinese and Japanese font has, gives the middle
+  //   of the square (0.86 of the size below its top in PingFang SC, 0.80 in Songti SC, 0.88
+  //   in Hiragino Sans: as Photoshop sets them, to a quarter of a pixel at 40 px). A font
+  //   without ideographs has its capitals half way up the square, as Photoshop sets them.
+  // - The font draws the character its vertical way (see verticalOf in fonts.js). A font
+  //   that has no such form, or a character the browser takes from another font, gets what
+  //   Unicode says of it (see cjk.js): a bracket, a long vowel mark, a dash or an ellipsis
+  //   is turned, a comma or a full stop that sits in the bottom left of its square goes to
+  //   the top right.
+  const FULL_IDEOGRAPHS = "\u7B2C\u916C\u58A8\u9F0E\u91CF\u610F";
+  const MOVED_UPRIGHT = new Set(Array.from("\u3001\u3002\uFF0C\uFF0E"));
+  const TURNED_DASHES = new Set(Array.from("\u2014\u2015\u2026\u2025"));
+  const uprightBases = new Map();
+  // `wide`: for a Chinese or Japanese character, which the browser may take from another font
+  const uprightBaseOf = (textStyle, wide) => {
+    const css = cssFont(textStyle, INK_SIZE);
+    const key = Fonts.generation + "|" + css + "|" + (wide ? 1 : 0);
+    if (!uprightBases.has(key)) {
+      if (uprightBases.size > 500) uprightBases.clear();
+      const own = ownGlyph(textStyle, FULL_IDEOGRAPHS[0]);
+      let base;
+      if (own || wide) {
+        measureCtx.font = css;
+        const m = measureCtx.measureText(FULL_IDEOGRAPHS);
+        const high = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+        base = high > INK_SIZE * 0.5 ? 0.5 + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2 / INK_SIZE : 0.88;
+      } else base = boundsSharesOf(textStyle).rise;
+      uprightBases.set(key, { base });
+    }
+    return uprightBases.get(key);
+  };
+  const uprightGlyphs = new Map();
+  const uprightGlyph = (textStyle, shown) => {
+    const upright = cssFont(textStyle, INK_SIZE, true);
+    const key = Fonts.generation + "|" + upright + "|" + languageTagOf(textStyle) + "|" + (textStyle.fontCaps === "smallCaps" ? 1 : 0) + "|" + shown;
+    let glyph = uprightGlyphs.get(key);
+    if (!glyph) {
+      if (uprightGlyphs.size > 20000) uprightGlyphs.clear();
+      const first = String.fromCodePoint(shown.codePointAt(0));
+      const single = first.length === shown.length || lettersOf(shown).length === 1;
+      const wide = CJK.wide(first);
+      const { base } = uprightBaseOf(textStyle, wide);
+      const measure = (isUpright) => {
+        setRunFont(measureCtx, textStyle, INK_SIZE, isUpright);
+        if (!isUpright && "letterSpacing" in measureCtx) measureCtx.letterSpacing = "0px";
+        measureCtx.textAlign = "left";
+        return measureCtx.measureText(shown);
+      };
+      const m = measure(true);
+      glyph = { w: m.width / INK_SIZE, left: m.actualBoundingBoxLeft / INK_SIZE, right: m.actualBoundingBoxRight / INK_SIZE, rise: m.actualBoundingBoxAscent / INK_SIZE, fall: m.actualBoundingBoxDescent / INK_SIZE, base, dx: 0, dy: 0, turn: false };
+      const way = single ? CJK.orientationOf(first) : "U";
+      if (single && (way !== "U" || TURNED_DASHES.has(first))) {
+        // Whether the font drew it another way for a vertical line
+        const plain = upright === cssFont(textStyle, INK_SIZE) ? m : measure(false);
+        const formed = plain !== m && ["actualBoundingBoxLeft", "actualBoundingBoxRight", "actualBoundingBoxAscent", "actualBoundingBoxDescent"].some((side) => Math.abs(plain[side] - m[side]) > INK_SIZE * 0.002);
+        if (!formed && (way === "Tr" || TURNED_DASHES.has(first))) {
+          glyph.turn = true;
+          // A dash or an ellipsis drawn for a horizontal line sits on the baseline or above
+          // it: turned, it goes to the middle of the line (`lift`, how far up from where it is)
+          if (TURNED_DASHES.has(first)) glyph.lift = base - 0.5 - (plain.actualBoundingBoxAscent - plain.actualBoundingBoxDescent) / 2 / INK_SIZE;
+        }
+        else if (!formed && MOVED_UPRIGHT.has(first) && glyph.w > 0) {
+          // The middle of its ink, in its square: from the bottom left to the top right
+          const cx = (glyph.right - glyph.left) / 2 / glyph.w;
+          const cy = base + (glyph.fall - glyph.rise) / 2;
+          if (cx < 0.4 && cy > 0.6) {
+            glyph.dx = (1 - 2 * cx) * glyph.w;
+            glyph.dy = 1 - 2 * cy;
+          }
+        }
+      }
+      uprightGlyphs.set(key, glyph);
+    }
+    return glyph;
+  };
+  // The letters, digits and punctuation of a run set to Photoshop's "rotated" (Standard
+  // Vertical Roman Alignment off) lie on their side: Latin, Greek, Cyrillic and the like.
+  // Not the full-width forms, nor the dashes and ellipses of a Chinese font, which
+  // Photoshop 2026 leaves as they are in such a run.
+  const liesRotated = (ch) => ch.codePointAt(0) < 0x2000 && CJK.orientationOf(ch) === "R";
+  // A run of a vertical line in pieces: `side`, a stretch that lies on its side, set as in a
+  // horizontal line (a space, as in Photoshop, takes its own width); `pair`, characters set
+  // side by side in one square (Photoshop's Tate-Chu-Yoko: a run set to "cross", or a pair
+  // found by pairsOf in cjk.js); else one upright character.
+  const columnPieces = (run) => {
+    const { text, style } = run;
+    if (style.baselineDirection === "cross" && !/[\t]/.test(text)) return [{ text, pair: true }];
+    const rotated = style.baselineDirection === "rotated";
+    const pairs = rotated ? null : CJK.pairsOf(text);
+    const pieces = [];
+    let side = "";
+    const flush = () => {
+      if (side) pieces.push({ text: side, side: true });
+      side = "";
+    };
+    let at = 0;
+    let pair = pairs ? 0 : -1;
+    const letters = lettersOf(text);
+    for (let k = 0; k < letters.length; k++) {
+      const ch = letters[k];
+      if (pair >= 0 && pair < pairs.length && pairs[pair][0] === at && k + 1 < letters.length) {
+        flush();
+        pieces.push({ text: text.slice(pairs[pair][0], pairs[pair][1]), pair: true });
+        at = pairs[pair][1];
+        pair++;
+        k++;
+        continue;
+      }
+      if (ch === "\t") {
+        flush();
+        pieces.push({ text: ch });
+      } else if (ch === " " || ch === "\u00A0" || (rotated && liesRotated(ch))) side += ch;
+      else {
+        const glyph = uprightGlyph(style, shownText({ text: ch, style }));
+        if (glyph.turn && !glyph.lift) side += ch;
+        else {
+          flush();
+          pieces.push(glyph.turn ? { text: ch, side: true, lift: glyph.lift } : { text: ch });
+        }
+      }
+      at += ch.length;
+    }
+    flush();
+    return pieces;
+  };
+  // Where a vertical text sets characters side by side on its own (the pairs columnPieces
+  // finds): the stretches of its text, each [from, to), for a file to say so as Photoshop does
+  const pairsOfText = (lt) => {
+    const out = [];
+    if (!verticalOf(lt)) return out;
+    const breaks = String(lt.textKey || "").split(/(\r\n|[\r\n])/);
+    let index = 0;
+    splitLines(lt).forEach((runs, k) => {
+      runs.forEach((run) => {
+        if (run.style.baselineDirection !== "cross" && run.style.baselineDirection !== "rotated") {
+          let offset = 0;
+          columnPieces(run).forEach((piece) => {
+            if (piece.pair) out.push([index + offset, index + offset + piece.text.length]);
+            offset += piece.text.length;
+          });
+        }
+        index += run.text.length;
+      });
+      index += (breaks[k * 2 + 1] || "").length;
+    });
+    return out;
+  };
+  // A vertical line, measured along it as a horizontal one is: `advance` is how long it is,
+  // `ascent` and `descent` how far its ink goes to its right and to its left on the page
+  // `stops`: filled with how far along the line the caret is after each character of its
+  // text (inside characters set side by side, where they start)
+  const measureColumn = (runs, resolution, stops) => {
+    let index = 0;
+    if (stops) stops[0] = 0;
+    const stopAt = (from, to, inside, end) => {
+      if (!stops) return;
+      for (let k = from + 1; k < to; k++) stops[k] = inside;
+      stops[to] = end;
+    };
+    let advance = 0;
+    let ascent = -Infinity;
+    let descent = -Infinity;
+    let inkLeft = Infinity;
+    let inkRight = -Infinity;
+    let fontAscent = 0;
+    let fontDescent = 0;
+    const placed = [];
+    runs.forEach((run) => {
+      const size = sizePxOf(run.style, resolution);
+      const scaleX = (run.style.horizontalScale || 100) / 100;
+      const scaleY = (run.style.verticalScale || 100) / 100;
+      const shift = ((run.style.impliedBaselineShift !== undefined ? run.style.impliedBaselineShift : run.style.baselineShift) || 0) * (resolution / 72);
+      const spacing = spacingOf(run.style) * size;
+      const kern = kernBefore(run.style, size);
+      if (kern && (placed.length || advance)) advance += kern;
+      columnPieces(run).forEach((piece) => {
+        const from = index;
+        index += piece.text.length;
+        if (piece.text === "\t") {
+          advance = (Math.floor(advance / TAB_STOP + 1e-6) + 1) * TAB_STOP;
+          stopAt(from, index, advance, advance);
+          return;
+        }
+        const shown = shownText({ text: piece.text, style: run.style });
+        if (piece.side) {
+          setRunFont(measureCtx, run.style, size);
+          measureCtx.textAlign = "left";
+          const m = measureCtx.measureText(shown);
+          if (stops) {
+            let at = 0;
+            lettersOf(piece.text).forEach((letter) => {
+              at += letter.length;
+              stopAt(from + at - letter.length, from + at, advance, advance + measureCtx.measureText(shownText({ text: piece.text.slice(0, at), style: run.style })).width * scaleX);
+            });
+          }
+          const lifted = shift + (piece.lift || 0) * size;
+          placed.push({ run, shown, x: advance, size, scaleX, scaleY, shift: lifted });
+          inkLeft = Math.min(inkLeft, advance - m.actualBoundingBoxLeft * scaleX);
+          inkRight = Math.max(inkRight, advance + m.actualBoundingBoxRight * scaleX);
+          advance += m.width * scaleX;
+          ascent = Math.max(ascent, m.actualBoundingBoxAscent * scaleY + lifted);
+          descent = Math.max(descent, m.actualBoundingBoxDescent * scaleY - lifted);
+          const axis = (uprightBaseOf(run.style, false).base - 0.5) * size;
+          fontAscent = Math.max(fontAscent, axis + size * 0.5);
+          fontDescent = Math.max(fontDescent, size * 0.5 - axis);
+          return;
+        }
+        const glyph = uprightGlyph(run.style, shown);
+        // How far above the line's baseline the middle of the square is
+        const axis = (glyph.base - 0.5) * size;
+        placed.push({ run, shown, x: advance, size, scaleX, scaleY, shift, upright: glyph });
+        inkLeft = Math.min(inkLeft, advance + (glyph.base + glyph.dy - glyph.rise) * size * scaleY);
+        inkRight = Math.max(inkRight, advance + (glyph.base + glyph.dy + glyph.fall) * size * scaleY);
+        ascent = Math.max(ascent, shift + axis + (glyph.dx + glyph.right - glyph.w / 2) * size * scaleX);
+        descent = Math.max(descent, (glyph.w / 2 + glyph.left - glyph.dx) * size * scaleX - shift - axis);
+        fontAscent = Math.max(fontAscent, axis + size * scaleX * 0.5);
+        fontDescent = Math.max(fontDescent, size * scaleX * 0.5 - axis);
+        stopAt(from, index, advance, advance + size * scaleY + spacing);
+        advance += size * scaleY + spacing;
+      });
+    });
+    if (!placed.length) return { advance, ascent: 0, descent: 0, inkLeft: 0, inkRight: 0, fontAscent, fontDescent, placed };
+    return { advance, ascent, descent, inkLeft, inkRight, fontAscent, fontDescent, placed };
+  };
+
   const measureRuns = (runs, resolution) => {
+    if (runs.length && runs[0].vertical) return measureColumn(runs, resolution);
     let advance = 0;
     let ascent = 0;
     let descent = 0;
@@ -333,7 +580,7 @@
   // both to fit it and to align it: n letters take n - 1 trackings (measured in Photoshop 2026)
   const trailingTracking = (m) => {
     const last = m.placed[m.placed.length - 1];
-    return last && last.run.style.tracking ? (last.run.style.tracking / 1000) * last.size * last.scaleX : 0;
+    return last && last.run.style.tracking ? (last.run.style.tracking / 1000) * last.size * (last.upright ? 1 : last.scaleX) : 0;
   };
 
   // Paragraph text: the size of its box is in the shape, its top left in the click point
@@ -348,7 +595,7 @@
     runs.forEach((run) => {
       const start = Math.max(from, at);
       const end = Math.min(to, at + run.text.length);
-      if (end > start) out.push({ text: run.text.slice(start - at, end - at), style: run.style });
+      if (end > start) out.push(runOf(run.text.slice(start - at, end - at), run.style, run));
       at += run.text.length;
     });
     return out;
@@ -440,7 +687,7 @@
     const withHyphen = (from, to) => {
       const out = sliceRuns(runs, from, to);
       const last = out[out.length - 1];
-      if (last) out[out.length - 1] = { text: last.text + "-", style: last.style };
+      if (last) out[out.length - 1] = runOf(last.text + "-", last.style, last);
       // The hyphen is drawn, but isn't in the text
       out.hyphenated = true;
       return out;
@@ -656,7 +903,7 @@
   const hyphenated = (runs) => {
     const out = runs.slice();
     const last = out[out.length - 1];
-    if (last) out[out.length - 1] = { text: last.text + "-", style: last.style };
+    if (last) out[out.length - 1] = runOf(last.text + "-", last.style, last);
     out.hyphenated = true;
     return out;
   };
@@ -668,8 +915,9 @@
     const lines = splitLines(lt);
     if (!shape) return lines;
     const wrapped = [];
-    // `fit`: how much wider than its box Photoshop let this text's lines be (see fitOf)
-    const width = shape.box.width * (shape.box.fit || 1);
+    // `fit`: how much wider than its box Photoshop let this text's lines be (see fitOf).
+    // A vertical text's lines are as long as its box is high.
+    const width = (verticalOf(lt) ? shape.box.height : shape.box.width) * (shape.box.fit || 1);
     lines.forEach((runs) => {
       if (runs.length) wrapped.push(...wrapRuns(runs, width, resolution, hyphenRulesOf(paragraph), Boolean(paragraph.hangingRoman)));
       else wrapped.push(runs);
@@ -682,7 +930,10 @@
     const antiAlias = lt.antiAlias || "antiAliasSmooth";
     const paragraph = (lt.paragraphStyleRange && lt.paragraphStyleRange[0] && lt.paragraphStyleRange[0].paragraphStyle) || {};
     const align = paragraph.alignment || "center";
-    const frame = shape ? shape.box : null;
+    // A vertical text is set as a horizontal one, then turned (see verticalOf): its box the
+    // other way round, its lines as long as the box is high
+    const vertical = verticalOf(lt);
+    const frame = !shape ? null : vertical ? Object.assign({}, shape.box, { width: shape.box.height, height: shape.box.width }) : shape.box;
     // Photoshop's first baseline in a box is its Ascent: as low as the top of the font's
     // "d". Measured on 730 lines of real PSDs: 0.86 of the size in Sakana, 0.75 in
     // Victory Speech, where a fixed 0.75 put Sakana's lines 2 px too high
@@ -716,6 +967,8 @@
       }
       if (index > 0) baseline += lead;
       else if (frame) baseline = firstOffset;
+      // A vertical point text has the middle of its first line on its anchor, as Photoshop's
+      else if (vertical) baseline = (uprightBaseOf(firstStyle, CJK.has(firstRuns ? firstRuns[0].text : "")).base - 0.5) * firstSize;
       contentBottom = baseline + Math.max(m.fontDescent, lead * 0.2);
       // As in Photoshop, a line that doesn't fit in a fixed box isn't drawn: one whose baseline
       // falls below the box, whatever its letters, descenders or not. Photoshop counts the
@@ -766,10 +1019,11 @@
           boldRight = Math.max(boldRight, weight.right);
           boldDown = Math.max(boldDown, weight.down);
         });
+        // In a vertical text the page's right is above the line, and its bottom along it
         left = Math.min(left, line.x + line.m.inkLeft);
-        right = Math.max(right, line.x + line.m.inkRight + boldRight);
-        top = Math.min(top, baseline - m.ascent);
-        bottom = Math.max(bottom, baseline + m.descent + boldDown);
+        right = Math.max(right, line.x + line.m.inkRight + (vertical ? boldDown : boldRight));
+        top = Math.min(top, baseline - m.ascent - (vertical ? boldRight : 0));
+        bottom = Math.max(bottom, baseline + m.descent + (vertical ? 0 : boldDown));
       }
     });
     const hasInk = isFinite(left);
@@ -787,7 +1041,14 @@
       top += shift;
       bottom += shift;
     }
-    return { lines: out, box: rectFrom(left, top, right, bottom), frame: frame ? { width: frame.width, height: frame.autoHeight ? contentBottom : frame.height } : null, overflow, contentHeight: contentBottom, firstOffset, shift, wrapped: lines };
+    const box = rectFrom(left, top, right, bottom);
+    const set = frame ? { width: frame.width, height: frame.autoHeight ? contentBottom : frame.height } : null;
+    const layout = { lines: out, box, frame: set, overflow, contentHeight: contentBottom, firstOffset, shift, wrapped: lines };
+    // Turned: `box` and `frame` are where the text shows around its anchor, a box's top
+    // right corner. `straight` keeps them as the lines were set, and `lines` stay so: they
+    // are turned when they are drawn (see drawLines) and where the caret goes (see caretLines).
+    if (vertical) Object.assign(layout, { vertical: true, straight: { box, frame: set }, box: rectFrom(-bottom, left, -top, right), frame: set ? { width: set.height, height: set.width } : null });
+    return layout;
   };
 
   // Where each line goes and the box of its ink, measured once per text and style.
@@ -801,10 +1062,11 @@
     const known = layoutByText.get(lt);
     // The anti-aliasing method too: the box of a Faux Bold's ink depends on it
     const antiAlias = lt.antiAlias || "antiAliasSmooth";
-    if (known && known.generation === Fonts.generation && known.resolution === resolution && known.textKey === lt.textKey && known.ranges === lt.textStyleRange && known.paragraphs === lt.paragraphStyleRange && known.box === box && known.antiAlias === antiAlias) return known.layout;
-    const key = Fonts.generation + "|" + resolution + "|" + JSON.stringify([lt.textKey, lt.textStyleRange, lt.paragraphStyleRange, box, antiAlias]);
+    const vertical = verticalOf(lt);
+    if (known && known.generation === Fonts.generation && known.resolution === resolution && known.textKey === lt.textKey && known.ranges === lt.textStyleRange && known.paragraphs === lt.paragraphStyleRange && known.box === box && known.antiAlias === antiAlias && known.vertical === vertical) return known.layout;
+    const key = Fonts.generation + "|" + resolution + "|" + JSON.stringify([lt.textKey, lt.textStyleRange, lt.paragraphStyleRange, box, antiAlias]) + (vertical ? "|vertical" : "");
     const remember = (layout) => {
-      layoutByText.set(lt, { generation: Fonts.generation, resolution, textKey: lt.textKey, ranges: lt.textStyleRange, paragraphs: lt.paragraphStyleRange, box, antiAlias, layout });
+      layoutByText.set(lt, { generation: Fonts.generation, resolution, textKey: lt.textKey, ranges: lt.textStyleRange, paragraphs: lt.paragraphStyleRange, box, antiAlias, vertical, layout });
       return layout;
     };
     const cached = layoutCache.get(key);
@@ -822,7 +1084,7 @@
     const relative = relativeLayout(lt, doc.resolution);
     const [ax, ay] = anchorOf(lt, doc);
     const b = relative.box;
-    return {
+    const layout = {
       relative,
       anchor: [ax, ay],
       lines: relative.lines.map((line) => Object.assign({}, line, { x: line.x + ax, baseline: line.baseline + ay })),
@@ -831,6 +1093,26 @@
       overflow: relative.overflow,
       contentHeight: relative.contentHeight,
     };
+    if (!relative.vertical) return layout;
+    // A vertical text: `box` and `frame` where it shows, the frame's top right on the anchor.
+    // `lines` are as they were set, around the anchor: a quarter turn around it puts them on
+    // the page. `straight`: the box and the frame those lines were set in.
+    const s = relative.straight;
+    return Object.assign(layout, {
+      vertical: true,
+      frame: relative.frame ? rectFrom(ax - relative.frame.width, ay, ax, ay + relative.frame.height) : null,
+      straight: { box: rectFrom(s.box.left + ax, s.box.top + ay, s.box.right + ax, s.box.bottom + ay), frame: s.frame ? rectFrom(ax, ay, ax + s.frame.width, ay + s.frame.height) : null },
+    });
+  };
+  // The quarter turn that puts a vertical text's lines on the page, as a text's own turn is
+  // written (see spinOf): what runs along a line goes down, what is above it goes right
+  const QUARTER = [0, 1, -1, 0];
+  // From a text's lines as they are set to the page, around its anchor: its own turn, after
+  // the quarter turn of a vertical text. Null for a straight horizontal text.
+  const layTurnOf = (layer) => {
+    const own = spinOf(layer);
+    if (!verticalOf(layer.params.layerText)) return own;
+    return own ? [own[2], own[3], -own[0], -own[1]] : QUARTER;
   };
 
   // A paragraph opened from a PSD shows Photoshop's own pixels, and the file says its text
@@ -1033,7 +1315,11 @@
           const moved = (k) => (line.tabShift && k >= line.tabShift.from ? line.tabShift.dx : 0);
           // Inside a letter and its marks the caret has no place of its own: it stays before them
           const starts = letterStartsOf(piece);
-          for (let k = 1; k <= end - start; k++) xs.push(starts && !starts.has(k) ? xs[k - 1] : line.x + measureRuns(sliceRuns(runs, 0, k), doc.resolution).advance + moved(k));
+          // A vertical line is measured whole: what stands side by side in it depends on what
+          // is around (the "20" of "2026" is no pair)
+          const stops = runs.length && runs[0].vertical ? [] : null;
+          if (stops) measureColumn(runs, doc.resolution, stops);
+          for (let k = 1; k <= end - start; k++) xs.push(starts && !starts.has(k) ? xs[k - 1] : line.x + (stops ? stops[Math.min(k, stops.length - 1)] : measureRuns(sliceRuns(runs, 0, k), doc.resolution).advance) + moved(k));
           const ascent = line.m.fontAscent || size * 0.8;
           const descent = line.m.fontDescent || size * 0.2;
           rel.push({ start, end, xs, baseline: line.baseline, top: line.baseline - ascent, bottom: line.baseline + descent, size });
@@ -1440,6 +1726,14 @@
       left = Math.min(left, line.x, line.x + line.m.inkLeft);
       right = Math.max(right, line.x + end, line.x + line.m.inkRight);
       line.m.placed.forEach((item) => {
+        if (item.upright) {
+          // An upright character of a vertical text: its square (Photoshop's bounds of a
+          // vertical line are 1 em wide, measured in Photoshop 2026)
+          const axis = line.baseline - item.shift - (item.upright.base - 0.5) * item.size;
+          top = Math.min(top, axis - item.size * item.scaleX * 0.5);
+          bottom = Math.max(bottom, axis + item.size * item.scaleX * 0.5);
+          return;
+        }
         const { rise, fall } = boundsSharesOf(item.run.style);
         top = Math.min(top, line.baseline - item.shift - rise * item.size * item.scaleY);
         bottom = Math.max(bottom, line.baseline - item.shift + fall * item.size * item.scaleY);
@@ -1448,13 +1742,17 @@
     if (!isFinite(left)) left = top = right = bottom = 0;
     const shape = boxShape(lt);
     if (shape) {
-      const height = relative.overflow ? shape.box.height : Math.max(shape.box.autoHeight ? 0 : shape.box.height - relative.shift, relative.contentHeight * 1.08);
+      // As the lines were set: a vertical text's box the other way round
+      const wide = relative.vertical ? shape.box.height : shape.box.width;
+      const high = relative.vertical ? shape.box.width : shape.box.height;
+      const height = relative.overflow ? high : Math.max(shape.box.autoHeight ? 0 : high - relative.shift, relative.contentHeight * 1.08);
       left = Math.min(left, 0);
-      right = Math.max(right, shape.box.width);
+      right = Math.max(right, wide);
       top = Math.min(top, relative.shift);
       bottom = Math.max(bottom, relative.shift + height);
     }
-    return rectFrom(left, top, right, bottom);
+    // Where it shows around the anchor, as the rest of a vertical text's layout
+    return relative.vertical ? rectFrom(-bottom, left, -top, right) : rectFrom(left, top, right, bottom);
   };
   // From the text's own frame (around its anchor) to where it lands, anchor aside: warped, then
   // turned as the text is
@@ -1584,7 +1882,11 @@
     const paragraph = layer.params.layerText.paragraphStyleRange && layer.params.layerText.paragraphStyleRange[0];
     const antiAlias = layer.params.layerText.antiAlias || "antiAliasSmooth";
     const direction = paragraph && paragraph.paragraphStyle && paragraph.paragraphStyle.directionType;
+    // A vertical text's lines are set as a horizontal one's: turned here, a quarter clockwise
+    // around the text's anchor (see verticalOf)
+    const vertical = verticalOf(layer.params.layerText);
     ctx.save();
+    if (vertical) ctx.rotate(Math.PI / 2);
     ctx.textBaseline = "alphabetic";
     ctx.textAlign = "left";
     if ("direction" in ctx) ctx.direction = direction === "dirRightToLeft" ? "rtl" : "ltr";
@@ -1592,9 +1894,15 @@
     ctx.miterLimit = 2;
     // One run at its own width, height and baseline shift, as Photoshop draws it
     const place = (g, line, item, draw) => {
-      setRunFont(g, item.run.style, item.size);
+      const glyph = item.upright;
+      setRunFont(g, item.run.style, item.size, Boolean(glyph));
       g.save();
-      g.translate(line.x + item.x, line.baseline - item.shift);
+      if (glyph) {
+        // Stood upright again in its square: its origin as far along the line as its baseline
+        // is below the top of the square, and half its width from the middle of the line
+        g.translate(line.x + item.x + (glyph.base + glyph.dy) * item.size * item.scaleY, line.baseline - item.shift - (glyph.base - 0.5) * item.size + (glyph.w / 2 - glyph.dx) * item.size * item.scaleX);
+        g.rotate(-Math.PI / 2);
+      } else g.translate(line.x + item.x, line.baseline - item.shift);
       g.scale(item.scaleX, item.scaleY);
       draw();
       g.restore();
@@ -1610,6 +1918,9 @@
       const top = -weight.page / 2 / item.scaleY;
       const bottom = (weight.down + weight.page / 2) / item.scaleY;
       const across = weight.right + weight.page > 0.35 * stemWidthOf(item.run.style) * item.size ? [left, (left + right) / 2, right] : [left, right];
+      // A run that lies on its side in a vertical text has the page's bottom along it and the
+      // page's right above it
+      if (vertical && !item.upright) return across.map((x) => [(top * item.scaleY) / item.scaleX, (-x * item.scaleX) / item.scaleY]).concat(across.map((x) => [(bottom * item.scaleY) / item.scaleX, (-x * item.scaleX) / item.scaleY]));
       return across.map((x) => [x, top]).concat(across.map((x) => [x, bottom]));
     };
     // The outline a run's letters are given, in its own units, which its width and height scale
@@ -1738,7 +2049,13 @@
   const drawTextLayer = (ctx, layer, doc) => {
     const layout = layoutLayer(layer, doc);
     const stroke = layer.stroke && layer.stroke.enabled && layer.stroke.size > 0 ? layer.stroke : null;
-    drawLines(ctx, layout.lines, stroke, layer);
+    if (layout.vertical) {
+      // Turned around its anchor (see drawLines)
+      ctx.save();
+      ctx.translate(layout.anchor[0], layout.anchor[1]);
+      drawLines(ctx, layout.relative.lines, stroke, layer);
+      ctx.restore();
+    } else drawLines(ctx, layout.lines, stroke, layer);
     return layout.box;
   };
 
@@ -1751,7 +2068,14 @@
     if (layout.frame) return layout.frame;
     if (layer.raster) return boxOf(layer, doc);
     const b = layout.box;
+    if (layout.vertical) return rectFrom(Math.min(b.left, firstEdgeOf(layout) - 1), b.top, firstEdgeOf(layout), b.bottom);
     return rectFrom(b.left, layout.anchor[1] - layout.relative.firstOffset, b.right, Math.max(b.bottom, layout.anchor[1] - layout.relative.firstOffset + 1));
+  };
+  // Where the right edge of a vertical point text's box would be: as far right of its first
+  // baseline as the first baseline of a box is from its edge
+  const firstEdgeOf = (layout) => {
+    const first = layout.relative.lines[0];
+    return layout.anchor[0] - (first ? first.baseline : 0) + layout.relative.firstOffset;
   };
 
   // The selection frame around a text's content, as Photoshop's transform controls draw it:
@@ -1765,6 +2089,7 @@
     const b = layout.box;
     if (b.right > b.left || b.bottom > b.top) return b;
     if (layout.frame) return layout.frame;
+    if (layout.vertical) return rectFrom(Math.min(b.left, firstEdgeOf(layout) - 1), b.top, firstEdgeOf(layout), b.bottom);
     return rectFrom(b.left, layout.anchor[1] - layout.relative.firstOffset, b.right, Math.max(b.bottom, layout.anchor[1] - layout.relative.firstOffset + 1));
   };
 
@@ -3913,7 +4238,8 @@
     // A bubble's text is a tile or two: drawing a band of it is drawing it all
     const tiles = tileSize(canvas, k);
     const across = k === 1 ? 1 : Math.ceil(canvas.width / tiles[0]);
-    if (k === 1 || apart || !layer.id || across * Math.ceil(canvas.height / tiles[1]) < 3) {
+    // A vertical text too: its lines are columns, which no row of the canvas keeps apart
+    if (k === 1 || apart || !layer.id || relative.vertical || across * Math.ceil(canvas.height / tiles[1]) < 3) {
       draw();
       return;
     }
@@ -9294,17 +9620,28 @@
   // A paragraph text whose letters changed size keeps its lines, as a point text does: unlike in
   // Photoshop, its box grows or shrinks with them, around its middle, instead of the lines
   // breaking again inside it (a word then cut in two) and the text going down past its bubble
+  // The sides of a text's box as its lines use them: the one they run along, then the one
+  // they follow each other on. A vertical text's lines run down its box.
+  const boxSides = (lt) => (verticalOf(lt) ? ["height", "width"] : ["width", "height"]);
+  // A box made that much wider or higher around its middle: its anchor is its top left
+  // corner, a vertical text's its top right
+  const growBox = (lt, shape, side, grow, doc) => {
+    shape.box[side] += grow;
+    if (side === "height") lt.textClickPoint.vertical -= (grow / 2 / doc.height) * 100;
+    else lt.textClickPoint.horizontal += ((verticalOf(lt) ? grow : -grow) / 2 / doc.width) * 100;
+  };
   const boxFollowsSize = (base, next, doc) => {
     const ratio = sizeRatio(base.params.layerText, next.params.layerText);
     if (!(ratio > 0) || Math.abs(ratio - 1) < 1e-6) return next;
     const lt = next.params.layerText;
     const shape = boxShape(lt);
     const lines = relativeLayout(base.params.layerText, doc.resolution).lines.length;
-    const width = shape.box.width * ratio;
-    shape.box.height = Math.max(1, shape.box.height * ratio);
+    const [along, across] = boxSides(lt);
+    const width = shape.box[along] * ratio;
+    shape.box[across] = Math.max(1, shape.box[across] * ratio);
     // Letters rounded to a tenth of a point may need a hair more room for the same lines
     for (let attempt = 0; attempt < 4; attempt++) {
-      shape.box.width = Math.max(1, width * (1 + attempt * 0.01) + attempt);
+      shape.box[along] = Math.max(1, width * (1 + attempt * 0.01) + attempt);
       if (relativeLayout(lt, doc.resolution).lines.length <= lines) break;
     }
     // A text on a perspective surface stays on it
@@ -9438,7 +9775,8 @@
     const chars = [];
     const breaks = [];
     rows.forEach((runs, index) => {
-      runs.forEach((run) => lettersOf(run.text).forEach((ch) => chars.push({ ch, style: run.style })));
+      // A vertical text's characters say so: they are measured down their line (see lineWidth)
+      runs.forEach((run) => lettersOf(run.text).forEach((ch) => chars.push(run.vertical ? { ch, style: run.style, vertical: true } : { ch, style: run.style })));
       if (index === rows.length - 1) return;
       const previous = chars[chars.length - 1];
       if (!previous) return;
@@ -9471,7 +9809,7 @@
     chars.forEach((item) => {
       const last = runs[runs.length - 1];
       if (last && last.style === item.style) last.text += item.ch;
-      else runs.push({ text: item.ch, style: item.style });
+      else runs.push(runOf(item.ch, item.style, item));
     });
     return measureRuns(runs, doc.resolution).advance;
   };
@@ -9525,18 +9863,15 @@
     const before = boxOf(layer, doc);
     const shape = boxShape(lt);
     if (!shape) return centredOn(next, doc, before.xMid, before.yMid);
-    const free = Object.assign({}, lt, { textShape: [{ textType: "point" }] });
+    const [along, across] = boxSides(lt);
+    const free = Object.assign({}, lt, { textShape: [{ textType: "point", orientation: shape.orientation }] });
     let widest = 0;
     relativeLayout(free, doc.resolution).lines.forEach((line) => { widest = Math.max(widest, line.m.advance); });
-    if (widest + 1 > shape.box.width) {
-      const grow = widest + 1 - shape.box.width;
-      shape.box.width += grow;
-      lt.textClickPoint.horizontal -= (grow / 2 / doc.width) * 100;
-    }
-    if (shape.box.autoHeight) return centredOn(next, doc, boxOf(next, doc).xMid, before.yMid);
+    if (widest + 1 > shape.box[along]) growBox(lt, shape, along, widest + 1 - shape.box[along], doc);
+    if (shape.box.autoHeight) return across === "height" ? centredOn(next, doc, boxOf(next, doc).xMid, before.yMid) : centredOn(next, doc, before.xMid, boxOf(next, doc).yMid);
     const needed = relativeLayout(free, doc.resolution).lines.length;
-    const full = relativeLayout(Object.assign({}, lt, { textShape: [{ textType: "box", box: { width: shape.box.width, height: 1, autoHeight: true } }] }), doc.resolution);
-    if (needed && full.contentHeight > shape.box.height) shape.box.height = full.contentHeight;
+    const full = relativeLayout(Object.assign({}, lt, { textShape: [{ textType: "box", orientation: shape.orientation, box: across === "height" ? { width: shape.box.width, height: 1, autoHeight: true } : { width: 1, height: shape.box.height, autoHeight: true } }] }), doc.resolution);
+    if (needed && full.contentHeight > shape.box[across]) shape.box[across] = full.contentHeight;
     return next;
   };
 
@@ -14174,13 +14509,17 @@
       return px[3] ? { r: px[0], g: px[1], b: px[2] } : null;
     },
     /* ---- text ---- */
-    newText(x, y, value, box) {
+    // `orientation`: "vertical" for Photoshop's Vertical Type, its lines from top to bottom
+    // (x, y is then the top of its first line, or the top right of its box). Its lines start
+    // at the top, as a Chinese or Japanese page sets them, where a horizontal text is centred.
+    newText(x, y, value, box, orientation) {
       const doc = app.doc;
       if (!doc) return null;
       const d = app.textDefaults;
       const text = value || "";
+      const way = orientation === "vertical" ? "vertical" : "horizontal";
       const style = { fontPostScriptName: d.font, fontName: d.family, fontStyleName: d.style, size: d.size, impliedFontSize: d.size, autoLeading: true, tracking: 0, horizontalScale: 100, verticalScale: 100, ligature: d.ligature, textLanguage: d.language, autoKern: d.autoKern === "manual" || d.autoKern === "opticalKern" ? d.autoKern : "metricsKern", color: { red: app.fg.r, green: app.fg.g, blue: app.fg.b } };
-      const params = { layerText: { textKey: text, antiAlias: d.antiAlias || "antiAliasSmooth", textClickPoint: { horizontal: (x / doc.width) * 100, vertical: (y / doc.height) * 100 }, textStyleRange: [{ from: 0, to: text.length, textStyle: style }], paragraphStyleRange: [{ from: 0, to: text.length, paragraphStyle: Object.assign({ alignment: "center", autoLeadingPercentage: 1.2 }, d.hyphenate ? { hyphenate: true } : {}) }], textShape: [box ? { textType: "box", orientation: "horizontal", box: Object.assign({ verticalAlign: d.verticalAlign }, box) } : { textType: "point", orientation: "horizontal" }] } };
+      const params = { layerText: { textKey: text, antiAlias: d.antiAlias || "antiAliasSmooth", textClickPoint: { horizontal: (x / doc.width) * 100, vertical: (y / doc.height) * 100 }, textStyleRange: [{ from: 0, to: text.length, textStyle: style }], paragraphStyleRange: [{ from: 0, to: text.length, paragraphStyle: Object.assign({ alignment: way === "vertical" ? "left" : "center", autoLeadingPercentage: 1.2 }, d.hyphenate ? { hyphenate: true } : {}) }], textShape: [box ? { textType: "box", orientation: way, box: Object.assign({ verticalAlign: d.verticalAlign }, box) } : { textType: "point", orientation: way }] } };
       const layer = newTextLayer(doc, params, null, text || "Text");
       commitState(doc, "Type Tool", { layers: addNewTexts(doc.state.layers, [layer], textSpotOf(doc)), activeIds: [layer.id] });
       firePanelEvent(EVENT_SELECT);
@@ -14260,7 +14599,8 @@
       // A box from a PSD has no vertical alignment yet: resizing it gives it the usual one
       const verticalAlign = (boxShape(lt) && boxShape(lt).box.verticalAlign) || app.textDefaults.verticalAlign;
       lt.textShape = [{ textType: "box", orientation, box: { width: Math.max(1, frame.width), height: Math.max(1, frame.height), autoHeight: Boolean(frame.autoHeight), verticalAlign } }];
-      lt.textClickPoint = { horizontal: (frame.left / doc.width) * 100, vertical: (frame.top / doc.height) * 100 };
+      // A vertical text's anchor is the top right of its box, where its first line is
+      lt.textClickPoint = { horizontal: ((orientation === "vertical" ? frame.left + Math.max(1, frame.width) : frame.left) / doc.width) * 100, vertical: (frame.top / doc.height) * 100 };
       commitState(doc, "Text Box", { layers: replaceLayer(doc, base, { params, raster: null }) }, coalesce);
       firePanelEvent(EVENT_HISTORY);
     },
@@ -14334,7 +14674,14 @@
       if (!boxShape(layer.params.layerText)) {
         const f = textBoxOf(layer, doc);
         const widest = layout.relative.lines.reduce((max, line) => Math.max(max, line.m.advance), 0);
-        ops.setTextFrame(layer, { left: f.left, top: f.top, width: Math.max(f.width, widest) + 2, height: f.height, autoHeight: true });
+        // A vertical text's lines run down its box, which then grows to the left with them.
+        // They stay where they are: the box starts where they do, by how they are aligned.
+        if (layout.vertical) {
+          const long = widest + 2;
+          const align = (layer.params.layerText.paragraphStyleRange[0].paragraphStyle.alignment) || "center";
+          const top = layout.anchor[1] - (align === "left" ? 0 : align === "right" ? long : long / 2);
+          ops.setTextFrame(layer, { left: f.left, top, width: f.width, height: long, autoHeight: true });
+        } else ops.setTextFrame(layer, { left: f.left, top: f.top, width: Math.max(f.width, widest) + 2, height: f.height, autoHeight: true });
         return;
       }
       const params = clone(layer.params);
@@ -14346,11 +14693,19 @@
       if (lt.textStyleRange.length > 1) lt.textStyleRange = rangesOfLines(rows, first);
       else lt.textStyleRange[0].to = key.length;
       lt.paragraphStyleRange[0].to = key.length;
-      lt.textShape = [{ textType: "point", orientation: "horizontal" }];
+      lt.textShape = [{ textType: "point", orientation: layout.vertical ? "vertical" : "horizontal" }];
       const f = layout.frame;
       const align = paragraph.alignment || "center";
-      const x = align === "left" ? f.left : align === "right" ? f.right : f.xMid;
-      const y = f.top + (layout.relative.lines[0] ? layout.relative.lines[0].baseline : 0);
+      let x = align === "left" ? f.left : align === "right" ? f.right : f.xMid;
+      let y = f.top + (layout.relative.lines[0] ? layout.relative.lines[0].baseline : 0);
+      if (layout.vertical) {
+        // Its first line stays where it is: the anchor on the middle of it, at its top,
+        // its middle or its bottom as the text is aligned
+        const first = layout.relative.lines[0] ? layout.relative.lines[0].baseline : 0;
+        const point = relativeLayout(lt, doc.resolution).lines[0];
+        x = f.right - first + (point ? point.baseline : 0);
+        y = align === "left" ? f.top : align === "right" ? f.bottom : f.yMid;
+      }
       lt.textClickPoint = { horizontal: (x / doc.width) * 100, vertical: (y / doc.height) * 100 };
       commitState(doc, "Convert Text", { layers: replaceLayer(doc, layer, { params, raster: null }) });
     },
@@ -14824,6 +15179,45 @@
       const layer = doc && doc.state.layers.find((item) => item.id === id && item.kind === "text");
       if (!layer || !layer.warp || !layer.warp.auto) return;
       commitState(doc, "Perspective", { layers: replaceLayer(doc, layer, { offSurface: true, warp: Object.assign({}, layer.warp, { auto: undefined }) }) });
+      firePanelEvent(EVENT_HISTORY);
+    },
+    // Photoshop's Type > Orientation: the same text set across the page ("horizontal") or
+    // down it ("vertical"). It stays where it is: a box keeps its place and its size, a box
+    // as tall as its text keeps its lines as long as they were, and any other text its middle.
+    setTextOrientation(ids, value) {
+      const doc = app.doc;
+      if (!doc) return;
+      const way = value === "vertical" ? "vertical" : "horizontal";
+      const set = new Set(ids);
+      let changed = false;
+      const plain = (layer) => Object.assign({}, layer, { rotated: false, spin: null, raster: null, mesh: null, outline: null, envelope: null });
+      const layers = doc.state.layers.map((layer) => {
+        if (!set.has(layer.id) || layer.kind !== "text" || layer.warp) return layer;
+        if ((verticalOf(layer.params.layerText) ? "vertical" : "horizontal") === way) return layer;
+        changed = true;
+        const params = clone(layer.params);
+        const lt = params.layerText;
+        const shape = boxShape(lt);
+        if (shape) shape.orientation = way;
+        else lt.textShape = [{ textType: "point", orientation: way }];
+        const fixed = shape && !shape.box.autoHeight;
+        if (shape && !fixed) [shape.box.width, shape.box.height] = [shape.box.height, shape.box.width];
+        // Centred lines become lines that start at the top, and back: what each way is set with
+        lt.paragraphStyleRange.forEach((range) => {
+          const from = way === "vertical" ? "center" : "left";
+          if ((range.paragraphStyle.alignment || "center") === from) range.paragraphStyle.alignment = way === "vertical" ? "left" : "center";
+        });
+        const next = Object.assign({}, layer, { params, raster: null });
+        // The box's own corner, or the middle of what shows, before any turn of the text
+        const before = fixed ? textBoxOf(plain(layer), doc) : frameOf(plain(layer), doc);
+        const after = fixed ? textBoxOf(plain(next), doc) : frameOf(plain(next), doc);
+        const dx = fixed ? before.left - after.left : before.xMid - after.xMid;
+        const dy = fixed ? before.top - after.top : before.yMid - after.yMid;
+        const [a, b, c, d] = spinOf(layer) || [1, 0, 0, 1];
+        return shifted(next, a * dx + c * dy, b * dx + d * dy, doc);
+      });
+      if (!changed) return;
+      commitState(doc, "Text Orientation", { layers });
       firePanelEvent(EVENT_HISTORY);
     },
     setTextVerticalAlign(ids, value) {
@@ -15372,7 +15766,10 @@
     }
     lt.textStyleRange = ranges.length ? ranges : [{ from: 0, to: clean.length, textStyle: base }];
     lt.paragraphStyleRange = [{ from: 0, to: clean.length, paragraphStyle: Object.assign({ alignment: "center", autoLeadingPercentage: 1.2 }, lt.paragraphStyleRange && lt.paragraphStyleRange[0] && lt.paragraphStyleRange[0].paragraphStyle) }];
-    lt.textShape = [{ textType: "point", orientation: "horizontal" }];
+    // A vertical text stays vertical, and so does the text made from a vertical style. A
+    // style that says nothing of it follows the Type tool, as a text typed does.
+    const vertical = source.layerText && source.layerText.textShape ? verticalOf(source.layerText) : app.textDefaults.orientation === "vertical";
+    lt.textShape = [{ textType: "point", orientation: vertical ? "vertical" : "horizontal" }];
     return params;
   };
   // The panel's Text Direction ("rtl" or "ltr"), set on every paragraph as Photoshop's
@@ -15447,10 +15844,13 @@
   // The lines of a text the panel fits in a balloon. With hyphenRules (Hyphenate on), a word
   // that doesn't fit at the end of a line is cut at a syllable, with a hyphen, as in
   // paragraph text, rather than going whole to the next line or leaving a line too wide.
-  const wrapWords = (text, base, width, resolution, hyphenRules) => {
+  // `vertical`: for a vertical text, whose lines are as long as their characters are high
+  const wrapWords = (text, base, width, resolution, hyphenRules, vertical) => {
     const size = sizePxOf(base, resolution);
     setRunFont(measureCtx, base, size);
-    const fits = (candidate) => measureCtx.measureText(candidate).width <= width;
+    const fits = vertical
+      ? (candidate) => measureRuns([{ text: candidate, style: base, vertical: true }], resolution).advance <= width
+      : (candidate) => measureCtx.measureText(candidate).width <= width;
     const language = hyphenRules ? hyphenLanguage(base) : null;
     // Where `word`, already cut at `from`, can be cut again so that `line` ends with its
     // start and a hyphen: the latest such place, or -1
@@ -15527,11 +15927,13 @@
     const lt = params.layerText;
     const lines = rel.lines.length;
     const size = sizePxOf(lt.textStyleRange[0].textStyle, doc.resolution);
-    lt.textClickPoint = { horizontal: (f.left / doc.width) * 100, vertical: (f.top / doc.height) * 100 };
+    // A vertical text's lines run down its box, from its top right corner
+    const vertical = verticalOf(lt);
+    lt.textClickPoint = { horizontal: ((vertical ? f.right : f.left) / doc.width) * 100, vertical: (f.top / doc.height) * 100 };
     const widest = rel.lines.reduce((max, line) => Math.max(max, line.m.advance), 0);
-    let width = Math.max(f.width, widest) + 2;
+    let width = Math.max(vertical ? f.height : f.width, widest) + 2;
     for (let attempt = 0; attempt < 5; attempt++) {
-      lt.textShape = [{ textType: "box", orientation: "horizontal", box: { width, height: Math.max(1, f.height), autoHeight: true, verticalAlign: app.textDefaults.verticalAlign } }];
+      lt.textShape = [{ textType: "box", orientation: vertical ? "vertical" : "horizontal", box: vertical ? { width: Math.max(1, f.width), height: width, autoHeight: true, verticalAlign: app.textDefaults.verticalAlign } : { width, height: Math.max(1, f.height), autoHeight: true, verticalAlign: app.textDefaults.verticalAlign } }];
       if (relativeLayout(lt, doc.resolution).lines.length <= lines) break;
       width += size * (attempt < 2 ? 0.5 : 1.5);
     }
@@ -15547,16 +15949,20 @@
     const base = params.layerText.textStyleRange[0].textStyle;
     // The enlarged text must not wrap in a box sized for the selection
     const enlarged = !data.textSizeOverride && data.style && isPunctuationOnly(data.text) ? Math.max(1, parseFloat(data.style.punctuationOnlyScale) || 1) : 1;
-    const width = Math.max(24, bounds.width * 0.9 - padding * 2) * enlarged;
+    // A vertical text's lines run down the balloon: they are as long as it is high allows
+    const vertical = verticalOf(params.layerText);
+    const width = Math.max(24, (vertical ? bounds.height : bounds.width) * 0.9 - padding * 2) * enlarged;
     if (!point) {
-      params.layerText.textShape = [{ textType: "box", orientation: "horizontal", box: { width, height: 1, autoHeight: true, verticalAlign: app.textDefaults.verticalAlign } }];
-      params.layerText.textClickPoint = { horizontal: ((bounds.xMid - width / 2) / doc.width) * 100, vertical: (bounds.top / doc.height) * 100 };
+      params.layerText.textShape = [{ textType: "box", orientation: vertical ? "vertical" : "horizontal", box: vertical ? { width: 1, height: width, autoHeight: true, verticalAlign: app.textDefaults.verticalAlign } : { width, height: 1, autoHeight: true, verticalAlign: app.textDefaults.verticalAlign } }];
+      params.layerText.textClickPoint = vertical
+        ? { horizontal: (bounds.xMid / doc.width) * 100, vertical: ((bounds.yMid - width / 2) / doc.height) * 100 }
+        : { horizontal: ((bounds.xMid - width / 2) / doc.width) * 100, vertical: (bounds.top / doc.height) * 100 };
       centreLayer(doc, params, null, bounds.xMid, bounds.yMid);
       return params;
     }
     // Text with styled parts keeps its own lines (see below): it isn't cut either
     const hyphenRules = data.richTextRuns ? null : hyphenRulesOf(params.layerText.paragraphStyleRange[0].paragraphStyle);
-    const lines = wrapWords(data.text, base, width, doc.resolution, hyphenRules);
+    const lines = wrapWords(data.text, base, width, doc.resolution, hyphenRules, vertical);
     if (!data.richTextRuns) {
       params.layerText.textKey = lines.join("\r");
       params.layerText.textStyleRange = [{ from: 0, to: params.layerText.textKey.length, textStyle: base }];
@@ -15885,6 +16291,8 @@
         // Only its text pasted, a text turns right to left but isn't turned back, as in Photoshop
         withDirection(params, data.style || data.direction === "rtl" ? data.direction : null);
         params.layerText.textClickPoint = clone(layer.params.layerText.textClickPoint);
+        // A text keeps the way it is set, across or down, whatever the style
+        params.layerText.textShape[0].orientation = verticalOf(layer.params.layerText) ? "vertical" : "horizontal";
         if (boxShape(layer.params.layerText)) params.layerText.textShape = clone(layer.params.layerText.textShape);
         else centreLayer(doc, params, null, box.xMid, box.yMid);
         const changes = { params, raster: null, stroke: (data.style && strokeToApply(data.style.stroke)) || layer.stroke };
@@ -15915,27 +16323,21 @@
       const lt = params.layerText;
       const shape = clone(kept);
       const before = textBoxOf(layer, doc);
-      let widest = 0;
-      relativeLayout(Object.assign({}, lt, { textShape: [{ textType: "point" }] }), doc.resolution).lines.forEach((line) => { widest = Math.max(widest, line.m.advance); });
-      if (widest + 1 > shape.box.width) {
-        const grow = widest + 1 - shape.box.width;
-        shape.box.width += grow;
-        lt.textClickPoint.horizontal -= (grow / 2 / doc.width) * 100;
-      }
-      if (!shape.box.autoHeight) {
-        const full = relativeLayout(Object.assign({}, lt, { textShape: [{ textType: "box", box: { width: shape.box.width, height: 1, autoHeight: true } }] }), doc.resolution);
-        if (full.contentHeight > shape.box.height) {
-          const grow = full.contentHeight - shape.box.height;
-          shape.box.height += grow;
-          lt.textClickPoint.vertical -= (grow / 2 / doc.height) * 100;
-        }
-      }
       lt.textShape = [shape];
+      const [along, across] = boxSides(lt);
+      let widest = 0;
+      relativeLayout(Object.assign({}, lt, { textShape: [{ textType: "point", orientation: shape.orientation }] }), doc.resolution).lines.forEach((line) => { widest = Math.max(widest, line.m.advance); });
+      if (widest + 1 > shape.box[along]) growBox(lt, shape, along, widest + 1 - shape.box[along], doc);
+      if (!shape.box.autoHeight) {
+        const full = relativeLayout(Object.assign({}, lt, { textShape: [{ textType: "box", orientation: shape.orientation, box: across === "height" ? { width: shape.box.width, height: 1, autoHeight: true } : { width: 1, height: shape.box.height, autoHeight: true } }] }), doc.resolution);
+        if (full.contentHeight > shape.box[across]) growBox(lt, shape, across, full.contentHeight - shape.box[across], doc);
+      }
       let next = Object.assign({}, layer, { params, raster: null, manualBreaks: true });
-      // A box that follows its text's height keeps its middle where it was
+      // A box that follows its text's height keeps its middle where it was (a vertical
+      // text's box follows its lines to the left)
       if (shape.box.autoHeight) {
         const after = textBoxOf(next, doc);
-        next = shifted(next, 0, (before.top + before.bottom) / 2 - (after.top + after.bottom) / 2, doc);
+        next = across === "height" ? shifted(next, 0, before.yMid - after.yMid, doc) : shifted(next, before.xMid - after.xMid, 0, doc);
       }
       commitState(doc, "TyperTools Change", { layers: replaceLayer(doc, layer, next) });
       return "";
@@ -15957,6 +16359,8 @@
         if (item.style) followTextDefaults(params, layer);
         withDirection(params, item.direction);
         params.layerText.textClickPoint = clone(layer.params.layerText.textClickPoint);
+        // A text keeps the way it is set, across or down, whatever the style
+        params.layerText.textShape[0].orientation = verticalOf(layer.params.layerText) ? "vertical" : "horizontal";
         if (boxShape(layer.params.layerText)) params.layerText.textShape = clone(layer.params.layerText.textShape);
         else centreLayer(doc, params, null, box.xMid, box.yMid);
         const stroke = (item.style && strokeToApply(item.style.stroke)) || layer.stroke;
@@ -16461,6 +16865,9 @@
     wrapWords,
     softBreaksOf,
     wordCutsOf,
+    verticalOf,
+    layTurnOf,
+    pairsOfText,
     breaksBare,
     cssFont,
     EXTRA_BOLD_WIDTH,
