@@ -203,21 +203,38 @@
   // sentence, which stay with the word before them
   const UNSPACED_NO_START = /[ฯๆ๚๛ຯໆ។-៚၊။]/;
   const unspaced = (ch) => Boolean(ch) && UNSPACED.test(ch);
+  // Chinese and Japanese put none either, and a line breaks between any two of their
+  // characters, but never before a mark that closes or after one that opens (see cjk.js)
+  const CJK = window.TypeRCJK;
+  const breaksUnspaced = (before, after) => unspaced(before) && unspaced(after) && !UNSPACED_NO_START.test(after[0]);
   // Whether a line can end between these two letters with nothing added: both of a script
   // written without spaces
-  const breaksBare = (before, after) => unspaced(before) && unspaced(after) && !UNSPACED_NO_START.test(after[0]);
+  const breaksBare = (before, after) => breaksUnspaced(before, after) || CJK.breaksBetween(before, after);
   // The places inside a text where a line can break without a space: null when it has none
   const softBreaksOf = (text) => {
+    const wide = CJK.breaksOf(text);
+    const starts = wide || UNSPACED.test(text) ? letterStartsOf(text) : null;
+    // Never inside a letter and the marks it carries
+    if (wide && starts) wide.forEach((at) => { if (!starts.has(at)) wide.delete(at); });
     const script = UNSPACED.test(text) && UNSPACED_SCRIPTS.find((item) => item[1].test(text));
     const segmenter = script ? segmenterOf("word", script[0]) : null;
-    if (!segmenter) return null;
-    const starts = letterStartsOf(text);
-    const breaks = new Set();
+    if (!segmenter) return wide && wide.size ? wide : null;
+    const breaks = wide || new Set();
     for (const part of segmenter.segment(text)) {
       const at = part.index;
-      if (at > 0 && (!starts || starts.has(at)) && breaksBare(String.fromCodePoint(text.codePointAt(at - 1)), String.fromCodePoint(text.codePointAt(at)))) breaks.add(at);
+      if (at > 0 && (!starts || starts.has(at)) && breaksUnspaced(String.fromCodePoint(text.codePointAt(at - 1)), String.fromCodePoint(text.codePointAt(at)))) breaks.add(at);
     }
     return breaks.size ? breaks : null;
+  };
+  // Where a double-click's word ends in such a text: at the words a dictionary finds in
+  // Chinese and Japanese, where a line could break between any two characters
+  const wordCutsOf = (text) => {
+    if (!CJK.has(text)) return softBreaksOf(text);
+    const segmenter = segmenterOf("word", /[\u3040-\u30FF]/.test(text) ? "ja" : "zh");
+    if (!segmenter) return softBreaksOf(text);
+    const cuts = new Set();
+    for (const part of segmenter.segment(text)) if (part.index > 0) cuts.add(part.index);
+    return cuts.size ? cuts : null;
   };
 
   // textKey -> lines, each with its runs (a run: text and the style of its range)
@@ -9547,6 +9564,14 @@
         if (!realHyphen(left, right, source, text)) chars.pop();
         continue;
       }
+      // Between two characters of a text written without spaces, a line broke with nothing
+      // taken away: joined again, nothing is put back, unless the script had a space there
+      const after = text.slice(i + 1);
+      if (previous && after && breaksBare(previous.ch, String.fromCodePoint(after.codePointAt(0)))) {
+        let left = "";
+        for (let at = chars.length - 1; at >= 0 && /[^\s]/.test(chars[at].ch); at--) left = chars[at].ch + left;
+        if (!spaceLost(left, (/^[^\s]*/.exec(after) || [""])[0], source)) continue;
+      }
       chars.push({ ch: " ", style: styleAt(i) });
     }
     const out = [];
@@ -16435,6 +16460,7 @@
     withResolution,
     wrapWords,
     softBreaksOf,
+    wordCutsOf,
     breaksBare,
     cssFont,
     EXTRA_BOLD_WIDTH,
