@@ -1559,11 +1559,11 @@
   // What a layer's data says of a run of letters and of a paragraph, as textToPsd and the
   // PSD library write them. Photoshop gives each of these a key in the block; a text with
   // anything else gets no entry (it is read from its layer, as before).
-  const BLOCK_STYLE = { fontSize: [1, "real"], fauxBold: [2], fauxItalic: [3], autoLeading: [4], leading: [5, "real"], horizontalScale: [6, "real"], verticalScale: [7, "real"], tracking: [8], baselineShift: [9, "real"], fontCaps: [12], fontBaseline: [13], strikethrough: [15, "flag"], underline: [16, "flag"], ligatures: [18], dLigatures: [19], fillColor: [53, "paint"], strokeColor: [54, "paint"], strokeFlag: [57], fillFirst: [58], outlineWidth: [63, "real"] };
+  const BLOCK_STYLE = { fontSize: [1, "real"], fauxBold: [2], fauxItalic: [3], autoLeading: [4], leading: [5, "real"], horizontalScale: [6, "real"], verticalScale: [7, "real"], tracking: [8], baselineShift: [9, "real"], fontCaps: [12], fontBaseline: [13], strikethrough: [15, "flag"], underline: [16, "flag"], ligatures: [18], dLigatures: [19], baselineDirection: [35], fillColor: [53, "paint"], strokeColor: [54, "paint"], strokeFlag: [57], fillFirst: [58], outlineWidth: [63, "real"] };
   const BLOCK_STYLE_ALSO = ["font", "autoKerning", "kerning", "language"];
   const BLOCK_PARAGRAPH = { justification: "left", firstLineIndent: 0, startIndent: 0, endIndent: 0, spaceBefore: 0, spaceAfter: 0, autoHyphenate: true, hyphenatedWordSize: 6, preHyphen: 2, postHyphen: 2, consecutiveHyphens: 8, zone: 36, autoLeading: 1.2, leadingType: 0, hanging: false };
   const BLOCK_JUSTIFY = { left: 0, right: 1, center: 2 };
-  const BLOCK_TEXT = ["text", "transform", "antiAlias", "shapeType", "style", "paragraphStyle", "boxBounds", "warp", "styleRuns"];
+  const BLOCK_TEXT = ["text", "transform", "antiAlias", "shapeType", "orientation", "style", "paragraphStyle", "boxBounds", "warp", "styleRuns"];
   // The anti-aliasing has a key in an entry too, but for Smooth (seen in the files of three
   // versions of Photoshop for these four)
   const BLOCK_ANTI_ALIAS = { crisp: 1, strong: 2, smooth: 3, sharp: 4 };
@@ -1649,16 +1649,18 @@
       + (smoothing !== BLOCK_ANTI_ALIAS.smooth ? ` /10 << /0 ${smoothing} /2 true >>` : "")
       + " >>";
   };
-  // The frame a text is set in: a point, or its box as a path of four sides. `fresh`: as
-  // Photoshop writes them since the block's version 14
+  // The frame a text is set in: a point, or its box as a path of four sides, and which way
+  // its lines run when they are vertical (as Photoshop 2026 writes the frames of the vertical
+  // texts saved from here). `fresh`: as Photoshop writes them since the block's version 14
   const blockFrame = (text, fresh) => {
     const last = fresh ? " /22 .025" : "";
-    if (text.shapeType !== "box") return `<< /0 << /2 << /6 [ -1.0 -1.0 ] /11 << /4 -1 /18 -1.0${last} >> >> >> >>`;
+    const way = text.orientation === "vertical" ? " /1 2" : "";
+    if (text.shapeType !== "box") return `<< /0 << /2 <<${way} /6 [ -1.0 -1.0 ] /11 << /4 -1 /18 -1.0${last} >> >> >> >>`;
     const [left, top, right, bottom] = (text.boxBounds || [0, 0, 0, 0]).map(blockReal);
     const corners = [[left, top], [right, top], [right, bottom], [left, bottom], [left, top]];
     const path = [];
     for (let k = 0; k < 4; k++) path.push(...corners[k], ...corners[k], ...corners[k + 1], ...corners[k + 1]);
-    return `<< /0 << /1 << /0 [ ${path.join(" ")} ] >> /2 << /0 1 /6 [ -2.0 -2.0 ] /10 << /0 2 /1 0.0 >> /11 << /4 -2 /18 -2.0${last} >> >> >> >>`;
+    return `<< /0 << /1 << /0 [ ${path.join(" ")} ] >> /2 << /0 1${way} /6 [ -2.0 -2.0 ] /10 << /0 2 /1 0.0 >> /11 << /4 -2 /18 -2.0${last} >> >> >> >>`;
   };
   // What the block alone says of a text set here, place by place in the text as the file has
   // it (its letters, then the closing return): in Optical, with its Contextual alternates,
