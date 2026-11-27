@@ -15623,6 +15623,9 @@
       if (range.textStyle && range.textStyle.impliedFontSize) range.textStyle.size = range.textStyle.impliedFontSize;
       lengthsInTypeUnit(range.textStyle, doc.resolution);
     });
+    // As Photoshop says it, beside the text's shape: a style the panel takes from a layer
+    // drops the shape (a box, a point) and keeps this, so a vertical text makes a vertical style
+    if (props.layerText) props.layerText.orientation = verticalOf(props.layerText) ? "vertical" : "horizontal";
     return props;
   };
 
@@ -15766,10 +15769,14 @@
     }
     lt.textStyleRange = ranges.length ? ranges : [{ from: 0, to: clean.length, textStyle: base }];
     lt.paragraphStyleRange = [{ from: 0, to: clean.length, paragraphStyle: Object.assign({ alignment: "center", autoLeadingPercentage: 1.2 }, lt.paragraphStyleRange && lt.paragraphStyleRange[0] && lt.paragraphStyleRange[0].paragraphStyle) }];
-    // A vertical text stays vertical, and so does the text made from a vertical style. A
-    // style that says nothing of it follows the Type tool, as a text typed does.
-    const vertical = source.layerText && source.layerText.textShape ? verticalOf(source.layerText) : app.textDefaults.orientation === "vertical";
+    // A vertical text stays vertical, and so does the text made from a vertical style (the
+    // panel's styles keep a text's orientation without its shape). Any other style follows
+    // the Type tool, as a text typed does: the panel's styles all say horizontal, whether
+    // it was chosen or not.
+    const says = source.layerText || {};
+    const vertical = says.textShape ? verticalOf(says) : says.orientation === "vertical" || app.textDefaults.orientation === "vertical";
     lt.textShape = [{ textType: "point", orientation: vertical ? "vertical" : "horizontal" }];
+    delete lt.orientation;
     return params;
   };
   // The panel's Text Direction ("rtl" or "ltr"), set on every paragraph as Photoshop's
@@ -16675,6 +16682,8 @@
         }
       }
       if (!data || !data.trigger || data.trigger.source !== "rectangle") result.rawPath = ringsToPath(read.rings);
+      // New text is vertical here when the Type tool is: the panel fits it in columns
+      if (app.textDefaults.orientation === "vertical") result.vertical = true;
       return JSON.stringify(result);
     },
     smartPasteMeasure(data) {
@@ -16688,7 +16697,9 @@
       const measure = () => JSON.stringify(requests.map((request) => {
         const lt = followTextDefaults(paramsInPoints(request.params, doc.resolution)).layerText;
         const key = String(lt.textKey || "").split(/\r\n?|\n/)[0];
-        const line = Object.assign({}, lt, { textKey: key, textClickPoint: { horizontal: 50, vertical: 50 }, textShape: [{ textType: "point", orientation: "horizontal" }] });
+        // A vertical text is fitted column by column: the line is measured standing
+        const line = Object.assign({}, lt, { textKey: key, textClickPoint: { horizontal: 50, vertical: 50 }, textShape: [{ textType: "point", orientation: verticalOf(lt) ? "vertical" : "horizontal" }] });
+        delete line.orientation;
         const b = layoutLayer({ params: { layerText: line } }, doc).box;
         return { bounds: { left: b.left, top: b.top, right: b.right, bottom: b.bottom } };
       }));
@@ -16712,6 +16723,8 @@
           layers = paintOnCleanLayer(layers, () => op);
         }
         const params = followTextDefaults(paramsInPoints(session.text.params, doc.resolution));
+        // The shape says which way the text runs: Photoshop's second word for it is the panel's
+        delete params.layerText.orientation;
         // As the panel does on a black bubble, on a dark one: white text
         whiteOnDarkBubble(doc, plan, params, session.text.stroke);
         let layer = newTextLayer(doc, params, session.text.stroke, session.layerName);
