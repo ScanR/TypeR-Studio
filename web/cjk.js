@@ -13,8 +13,8 @@
   // What never starts a line (closing brackets, stops, small kana, the long vowel mark…) and
   // what never ends one (opening brackets, a currency sign before its number): Photoshop's own
   // strict set (Kinsoku Shori: JIS Strict), with the Chinese marks it leaves out
-  const NO_START = new Set(Array.from("、。，．・：；？！ー―’”）〕］｝〉》」』】〗〙〛ヽヾゝゞ々〻ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶ゛゜ﾞﾟ?!)]},.:;℃℉¢％‰°′″〜～·‧%"));
-  const NO_END = new Set(Array.from("‘“（〔［｛〈《「『【〖〘〚([{￥＄£＠§〒＃$#"));
+  const NO_START = new Set(Array.from("、。，．・：；？！ー―’”）〕］｝〉》」』】〗〙〛ヽヾゝゞ々〻ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶ゛゜ﾞﾟ?!)]},.:;℃℉¢％‰°′″〜～·‧%-/\"'"));
+  const NO_END = new Set(Array.from("‘“（〔［｛〈《「『【〖〘〚([{￥＄£＠§〒＃$#\"'"));
   // Written twice in a row, they make one mark: never one at the end of a line and one at the
   // start of the next
   const PAIRED = new Set(Array.from("—―…‥"));
@@ -22,8 +22,11 @@
   // may start on whatever comes before, when the words they close or open are Chinese or
   // Japanese: a Latin word or a number set in the middle of the sentence ("书，OK吗？"). The
   // same marks in a Latin text ("Oui！？Non") stay with their words.
-  const ENDS_ANY = new Set(Array.from("、。，．：；？！）〕］｝〉》」』】〗〙〛"));
-  const STARTS_ANY = new Set(Array.from("（〔［｛〈《「『【〖〘〚"));
+  const ENDS_ANY = new Set(Array.from("、。，．：；？！）〕］｝〉》」』】〗〙〛”’"));
+  const STARTS_ANY = new Set(Array.from("（〔［｛〈《「『【〖〘〚“‘"));
+  // Full-width digits and Latin letters: the letters of a number or a word, not marks. A line
+  // breaks between one of them and an ideograph, never between two.
+  const WIDE_WORD = /[０-９Ａ-Ｚａ-ｚ]/;
   const has = (text) => WIDE.test(text);
   const wide = (ch) => Boolean(ch) && WIDE.test(ch);
   const gap = (ch) => ch === " " || ch === "\t" || ch === "\r" || ch === "\n";
@@ -34,7 +37,7 @@
   const LETTER = /[\u2E80-\u2FDF\u3005-\u3007\u3021-\u3029\u3038-\u303B\u3041-\u3096\u309D-\u309F\u30A1-\u30FA\u30FD-\u30FF\u3105-\u312F\u31A0-\u31BF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF66-\uFF9D\u{1B000}-\u{1B16F}\u{20000}-\u{3FFFF}]/u;
   // The marks Chinese shares with Latin text: quotes, dashes, ellipses
   const SHARED_MARKS = new Set(Array.from("“”‘’—―…‥·"));
-  const mark = (ch) => (WIDE.test(ch) && !LETTER.test(ch)) || SHARED_MARKS.has(ch);
+  const mark = (ch) => (WIDE.test(ch) && !LETTER.test(ch) && !WIDE_WORD.test(ch)) || SHARED_MARKS.has(ch);
   // What is carried by the character before it: an accent, a voicing mark, a variation selector
   const CARRIED = /^\p{M}/u;
   // Whether a line can end between these two characters with nothing added
@@ -47,7 +50,9 @@
   };
   // The places inside a text where a line can break without a space: null when it has none
   const breaksOf = (text) => {
-    if (!has(text)) return null;
+    // Only a text with an ideograph or a kana in it: full-width marks alone, in a Latin text,
+    // break nothing
+    if (!LETTER.test(text)) return null;
     const breaks = new Set();
     const characters = Array.from(text);
     // The letter the marks before a place close, and the one the marks after it open: the
@@ -70,7 +75,9 @@
       if (at > 0) {
         if (breaksBetween(before, ch)) breaks.add(at);
         else if (!gap(before) && !gap(ch) && !CARRIED.test(ch) && !NO_START.has(ch) && !NO_END.has(before) &&
-          ((ENDS_ANY.has(before) && LETTER.test(closed[i])) || (STARTS_ANY.has(ch) && LETTER.test(opened[i])))) breaks.add(at);
+          // A full-width mark is the sentence's own; a curly quote may be a Latin word's, and
+          // goes by the letters it holds
+          ((ENDS_ANY.has(before) && (wide(before) || LETTER.test(closed[i]))) || (STARTS_ANY.has(ch) && (wide(ch) || LETTER.test(opened[i]))))) breaks.add(at);
       }
       before = ch;
       at += ch.length;
