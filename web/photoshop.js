@@ -156,7 +156,7 @@
     return (number === undefined ? TEXT_LANGUAGE_NUMBERS[app.textDefaults.language] : number) || 0;
   };
   const textLanguageName = (number) => {
-    const language = TEXT_LANGUAGES.find((item) => item[1] === number);
+    const language = number == null ? null : TEXT_LANGUAGES.find((item) => item[1] === number);
     return language ? language[0] : undefined;
   };
   // The block has a number of its own for the three names the layer's data folds into others
@@ -15650,11 +15650,19 @@
   // Photoshop always names the unit, and the style window can't open without one. It is
   // this model's unit, whatever the style the layer was made from said.
   // The panel reads `size`: it is given the size the text shows, in the unit it is told
+  // Simplified Chinese has a number in a PSD and no name in Photoshop: its own layers say no
+  // language at all. A style the panel takes says none either, or TypeR for Photoshop would
+  // hand Photoshop a name it refuses. (A text the panel restyles keeps its own language.)
+  const languageForPanel = (textStyle) => {
+    if (textStyle && textStyle.textLanguage === "simplifiedChineseLanguage") delete textStyle.textLanguage;
+    return textStyle;
+  };
   const textProps = (layer, doc) => {
     const props = Object.assign(clone(layer.params), { typeUnit: typeUnitAt(doc.resolution) });
     ((props.layerText && props.layerText.textStyleRange) || []).forEach((range) => {
       if (range.textStyle && range.textStyle.impliedFontSize) range.textStyle.size = range.textStyle.impliedFontSize;
       lengthsInTypeUnit(range.textStyle, doc.resolution);
+      languageForPanel(range.textStyle);
     });
     // As Photoshop says it, beside the text's shape: a style the panel takes from a layer
     // drops the shape (a box, a point) and keeps this, so a vertical text makes a vertical style
@@ -16649,7 +16657,7 @@
             typeUnit: typeUnitAt(resolution),
             paragraphStyle: params.layerText.paragraphStyleRange[0].paragraphStyle,
             stroke: stroke || null,
-            runs: params.layerText.textStyleRange.map((range) => lengthsInTypeUnit(clone(range.textStyle), resolution)),
+            runs: params.layerText.textStyleRange.map((range) => languageForPanel(lengthsInTypeUnit(clone(range.textStyle), resolution))),
           })),
         });
       } catch (error) {

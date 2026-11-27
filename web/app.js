@@ -10492,6 +10492,14 @@
   const UNCHECKED_LANGUAGES = ["simplifiedChineseLanguage", "chineseLanguage", "japaneseLanguage"];
   const editedLanguage = (layer) => layer.params.layerText.textStyleRange[0].textStyle.textLanguage || app.textDefaults.language;
   const spellingChecked = (layer) => settings.spellcheck && !(layer && UNCHECKED_LANGUAGES.includes(editedLanguage(layer)));
+  // The language of the text being typed, for the spelling checker and the input method: when
+  // the edit starts, and when the Character panel changes it meanwhile
+  const languageToEditor = (layer) => {
+    const language = editedLanguage(layer);
+    ui.editor.spellcheck = spellingChecked(layer);
+    // An unchecked text still says its language, which the input method and the system follow
+    ui.editor.lang = SPELLING_LANGUAGES[language] || (UNCHECKED_LANGUAGES.includes(language) ? PS.languageTagOf(layer.params.layerText.textStyleRange[0].textStyle) : "");
+  };
   const SPELLING_LANGUAGES = { englishLanguage: "en-US", ukenglishLanguage: "en-GB", standardFrenchLanguage: "fr", canadianFrenchLanguage: "fr-CA", spanishLanguage: "es", italianLanguage: "it", germanLanguageReformed1996: "de", oldGermanLanguage: "de", standardPortugueseLanguage: "pt-PT", brazilianPortugueseLanguage: "pt-BR", kdutchLanguageOldRules: "nl", polishLanguage: "pl", russianLanguage: "ru", ukranianLanguage: "uk", turkishLanguage: "tr", koreanLanguage: "ko" };
 
   // `press`: the click that opened it, where the caret goes (`drag`: its button still down). A
@@ -10508,10 +10516,7 @@
     const { history, historyIndex } = app.doc;
     editing = { id: layer.id, isNew: Boolean(isNew), base: history[isNew ? Math.max(0, historyIndex - 1) : historyIndex].id };
     ui.editor.value = String(layer.params.layerText.textKey || "").replace(/\r/g, "\n");
-    const language = editedLanguage(layer);
-    ui.editor.spellcheck = spellingChecked(layer);
-    // An unchecked text still says its language, which the input method and the system follow
-    ui.editor.lang = SPELLING_LANGUAGES[language] || (UNCHECKED_LANGUAGES.includes(language) ? PS.languageTagOf(layer.params.layerText.textStyleRange[0].textStyle) : "");
+    languageToEditor(layer);
     ui.editor.hidden = false;
     placeEditor();
     ops.showTyped(typingOnPage() ? layer.id : null);
@@ -12829,7 +12834,11 @@
       language.appendChild(option);
     });
     language.value = style.textLanguage || app.textDefaults.language;
-    language.addEventListener("change", () => patchTypography({ textLanguage: language.value }));
+    language.addEventListener("change", () => {
+      patchTypography({ textLanguage: language.value });
+      const edited = editing && app.doc && app.doc.state.layers.find((item) => item.id === editing.id);
+      if (edited) languageToEditor(edited);
+    });
     const languageRow = labelled(T("Language"), language);
     languageRow.style.flex = "1";
     const typography = document.createElement("div");
